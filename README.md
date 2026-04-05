@@ -10,6 +10,8 @@
 
 导出结构体示例 / Exported structs example: [ReverseProber_04-06_01-26-58.log](misc/ReverseProber_04-06_01-26-58.log)
 
+探测原理 / How it works: [ReverseUE.md](source/UEProber/UECore/ReverseUE.md)（文档部分内容可能未及时更新 / Some parts may be outdated）
+
 ---
 
 <a id="中文"></a>
