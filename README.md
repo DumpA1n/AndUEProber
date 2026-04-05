@@ -108,6 +108,7 @@ Inject into a target app using [AndKittyInjector v5.1.0](https://github.com/MJx0
 
 ## Credits
 
+- [AndUEDumper](https://github.com/MJx0/AndUEDumper)
 - [AndKittyInjector](https://github.com/MJx0/AndKittyInjector)
 - [Dobby](https://github.com/jmpews/Dobby)
 - [AndSwapChainHook](https://github.com/DumpA1n/AndSwapChainHook)
