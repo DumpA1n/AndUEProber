@@ -56,6 +56,14 @@ namespace Offsets
 ./AndKittyInjector --package <包名> -lib libAndUEProber.so --memfd --hide --watch --delay 50
 ```
 
+### 已验证游戏
+
+| 游戏 | 版本 | GObjects | GetPlainANSIString | ProcessEventIdx |
+|------|------|----------|--------------------|-----------------| 
+| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A768` | `0x00000000` | `0x45` |
+| com.tencent.tmgp.nz | v1.0.30.860.0 | `0x1D67FD00` | `0x15A69F88` | `0x47` |
+| com.tencent.nrc | v1.100.0.88 | `0x0D9C06C8` | `0x08F57E1C` | `0x49` |
+
 ### Todo
 
 - [ ] 自动获取 GUObjectArray / GetPlainANSIString / ProcessEventIdx
@@ -101,6 +109,14 @@ Inject into a target app using [AndKittyInjector v5.1.0](https://github.com/MJx0
 ```bash
 ./AndKittyInjector --package <package_name> -lib libAndUEProber.so --memfd --hide --watch --delay 50
 ```
+
+### Verified Games
+
+| Game | Version | GObjects | GetPlainANSIString | ProcessEventIdx |
+|------|---------|----------|--------------------|-----------------|
+| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A768` | `0x00000000` | `0x45` |
+| com.tencent.tmgp.nz | v1.0.30.860.0 | `0x1D67FD00` | `0x15A69F88` | `0x47` |
+| com.tencent.nrc | v1.100.0.88 | `0x0D9C06C8` | `0x08F57E1C` | `0x49` |
 
 ### Todo
 
