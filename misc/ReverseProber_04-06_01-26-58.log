@@ -1,0 +1,125 @@
+// ===== By UEProber GetEngineVersion: "4.24.2-0+++UE4+Release-4.24" =====
+
+class UObject {
+public:
+    ~UObject() {}
+
+    void**                                            VTable;
+    class UClass*                                     Class;
+    class UObject*                                    Outer;
+    uint32                                            Flags;
+    FName                                             Name;
+    uint32                                            Index;
+};
+
+static_assert(alignof(UObject) == 0x000008, "Wrong alignment on UObject");
+static_assert(sizeof(UObject) == 0x000028, "Wrong size on UObject");
+static_assert(offsetof(UObject, VTable) == 0x000000, "Member 'UObject::VTable' has a wrong offset!");
+static_assert(offsetof(UObject, Class) == 0x000008, "Member 'UObject::Class' has a wrong offset!");
+static_assert(offsetof(UObject, Outer) == 0x000010, "Member 'UObject::Outer' has a wrong offset!");
+static_assert(offsetof(UObject, Flags) == 0x000018, "Member 'UObject::Flags' has a wrong offset!");
+static_assert(offsetof(UObject, Name) == 0x00001C, "Member 'UObject::Name' has a wrong offset!");
+static_assert(offsetof(UObject, Index) == 0x000024, "Member 'UObject::Index' has a wrong offset!");
+
+class UField : public UObject {
+public:
+    class UField*                                     Next;
+};
+
+static_assert(alignof(UField) == 0x000008, "Wrong alignment on UField");
+static_assert(sizeof(UField) == 0x000030, "Wrong size on UField");
+static_assert(offsetof(UField, Next) == 0x000028, "Member 'UField::Next' has a wrong offset!");
+
+class UStruct : public UField {
+public:
+    uint8                                             Pad_30[0xC];
+    int32                                             PropertiesSize;
+    class UStruct*                                    Super;
+    int32                                             MinAlignment;
+    uint8                                             Pad_4C[0x4];
+    class UField*                                     Children;
+    uint8                                             Pad_58[0x10];
+    class FField*                                     ChildProperties;
+    uint8                                             Pad_70[0x40];
+};
+
+static_assert(alignof(UStruct) == 0x000008, "Wrong alignment on UStruct");
+static_assert(sizeof(UStruct) == 0x0000B0, "Wrong size on UStruct");
+static_assert(offsetof(UStruct, PropertiesSize) == 0x00003C, "Member 'UStruct::PropertiesSize' has a wrong offset!");
+static_assert(offsetof(UStruct, Super) == 0x000040, "Member 'UStruct::Super' has a wrong offset!");
+static_assert(offsetof(UStruct, MinAlignment) == 0x000048, "Member 'UStruct::MinAlignment' has a wrong offset!");
+static_assert(offsetof(UStruct, Children) == 0x000050, "Member 'UStruct::Children' has a wrong offset!");
+static_assert(offsetof(UStruct, ChildProperties) == 0x000068, "Member 'UStruct::ChildProperties' has a wrong offset!");
+
+class UClass : public UStruct {
+public:
+    uint8                                             Pad_70[0x68];
+    EClassCastFlags                                   CastFlags;
+    uint8                                             Pad_E0[0x58];
+    class UObject*                                    DefaultObject;
+    uint8                                             Pad_140[0x140];
+};
+
+static_assert(alignof(UClass) == 0x000008, "Wrong alignment on UClass");
+static_assert(sizeof(UClass) == 0x000280, "Wrong size on UClass");
+static_assert(offsetof(UClass, CastFlags) == 0x0000D8, "Member 'UClass::CastFlags' has a wrong offset!");
+static_assert(offsetof(UClass, DefaultObject) == 0x000138, "Member 'UClass::DefaultObject' has a wrong offset!");
+
+class UFunction : public UStruct {
+public:
+    uint8                                             Pad_70[0x40];
+    uint8                                             NumParms;
+    uint8                                             Pad_B1[0x1];
+    uint16                                            ParmsSize;
+    uint16                                            ReturnValueOffset;
+    uint8                                             Pad_B6[0x2];
+    EFunctionFlags                                    FunctionFlags;
+    uint8                                             Pad_BC[0x1C];
+    FNativeFuncPtr                                    Func;
+};
+
+static_assert(alignof(UFunction) == 0x000008, "Wrong alignment on UFunction");
+static_assert(sizeof(UFunction) == 0x0000E0, "Wrong size on UFunction");
+static_assert(offsetof(UFunction, NumParms) == 0x0000B0, "Member 'UFunction::NumParms' has a wrong offset!");
+static_assert(offsetof(UFunction, ParmsSize) == 0x0000B2, "Member 'UFunction::ParmsSize' has a wrong offset!");
+static_assert(offsetof(UFunction, ReturnValueOffset) == 0x0000B4, "Member 'UFunction::ReturnValueOffset' has a wrong offset!");
+static_assert(offsetof(UFunction, FunctionFlags) == 0x0000B8, "Member 'UFunction::FunctionFlags' has a wrong offset!");
+static_assert(offsetof(UFunction, Func) == 0x0000D8, "Member 'UFunction::Func' has a wrong offset!");
+
+class FField {
+public:
+    ~FField() {}
+
+    void**                                            VTable;
+    FFieldVariant                                     Owner;
+    class FField*                                     Next;
+    class FFieldClass*                                ClassPrivate;
+    FName                                             NamePrivate;
+    EObjectFlags                                      FlagsPrivate;
+};
+
+static_assert(offsetof(FField, VTable) == 0x000000, "Member 'FField::VTable' has a wrong offset!");
+static_assert(offsetof(FField, Owner) == 0x000008, "Member 'FField::Owner' has a wrong offset!");
+static_assert(offsetof(FField, Next) == 0x000018, "Member 'FField::Next' has a wrong offset!");
+static_assert(offsetof(FField, ClassPrivate) == 0x000020, "Member 'FField::ClassPrivate' has a wrong offset!");
+static_assert(offsetof(FField, NamePrivate) == 0x000028, "Member 'FField::NamePrivate' has a wrong offset!");
+static_assert(offsetof(FField, FlagsPrivate) == 0x000030, "Member 'FField::FlagsPrivate' has a wrong offset!");
+
+class FProperty : public FField {
+public:
+    uint8                                             Pad_34[0x4];
+    int32                                             ArrayDim;
+    int32                                             ElementSize;
+    EPropertyFlags                                    PropertyFlags;
+    uint8                                             Pad_48[0x4];
+    int32                                             Offset_Internal;
+    uint8                                             Pad_50[0x38];
+};
+
+static_assert(alignof(FProperty) == 0x000008, "Wrong alignment on FProperty");
+static_assert(sizeof(FProperty) == 0x000088, "Wrong size on FProperty");
+static_assert(offsetof(FProperty, ArrayDim) == 0x000038, "Member 'FProperty::ArrayDim' has a wrong offset!");
+static_assert(offsetof(FProperty, ElementSize) == 0x00003C, "Member 'FProperty::ElementSize' has a wrong offset!");
+static_assert(offsetof(FProperty, PropertyFlags) == 0x000040, "Member 'FProperty::PropertyFlags' has a wrong offset!");
+static_assert(offsetof(FProperty, Offset_Internal) == 0x00004C, "Member 'FProperty::Offset_Internal' has a wrong offset!");
+

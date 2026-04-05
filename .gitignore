@@ -1,0 +1,11 @@
+build/
+.cache/
+.vscode/
+
+.idea/
+cmake-build-debug-system/
+cmake-build-release-system/
+
+.claude/
+
+.github/
