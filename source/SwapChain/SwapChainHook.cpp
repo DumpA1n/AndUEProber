@@ -342,19 +342,23 @@ static bool IsRotated90or270(VkSurfaceTransformFlagBitsKHR transform)
  * 但 ImGui 按横屏布局生成顶点。需要将横屏坐标映射到竖屏帧缓冲区。
  *
  * ROTATE_90 (90° CW):
- *   横屏 (x, y) → 竖屏 (fbW - y, x)
- *   裁剪矩形 (x1,y1,x2,y2) → (fbW - y2, x1, fbW - y1, x2)
+ *   横屏 (x, y) → 竖屏 (dispH - y, x)
+ *   裁剪矩形 (x1,y1,x2,y2) → (dispH - y2, x1, dispH - y1, x2)
  *
  * ROTATE_270 (270° CW = 90° CCW):
- *   横屏 (x, y) → 竖屏 (y, fbH - x)
- *   裁剪矩形 (x1,y1,x2,y2) → (y1, fbH - x2, y2, fbH - x1)
+ *   横屏 (x, y) → 竖屏 (y, dispW - x)
+ *   裁剪矩形 (x1,y1,x2,y2) → (y1, dispW - x2, y2, dispW - x1)
+ *
+ * 注意：旋转使用 DisplaySize（顶点实际坐标范围），而非 fbExtent（交换链像素）。
+ * 旋转后通过 FramebufferScale 将 rotated-display 坐标映射到交换链帧缓冲像素。
  */
 static void RotateImDrawData(ImDrawData *drawData,
                              VkSurfaceTransformFlagBitsKHR transform,
                              VkExtent2D fbExtent)
 {
-    float fbW = (float)fbExtent.width;
-    float fbH = (float)fbExtent.height;
+    // 顶点坐标所在的 DisplaySize 空间
+    float dispW = drawData->DisplaySize.x;
+    float dispH = drawData->DisplaySize.y;
 
     bool is90  = (transform & VK_SURFACE_TRANSFORM_ROTATE_90_BIT_KHR)  != 0;
     bool is270 = (transform & VK_SURFACE_TRANSFORM_ROTATE_270_BIT_KHR) != 0;
@@ -362,7 +366,7 @@ static void RotateImDrawData(ImDrawData *drawData,
     if (!is90 && !is270)
         return;
 
-    // 旋转所有顶点
+    // 旋转所有顶点（使用 DisplaySize 坐标域）
     for (int n = 0; n < drawData->CmdListsCount; n++)
     {
         ImDrawList *cmdList = drawData->CmdLists[n];
@@ -373,13 +377,13 @@ static void RotateImDrawData(ImDrawData *drawData,
             float y = v.pos.y;
             if (is90)
             {
-                v.pos.x = fbW - y;
+                v.pos.x = dispH - y;
                 v.pos.y = x;
             }
             else // is270
             {
                 v.pos.x = y;
-                v.pos.y = fbH - x;
+                v.pos.y = dispW - x;
             }
         }
 
@@ -393,18 +397,25 @@ static void RotateImDrawData(ImDrawData *drawData,
             float cy2 = cmd.ClipRect.w;
             if (is90)
             {
-                cmd.ClipRect = ImVec4(fbW - cy2, cx1, fbW - cy1, cx2);
+                cmd.ClipRect = ImVec4(dispH - cy2, cx1, dispH - cy1, cx2);
             }
             else // is270
             {
-                cmd.ClipRect = ImVec4(cy1, fbH - cx2, cy2, fbH - cx1);
+                cmd.ClipRect = ImVec4(cy1, dispW - cx2, cy2, dispW - cx1);
             }
         }
     }
 
-    // 更新 DisplaySize 为帧缓冲区实际尺寸，使渲染后端生成正确的投影矩阵
-    drawData->DisplaySize = ImVec2(fbW, fbH);
-    drawData->DisplayPos  = ImVec2(0, 0);
+    // 旋转后：顶点坐标范围从 (dispW × dispH) 变为 (dispH × dispW)
+    // 通过 FramebufferScale 将 rotated-display 坐标映射到实际交换链帧缓冲像素
+    float rotW = dispH;  // 旋转后的显示宽度
+    float rotH = dispW;  // 旋转后的显示高度
+    float fbW  = (float)fbExtent.width;
+    float fbH  = (float)fbExtent.height;
+
+    drawData->DisplaySize      = ImVec2(rotW, rotH);
+    drawData->DisplayPos       = ImVec2(0, 0);
+    drawData->FramebufferScale = ImVec2(fbW / rotW, fbH / rotH);
 }
 
 /**
@@ -832,6 +843,13 @@ static VkResult VKAPI_CALL Hooked_vkQueuePresentKHR(
         // --- ImGui 新帧 ---
         ImGui_ImplVulkan_NewFrame();
         ImGui_ImplAndroid_NewFrame();
+
+        {
+            ImGuiIO &io = ImGui::GetIO();
+            g_Width  = (int)io.DisplaySize.x;
+            g_Height = (int)io.DisplaySize.y;
+        }
+
         ImGui::NewFrame();
         ImGuiSoftKeyboard::PreUpdate();
 
