@@ -10,6 +10,8 @@
 
 #include <atomic>
 #include <chrono>
+#include <cstdlib>
+#include <sys/mman.h>
 #include <thread>
 
 void main_thread()
@@ -30,6 +32,18 @@ void main_thread()
 	}
 
 	LOGI("Waiting for valid android_app* via JNI...");
+
+	if (std::string(getprogname()).starts_with("com.tencent"))
+	{
+		std::thread([]()
+		{
+			while (true)
+			{
+				mprotect((void*)Elf.UE4().bss(), Elf.UE4().bssSize(), PROT_READ | PROT_WRITE);
+				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+			}
+		}).detach();
+	}
 
 	while (!(g_App = AndroidApp::FindAndroidAppViaJNI()))
 		std::this_thread::sleep_for(std::chrono::milliseconds(10));
