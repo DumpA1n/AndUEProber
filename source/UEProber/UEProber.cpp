@@ -3004,42 +3004,18 @@ void UEProber::Draw(bool* p_open) {
 
     // 菜单栏
     if (ImGui::BeginMenuBar()) {
-        if (ImGui::BeginMenu("操作")) {
-            if (ImGui::MenuItem("导出结果")) m_CurrentPhase = 99;
-            if (ImGui::MenuItem("Dump (AndUEDumper)")) m_CurrentPhase = 100;
-            ImGui::Separator();
+        if (ImGui::BeginMenu("探测选项")) {
             if (ImGui::MenuItem("全部自动探测")) {
                 Phase1_AutoProbe();
-                if (HasConfirmed("UObject::NamePrivate") || GetResult("UObject::NamePrivate").autoDetected) {
-                    if (!HasConfirmed("UObject::NamePrivate")) GetResult("UObject::NamePrivate").confirmed = true;
-                    if (!HasConfirmed("UObject::ClassPrivate") && GetResult("UObject::ClassPrivate").autoDetected)
-                        GetResult("UObject::ClassPrivate").confirmed = true;
-                    if (!HasConfirmed("UObject::OuterPrivate") && GetResult("UObject::OuterPrivate").autoDetected)
-                        GetResult("UObject::OuterPrivate").confirmed = true;
-                    if (!HasConfirmed("UObject::InternalIndex") && GetResult("UObject::InternalIndex").autoDetected)
-                        GetResult("UObject::InternalIndex").confirmed = true;
-                    Phase2_AutoProbe();
-                    if (GetResult("UStruct::SuperStruct").autoDetected && !HasConfirmed("UStruct::SuperStruct"))
-                        GetResult("UStruct::SuperStruct").confirmed = true;
-                    if (GetResult("UStruct::PropertiesSize").autoDetected && !HasConfirmed("UStruct::PropertiesSize"))
-                        GetResult("UStruct::PropertiesSize").confirmed = true;
-                    if (GetResult("UStruct::Children").autoDetected && !HasConfirmed("UStruct::Children"))
-                        GetResult("UStruct::Children").confirmed = true;
-                    if (GetResult("UStruct::ChildProperties").autoDetected && !HasConfirmed("UStruct::ChildProperties"))
-                        GetResult("UStruct::ChildProperties").confirmed = true;
-                    if (GetResult("UField::Next").autoDetected && !HasConfirmed("UField::Next"))
-                        GetResult("UField::Next").confirmed = true;
-                    if (GetResult("UStruct::MinAlignment").autoDetected && !HasConfirmed("UStruct::MinAlignment"))
-                        GetResult("UStruct::MinAlignment").confirmed = true;
-                    Phase3_AutoProbe();
-                    if (GetResult("UClass::ClassDefaultObject").autoDetected && !HasConfirmed("UClass::ClassDefaultObject"))
-                        GetResult("UClass::ClassDefaultObject").confirmed = true;
-                    Phase4_AutoProbe();
-                    Phase5_AutoProbe();
-                    Phase6_AutoProbe();
-                }
+                Phase2_AutoProbe();
+                Phase3_AutoProbe();
+                Phase4_AutoProbe();
+                Phase5_AutoProbe();
+                Phase6_AutoProbe();
             }
-            if (ImGui::MenuItem("清空结果")) {
+            if (ImGui::MenuItem("导出探测结果")) m_CurrentPhase = 99;
+            if (ImGui::MenuItem("探测结果总览")) m_CurrentPhase = 100;
+            if (ImGui::MenuItem("清空探测结果")) {
                 m_Results.clear();
                 m_Log.clear();
             }
@@ -3052,7 +3028,7 @@ void UEProber::Draw(bool* p_open) {
     ImGui::Separator();
 
     switch (m_CurrentPhase) {
-        case 0: DrawResultsSummary(); break;
+        case 0: DrawDumpPanel(); break;
         case 1: DrawPhase1(); break;
         case 2: DrawPhase2(); break;
         case 3: DrawPhase3(); break;
@@ -3060,7 +3036,7 @@ void UEProber::Draw(bool* p_open) {
         case 5: DrawPhase5(); break;
         case 6: DrawPhase6(); break;
         case 99: DrawExportPanel(); break;
-        case 100: DrawDumpPanel(); break;
+        case 100: DrawResultsSummary(); break;
     }
 
     ImGui::End();
@@ -3072,7 +3048,7 @@ void UEProber::Draw(bool* p_open) {
 
 void UEProber::DrawPhaseSelector() {
     static const char* phaseNames[] = {
-        "总览", "1.UObject", "2.UField/UStruct", "3.UClass",
+        "Dump", "1.UObject", "2.UField/UStruct", "3.UClass",
         "4.UFunction", "5.FField/FProperty", "6.ProcessEvent"
     };
     static const ImVec4 statusColors[] = {
@@ -3937,7 +3913,19 @@ void UEProber::DrawDumpPanel() {
 
     if (m_GObjectsInitialized) {
         ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "GObjects 和 FName 已初始化，探测功能已就绪。");
-        ImGui::TextWrapped("请使用阶段 1~6 进行偏移探测，完成后返回此面板执行 Dump。");
+        ImGui::Spacing();
+
+        if (ImGui::Button("全部自动探测 (阶段 1~6)")) {
+            Phase1_AutoProbe();
+            Phase2_AutoProbe();
+            Phase3_AutoProbe();
+            Phase4_AutoProbe();
+            Phase5_AutoProbe();
+            Phase6_AutoProbe();
+            LogSuccess("全部自动探测完成");
+        }
+        ImGui::SameLine();
+        ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "一键执行所有阶段的自动探测");
     }
 
     ImGui::Spacing();
