@@ -18,7 +18,7 @@ using namespace UC;
 namespace Offsets
 {
 	constexpr int32 GObjects           = 0x1A36A768;
-	constexpr int32 GetPlainANSIString = 0x00000000;
+	constexpr int32 GetPlainANSIString = 0x00000000; // FName::GetPlainANSIString offset (also update the FName::GetPlainANSIString function implementation)
 	constexpr int32 ProcessEventIdx    = 0x00000045;
 }
 
@@ -308,6 +308,9 @@ class FName final
 public:
 	static inline void*                           AppendString = nullptr;                            // 0x0000(0x0004)(NOT AUTO-GENERATED PROPERTY)
 
+	// Runtime name resolver — set by DumpIntegration to use profile's GetNameByID
+	static inline std::function<std::string(int32_t)> s_NameResolver;
+
 #define bWITH_CASE_PRESERVING_NAME false
 #if !bWITH_CASE_PRESERVING_NAME
 	union {
@@ -320,15 +323,6 @@ public:
 	uint32                                        Number;                                            // 0x0008(0x0004)(NOT AUTO-GENERATED PROPERTY)
 
 public:
-	// static void InitInternal()
-	// {
-	// 	AppendString = reinterpret_cast<void*>(InSDKUtils::GetImageBase() + Offsets::AppendString);
-	// }
-	// static void InitManually(void* Location)
-	// {
-	// 	AppendString = reinterpret_cast<void*>(Location);
-	// }
-
 	int32 GetDisplayIndex() const
 	{
 		return DisplayIndex;
@@ -336,13 +330,12 @@ public:
 
 	static std::string GetPlainANSIString(const FName* Name)
 	{
-		// using GetPlainANSIString_t = void (*)(const FName*, char*);
+		// If a runtime resolver is set (from profile's GetNameByID), use it
+		if (s_NameResolver) {
+			return s_NameResolver(Name->ComparisonIndex);
+		}
 
-		// char buf[1024];
-		// ((GetPlainANSIString_t)(Elf.UE4().base() + Offsets::GetPlainANSIString))(Name, buf);
-
-		// return std::string(buf);
-
+		// Fallback: hardcoded DeltaForce FNamePool access
 		char buf[1024] = {0};
 		uint32_t v10 = Name->ComparisonIndex;
         uint16_t *v16 = (uint16_t *)(*(uint64_t *)(Elf.UE4().base() + 0x1A343A00 + ((v10 >> 15) & 0x1FFF8) + 56) + 2 * (v10 & 0x3FFFFLL));

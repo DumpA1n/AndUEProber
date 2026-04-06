@@ -1,11 +1,13 @@
 #pragma once
 
+#include <atomic>
 #include <cstdint>
 #include <map>
 #include <string>
 #include <vector>
 
 #include "imgui/imgui.h"
+#include "DumpIntegration.h"
 
 // ============================================================
 //  UEProber — UE 结构逆向探测工具
@@ -143,6 +145,12 @@ private:
     void DrawMemoryDump(uintptr_t address, int32_t size, const std::string& label);
     void DrawExportPanel();
 
+    // ======================== Dump 集成 ========================
+
+    void DrawDumpPanel();
+    void DetectGame();             // 自动检测游戏, 初始化 GObjects 和 FName 解析
+    void StartDump();              // 使用探测到的偏移触发 dump 线程
+
     // ======================== 验证工具 ========================
 
     void CallGetEngineVersion();   // 调用 UKismetSystemLibrary::GetEngineVersion 打印版本
@@ -255,4 +263,14 @@ private:
 
     // 缓存的引擎版本
     std::string m_EngineVersion;
+
+    // ======================== Dump 状态 ========================
+    std::atomic<EDumpStatus> m_DumpStatus{EDumpStatus::Idle};
+    std::string m_DumpError;
+    std::string m_DumpOutputDir;
+
+    // ======================== 游戏检测状态 ========================
+    GameDetectionResult m_GameDetection;
+    bool m_GameDetected = false;
+    bool m_GObjectsInitialized = false;  // GObjects 已从 profile 初始化
 };

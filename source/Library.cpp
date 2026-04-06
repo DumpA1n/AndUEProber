@@ -49,7 +49,7 @@ static std::atomic<bool> g_Initialized{false};
 extern "C" jint JNIEXPORT JNI_OnLoad(JavaVM* vm, void* key)
 {
 	// key 1337 is passed by injector
-	if (key != (void*)1337)
+	if (key != (void*)20030331)
 		return JNI_VERSION_1_6;
 
 	LOGI("JNI_OnLoad called by injector.");

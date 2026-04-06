@@ -1,4 +1,4 @@
-#include "UEProber.h"
+﻿#include "UEProber.h"
 
 #include "Core/ElfScannerManager.h"
 #include "UECore/CoreUObject_classes.h"
@@ -7,11 +7,14 @@
 #include "Utils/Logger.h"
 
 #include <algorithm>
+#include <chrono>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <format>
 #include <set>
+#include <thread>
+#include <unistd.h>
 
 // 探测器调试日志开关
 #define PROBER_DEBUG 1
@@ -3003,6 +3006,8 @@ void UEProber::Draw(bool* p_open) {
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("操作")) {
             if (ImGui::MenuItem("导出结果")) m_CurrentPhase = 99;
+            if (ImGui::MenuItem("Dump (AndUEDumper)")) m_CurrentPhase = 100;
+            ImGui::Separator();
             if (ImGui::MenuItem("全部自动探测")) {
                 Phase1_AutoProbe();
                 if (HasConfirmed("UObject::Name") || GetResult("UObject::Name").autoDetected) {
@@ -3055,6 +3060,7 @@ void UEProber::Draw(bool* p_open) {
         case 5: DrawPhase5(); break;
         case 6: DrawPhase6(); break;
         case 99: DrawExportPanel(); break;
+        case 100: DrawDumpPanel(); break;
     }
 
     ImGui::End();
@@ -3901,4 +3907,162 @@ void UEProber::DrawExportPanel() {
 
 void UEProber::DrawOffsetTable(const std::string& category) {
     // 此函数预留给更详细的分类表格
+}
+
+// ============================================================
+//  Dump 面板 (AndUEDumper 集成)
+// ============================================================
+
+void UEProber::DrawDumpPanel() {
+    ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "AndUEDumper 集成 Dump");
+    ImGui::Spacing();
+
+    // ---- 阶段 A: 游戏检测 ----
+    if (!m_GameDetected) {
+        ImGui::TextWrapped("点击下方按钮自动检测当前运行的游戏，获取 GObjects 和 FName 解析器。");
+        ImGui::Spacing();
+        if (ImGui::Button("检测游戏", ImVec2(200, 40))) {
+            DetectGame();
+        }
+        return;
+    }
+
+    // ---- 游戏已检测 ----
+    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "游戏: %s", m_GameDetection.gameName.c_str());
+    ImGui::Text("包名: %s", m_GameDetection.packageName.c_str());
+    ImGui::Text("UE Base: 0x%lX", m_GameDetection.ueBaseAddress);
+    ImGui::Text("GUObjectArrayPtr: 0x%lX", m_GameDetection.guobjectArrayPtr);
+    ImGui::Text("Objects Field Addr: 0x%lX", m_GameDetection.objectsFieldAddr);
+    ImGui::Spacing();
+
+    if (m_GObjectsInitialized) {
+        ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "GObjects 和 FName 已初始化，探测功能已就绪。");
+        ImGui::TextWrapped("请使用阶段 1~6 进行偏移探测，完成后返回此面板执行 Dump。");
+    }
+
+    ImGui::Spacing();
+    ImGui::Separator();
+    ImGui::Spacing();
+
+    // ---- 阶段 B: Dump (需要探测完成) ----
+    EDumpStatus status = m_DumpStatus.load();
+    switch (status) {
+        case EDumpStatus::Idle:
+            ImGui::Text("Dump 状态: 空闲");
+            break;
+        case EDumpStatus::Running:
+            ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "Dump 状态: 正在 Dump...");
+            break;
+        case EDumpStatus::Success:
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "Dump 状态: 成功!");
+            if (!m_DumpOutputDir.empty())
+                ImGui::Text("输出目录: %s", m_DumpOutputDir.c_str());
+            break;
+        case EDumpStatus::Failed:
+            ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f), "Dump 状态: 失败");
+            if (!m_DumpError.empty())
+                ImGui::TextWrapped("错误: %s", m_DumpError.c_str());
+            break;
+    }
+
+    ImGui::Spacing();
+
+    bool canDump = (status != EDumpStatus::Running);
+    if (!canDump) ImGui::BeginDisabled();
+
+    if (ImGui::Button("开始 Dump (使用探测偏移)", ImVec2(280, 40))) {
+        StartDump();
+    }
+
+    if (!canDump) ImGui::EndDisabled();
+
+    ImGui::SameLine();
+    ImGui::TextWrapped("将当前探测到的偏移发送给 AndUEDumper 进行 SDK dump。");
+}
+
+void UEProber::DetectGame() {
+    if (m_GameDetected) return;
+
+    GameDetectionResult result;
+    if (!DetectAndPrepareGame(result)) {
+        LogError("游戏检测失败: 没有匹配的 Profile 或初始化失败");
+        return;
+    }
+
+    m_GameDetection = result;
+    m_GameDetected = true;
+
+    LogSuccess(std::format("检测到游戏: {} ({})", result.gameName, result.packageName));
+    LogInfo(std::format("UE Base: 0x{:X}, GUObjectArray: 0x{:X}, ObjectsFieldAddr: 0x{:X}",
+                         result.ueBaseAddress, result.guobjectArrayPtr, result.objectsFieldAddr));
+
+    // ---- 初始化 GObjects: 使用 profile 提供的地址, 在进程内读取 Objects 指针 ----
+    auto* objArray = new TUObjectArray();
+    objArray->Objects = KT::Read<FUObjectItem**>(result.objectsFieldAddr);
+    objArray->MaxElements = 327680;
+    objArray->NumElements = 327680;
+    objArray->MaxChunks = 5;
+    objArray->NumChunks = 5;
+    UObject::GObjects.InitManually(objArray);
+    m_GObjectsInitialized = true;
+
+    LogSuccess("GObjects 初始化完成 (来自 Profile::GetGUObjectArrayPtr)");
+
+    // ---- 设置 FName 解析器: 使用 profile 的 GetNameByID ----
+    FName::s_NameResolver = [](int32_t id) -> std::string {
+        return ProfileGetNameByID(id);
+    };
+
+    LogSuccess("FName 解析器已设置 (来自 Profile::GetNameByID)");
+}
+
+void UEProber::StartDump() {
+    if (m_DumpStatus.load() == EDumpStatus::Running)
+        return;
+
+    if (!m_GameDetected) {
+        m_DumpError = "请先检测游戏。";
+        m_DumpStatus.store(EDumpStatus::Failed);
+        return;
+    }
+
+    // 从探测结果中收集 ProbedOffsets
+    ProbedOffsets offsets{};
+
+    // UObject
+    if (HasConfirmed("UObject::ObjectFlags"))   offsets.objFlags = GetConfirmedOffset("UObject::ObjectFlags");
+    if (HasConfirmed("UObject::Index"))          offsets.objIndex = GetConfirmedOffset("UObject::Index");
+    if (HasConfirmed("UObject::Class"))          offsets.objClass = GetConfirmedOffset("UObject::Class");
+    if (HasConfirmed("UObject::Name"))           offsets.objName  = GetConfirmedOffset("UObject::Name");
+    if (HasConfirmed("UObject::Outer"))          offsets.objOuter = GetConfirmedOffset("UObject::Outer");
+
+    // UField
+    if (HasConfirmed("UField::Next"))            offsets.fieldNext = GetConfirmedOffset("UField::Next");
+
+    // UStruct
+    if (HasConfirmed("UStruct::SuperStruct"))    offsets.structSuper     = GetConfirmedOffset("UStruct::SuperStruct");
+    if (HasConfirmed("UStruct::Children"))       offsets.structChildren  = GetConfirmedOffset("UStruct::Children");
+    if (HasConfirmed("UStruct::ChildProperties")) offsets.structChildProps = GetConfirmedOffset("UStruct::ChildProperties");
+    if (HasConfirmed("UStruct::PropertiesSize")) offsets.structSize      = GetConfirmedOffset("UStruct::PropertiesSize");
+
+    // UFunction
+    if (HasConfirmed("UFunction::FunctionFlags")) offsets.funcFlags    = GetConfirmedOffset("UFunction::FunctionFlags");
+    if (HasConfirmed("UFunction::NumParms"))       offsets.funcNumParams = GetConfirmedOffset("UFunction::NumParms");
+    if (HasConfirmed("UFunction::ParmsSize"))      offsets.funcParamSize = GetConfirmedOffset("UFunction::ParmsSize");
+    if (HasConfirmed("UFunction::Func"))           offsets.funcFunc      = GetConfirmedOffset("UFunction::Func");
+
+    // FField
+    if (HasConfirmed("FField::ClassPrivate"))     offsets.ffieldClass = GetConfirmedOffset("FField::ClassPrivate");
+    if (HasConfirmed("FField::Next"))             offsets.ffieldNext  = GetConfirmedOffset("FField::Next");
+    if (HasConfirmed("FField::NamePrivate"))      offsets.ffieldName  = GetConfirmedOffset("FField::NamePrivate");
+    if (HasConfirmed("FField::FlagsPrivate"))     offsets.ffieldFlags = GetConfirmedOffset("FField::FlagsPrivate");
+
+    // FProperty
+    if (HasConfirmed("FProperty::ArrayDim"))      offsets.fpropArrayDim = GetConfirmedOffset("FProperty::ArrayDim");
+    if (HasConfirmed("FProperty::ElementSize"))   offsets.fpropElemSize = GetConfirmedOffset("FProperty::ElementSize");
+    if (HasConfirmed("FProperty::PropertyFlags")) offsets.fpropFlags    = GetConfirmedOffset("FProperty::PropertyFlags");
+    if (HasConfirmed("FProperty::Offset_Internal")) offsets.fpropOffset = GetConfirmedOffset("FProperty::Offset_Internal");
+    if (HasConfirmed("FProperty::Size"))           offsets.fpropSize    = GetConfirmedOffset("FProperty::Size");
+
+    StartDumpWithProbedOffsets(offsets, m_DumpStatus, m_DumpError, m_DumpOutputDir);
 }

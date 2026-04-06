@@ -35,12 +35,37 @@
 // hook 策略
 enum class HookStrategy { EGL, VkCreateInstance, VkGIPA_Pointer, VkGIPA_Thunk };
 
-// 指定要使用的 hook 策略
-//   EGL              — 方案1: hook eglSwapBuffers (OpenGL)
-//   VkCreateInstance — 方案2: hook vkCreateInstance (Vulkan)
-//   VkGIPA_Pointer   — 方案3: hook vkGetInstanceProcAddr 指针 (UE + Vulkan)
-//   VkGIPA_Thunk     — 方案4: hook vkGetInstanceProcAddr thunk (UE + Vulkan)
-constexpr HookStrategy g_HookStrategy = HookStrategy::VkGIPA_Thunk;
+// EGL              — 方案1: hook eglSwapBuffers (OpenGL)
+// VkCreateInstance — 方案2: hook vkCreateInstance (Vulkan)
+// VkGIPA_Pointer   — 方案3: hook vkGetInstanceProcAddr 指针 (UE + Vulkan)
+// VkGIPA_Thunk     — 方案4: hook vkGetInstanceProcAddr thunk (UE + Vulkan)
+static constexpr HookStrategy kDefaultStrategy = HookStrategy::EGL;
+
+static const std::unordered_map<std::string, HookStrategy> kPackageStrategies = {
+    { "com.tencent.tmgp.dfm", HookStrategy::VkGIPA_Thunk },
+    { "com.tencent.tmgp.nz",  HookStrategy::VkGIPA_Thunk },
+    { "com.tencent.mf.uam",   HookStrategy::EGL },
+    { "com.tencent.nrc",      HookStrategy::EGL },
+    { "com.tencent.ig",       HookStrategy::EGL },
+};
+
+static HookStrategy ResolveHookStrategy()
+{
+    const char* progName = getprogname();
+    if (progName)
+    {
+        auto it = kPackageStrategies.find(progName);
+        if (it != kPackageStrategies.end())
+        {
+            LOGI("[SwapChainHook] Package '%s' matched strategy %d", progName, (int)it->second);
+            return it->second;
+        }
+        LOGI("[SwapChainHook] Package '%s' not in strategy table, using default %d", progName, (int)kDefaultStrategy);
+    }
+    return kDefaultStrategy;
+}
+
+static const HookStrategy g_HookStrategy = ResolveHookStrategy();
 
 static std::atomic<bool>           g_Installed{false};
 static std::atomic<bool>           g_ImGuiReady{false};
