@@ -2833,56 +2833,34 @@ void UEProber::Phase5_AutoProbe() {
 
 void UEProber::Phase6_ScanProcessEvent() {
     m_Phase6ProcessEventCandidates.clear();
-    LogInfo("探测 ProcessEvent VTable 索引");
+    LogInfo("探测 ProcessEvent VTable 索引 (via Profile::findProcessEvent)");
 
-    // ProcessEvent 特征: 在 VTable 中遍历，找到函数签名匹配的
     uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
     if (!obj0 || !IsValidPtr(obj0)) {
         LogError("无法获取 obj[0]");
         return;
     }
 
-    uintptr_t vtable = 0;
-    if (!ReadMem(obj0, &vtable, 8) || !IsValidPtr(vtable)) {
-        LogError("无法读取 VTable");
+    uintptr_t peAddr = 0;
+    int peIndex = -1;
+    if (!ProfileFindProcessEvent(reinterpret_cast<uint8_t*>(obj0), &peAddr, &peIndex)) {
+        LogError("Profile::findProcessEvent 未找到 ProcessEvent");
         return;
     }
 
-    uintptr_t textStart = GetTextSegStart();
-    uintptr_t textEnd = GetTextSegEnd();
+    LogSuccess(std::format("findProcessEvent => index=0x{:X}, addr={}", peIndex, FormatPtr(peAddr)));
 
-    // 遍历 VTable 中的函数指针
-    for (int32_t idx = 0; idx < 0x200; ++idx) {
-        uintptr_t funcPtr = 0;
-        if (!ReadMem(vtable + idx * 8, &funcPtr, 8)) break;
+    m_Phase6ProcessEventCandidates.push_back({
+        peIndex, peAddr,
+        std::format("VTable[0x{:X}] = {} [Profile]", peIndex, FormatPtr(peAddr)),
+        1.0f
+    });
 
-        // 检查是否在 .text 段范围内
-        if (funcPtr < textStart || funcPtr >= textEnd)
-            continue;
-
-        // ProcessEvent 是虚函数，暂时只列出所有有效索引
-        // 需要用户结合已知索引确认
-        if (idx >= 0x40 && idx <= 0x80) {
-            m_Phase6ProcessEventCandidates.push_back({
-                idx, funcPtr,
-                std::format("VTable[0x{:X}] = {}", idx, FormatPtr(funcPtr)),
-                0.3f
-            });
-        }
-    }
-
-    // 如果 SDK 中已有 ProcessEventIdx, 高亮它
-    if (Offsets::ProcessEventIdx != 0) {
-        for (auto& c : m_Phase6ProcessEventCandidates) {
-            if (c.offset == Offsets::ProcessEventIdx) {
-                c.confidence = 1.0f;
-                c.description += " [SDK已知]";
-            }
-        }
-    }
-
-    std::sort(m_Phase6ProcessEventCandidates.begin(), m_Phase6ProcessEventCandidates.end(),
-        [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
+    auto& result = GetResult("ProcessEvent::VTableIdx");
+    result.offset = peIndex;
+    result.autoDetected = true;
+    result.confirmed = true;
+    result.evidence = std::format("Profile::findProcessEvent addr={}", FormatPtr(peAddr));
 }
 
 void UEProber::Phase6_AutoProbe() {
@@ -3534,9 +3512,6 @@ void UEProber::DrawPhase5() {
 void UEProber::DrawPhase6() {
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "阶段 6: ProcessEvent VTable 索引");
     ImGui::TextWrapped("确定 UObject::ProcessEvent 在虚函数表中的索引");
-    ImGui::Spacing();
-
-    ImGui::Text("SDK 已知索引: 0x%X", Offsets::ProcessEventIdx);
     ImGui::Spacing();
 
     if (ImGui::Button("扫描 VTable")) {

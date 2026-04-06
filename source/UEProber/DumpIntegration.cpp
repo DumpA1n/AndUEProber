@@ -192,6 +192,14 @@ std::string ProfileGetNameByID(int32_t id)
     return g_ExProfile->PublicGetNameByID(id);
 }
 
+bool ProfileFindProcessEvent(uint8_t* uObject, uintptr_t* pe_address_out, int* pe_index_out)
+{
+    if (!g_ExProfile)
+        return false;
+
+    return g_ExProfile->AsGameProfile()->findProcessEvent(uObject, pe_address_out, pe_index_out);
+}
+
 // ============================================================
 //  Phase 2: Dump with probed offsets
 // ============================================================

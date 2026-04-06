@@ -28,6 +28,10 @@ bool DetectAndPrepareGame(GameDetectionResult& result);
 // Only valid after DetectAndPrepareGame returns true.
 std::string ProfileGetNameByID(int32_t id);
 
+// Call the matched profile's findProcessEvent.
+// Returns true if found; writes absolute address and vtable index.
+bool ProfileFindProcessEvent(uint8_t* uObject, uintptr_t* pe_address_out, int* pe_index_out);
+
 // ============================================================
 //  Phase 2: After UEProber probing — set offsets and dump
 // ============================================================
