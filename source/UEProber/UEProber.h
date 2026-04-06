@@ -70,7 +70,7 @@ private:
 
     // 沿 Children→Next 链查找指定名称的 UFunction
     uintptr_t WalkChildrenChain(uintptr_t classAddr, const std::string& funcName,
-                                int32_t childrenOff, int32_t nextOff, int32_t nameOff);
+                                int32_t childrenOff, int32_t nextOff, int32_t namePrivateOff);
 
     // 获取结构 Size: 按名称 ("UObject"/"UStruct"/"UClass"/"UFunction"/"UField") 或按地址
     int32_t GetStructSize(const std::string& structName);
@@ -79,16 +79,16 @@ private:
     // ======================== 阶段 1: UObject 基础成员 ========================
 
     void Phase1_AutoProbe();
-    void Phase1_ProbeIndex(uintptr_t objAddr, int32_t expectedIndex);
-    void Phase1_ProbeName(uintptr_t objAddr, const std::string& expectedName);
-    void Phase1_ProbeClass(uintptr_t objAddr, const std::string& expectedClassName);
-    void Phase1_ProbeOuter(uintptr_t obj2Addr, uintptr_t obj1Addr);
-    void Phase1_ProbeFlags(uintptr_t objAddr);
+    void Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedIndex);
+    void Phase1_ProbeNamePrivate(uintptr_t objAddr, const std::string& expectedName);
+    void Phase1_ProbeClassPrivate(uintptr_t objAddr, const std::string& expectedClassName);
+    void Phase1_ProbeOuterPrivate(uintptr_t obj2Addr, uintptr_t obj1Addr);
+    void Phase1_ProbeObjectFlags(uintptr_t objAddr);
 
     // ======================== 阶段 2: UField / UStruct ========================
 
     void Phase2_AutoProbe();
-    void Phase2_ProbeSuper(uintptr_t classAddr);
+    void Phase2_ProbeSuperStruct(uintptr_t classAddr);
     void Phase2_ProbePropertiesSize(uintptr_t execUbergraph, uintptr_t objectUClass);
     void Phase2_ProbeMinAlignment(uintptr_t execUbergraph, uintptr_t objectUClass);
     void Phase2_ProbeChildren(uintptr_t classAddr);
@@ -99,7 +99,7 @@ private:
 
     void Phase3_AutoProbe();
     void Phase3_ProbeCastFlags();
-    void Phase3_ProbeDefaultObject(uintptr_t classAddr);
+    void Phase3_ProbeClassDefaultObject(uintptr_t classAddr);
 
     // ======================== 阶段 4: UFunction ========================
 
@@ -184,19 +184,19 @@ private:
     std::map<std::string, OffsetResult> m_Results;
 
     // 各阶段扫描候选项
-    std::vector<ScanCandidate> m_Phase1IndexCandidates;
-    std::vector<ScanCandidate> m_Phase1NameCandidates;
-    std::vector<ScanCandidate> m_Phase1ClassCandidates;
-    std::vector<ScanCandidate> m_Phase1OuterCandidates;
-    std::vector<ScanCandidate> m_Phase1FlagsCandidates;
+    std::vector<ScanCandidate> m_Phase1InternalIndexCandidates;
+    std::vector<ScanCandidate> m_Phase1NamePrivateCandidates;
+    std::vector<ScanCandidate> m_Phase1ClassPrivateCandidates;
+    std::vector<ScanCandidate> m_Phase1OuterPrivateCandidates;
+    std::vector<ScanCandidate> m_Phase1ObjectFlagsCandidates;
 
-    std::vector<ScanCandidate> m_Phase2SuperCandidates;
+    std::vector<ScanCandidate> m_Phase2SuperStructCandidates;
     std::vector<ScanCandidate> m_Phase2SizeCandidates;
     std::vector<ScanCandidate> m_Phase2ChildrenCandidates;
     std::vector<ScanCandidate> m_Phase2ChildPropsCandidates;
     std::vector<ScanCandidate> m_Phase2NextCandidates;
     std::vector<ScanCandidate> m_Phase2MinAlignCandidates;
-    std::vector<ScanCandidate> m_Phase2DefaultObjCandidates;
+    std::vector<ScanCandidate> m_Phase2ClassDefaultObjCandidates;
 
     std::vector<ScanCandidate> m_Phase3CastFlagsCandidates;
 

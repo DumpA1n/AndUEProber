@@ -1,4 +1,4 @@
-﻿#include "UEProber.h"
+#include "UEProber.h"
 
 #include "Core/ElfScannerManager.h"
 #include "UECore/CoreUObject_classes.h"
@@ -151,11 +151,11 @@ bool UEProber::IsValidPtr(uintptr_t ptr) {
 }
 
 uintptr_t UEProber::FindObjectInGObjects(const std::string& targetName, const std::string& className) {
-    int32_t nameOffset = GetConfirmedOffset("UObject::Name");
-    int32_t classOffset = GetConfirmedOffset("UObject::Class");
-    if (nameOffset < 0) return 0;
+    int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
+    if (namePrivateOffset < 0) return 0;
 
-    bool filterByClass = !className.empty() && classOffset >= 0;
+    bool filterByClass = !className.empty() && classPrivateOffset >= 0;
     int32_t count = UObject::GObjects->Num();
 
     for (int32_t i = 1; i < count; ++i) {
@@ -164,13 +164,13 @@ uintptr_t UEProber::FindObjectInGObjects(const std::string& targetName, const st
 
         if (filterByClass) {
             uintptr_t objClass = 0;
-            if (!ReadMem(obj + classOffset, &objClass, 8) || !IsValidPtr(objClass)) continue;
+            if (!ReadMem(obj + classPrivateOffset, &objClass, 8) || !IsValidPtr(objClass)) continue;
             std::string clsName;
-            if (!TryReadFName(objClass + nameOffset, clsName) || !FNameEq(clsName, className)) continue;
+            if (!TryReadFName(objClass + namePrivateOffset, clsName) || !FNameEq(clsName, className)) continue;
         }
 
         std::string name;
-        if (!TryReadFName(obj + nameOffset, name)) continue;
+        if (!TryReadFName(obj + namePrivateOffset, name)) continue;
         if (FNameEq(name, targetName)) return obj;
     }
     return 0;
@@ -297,8 +297,8 @@ void UEProber::LogError(const std::string& text) {
 //  阶段 1: UObject 基础成员探测
 // ============================================================
 
-void UEProber::Phase1_ProbeIndex(uintptr_t objAddr, int32_t expectedIndex) {
-    m_Phase1IndexCandidates.clear();
+void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedIndex) {
+    m_Phase1InternalIndexCandidates.clear();
     LogInfo(std::format("探测 UObject::Index @ {}, 期望值={}", FormatPtr(objAddr), expectedIndex));
 
     for (int32_t off = 0; off < m_ProbeRange; off += 4) {
@@ -318,7 +318,7 @@ void UEProber::Phase1_ProbeIndex(uintptr_t objAddr, int32_t expectedIndex) {
             }
             confidence = (float)crossMatch / 4.0f;
 
-            m_Phase1IndexCandidates.push_back({
+            m_Phase1InternalIndexCandidates.push_back({
                 off, val,
                 std::format("在 obj[{}] 偏移 0x{:X} 找到值 {}, 交叉验证 {}/4",
                     expectedIndex, off, val, crossMatch),
@@ -331,27 +331,27 @@ void UEProber::Phase1_ProbeIndex(uintptr_t objAddr, int32_t expectedIndex) {
         }
     }
 
-    std::sort(m_Phase1IndexCandidates.begin(), m_Phase1IndexCandidates.end(),
+    std::sort(m_Phase1InternalIndexCandidates.begin(), m_Phase1InternalIndexCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    if (!m_Phase1IndexCandidates.empty()) {
-        auto& best = m_Phase1IndexCandidates[0];
+    if (!m_Phase1InternalIndexCandidates.empty()) {
+        auto& best = m_Phase1InternalIndexCandidates[0];
         if (best.confidence >= 0.75f) {
-            auto& r = GetResult("UObject::Index");
+            auto& r = GetResult("UObject::InternalIndex");
             r.offset = best.offset;
             r.size = 4;
             r.typeName = "int32";
             r.evidence = best.description;
             r.autoDetected = true;
             if (best.confidence >= 1.0f) r.confirmed = true;
-            LogSuccess(std::format("UObject::Index 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
+            LogSuccess(std::format("UObject::InternalIndex 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
                 best.offset, best.confidence * 100, r.confirmed ? " [已自动确认]" : ""));
         }
     }
 }
 
-void UEProber::Phase1_ProbeName(uintptr_t objAddr, const std::string& expectedName) {
-    m_Phase1NameCandidates.clear();
+void UEProber::Phase1_ProbeNamePrivate(uintptr_t objAddr, const std::string& expectedName) {
+    m_Phase1NamePrivateCandidates.clear();
     LogInfo(std::format("探测 UObject::Name @ {}, 期望 ToString()=\"{}\"", FormatPtr(objAddr), expectedName));
 
     const int32_t maxRange = std::min(m_ProbeRange, 0x40);
@@ -380,7 +380,7 @@ void UEProber::Phase1_ProbeName(uintptr_t objAddr, const std::string& expectedNa
                 continue;
 
             if (confidence > 0.05f) {
-                m_Phase1NameCandidates.push_back({
+                m_Phase1NamePrivateCandidates.push_back({
                     off, 0,
                     std::format("偏移 0x{:X} -> ToString()=\"{}\", GetRawString()=\"{}\"",
                         off, toString, rawString),
@@ -396,26 +396,26 @@ void UEProber::Phase1_ProbeName(uintptr_t objAddr, const std::string& expectedNa
         }
     }
 
-    std::sort(m_Phase1NameCandidates.begin(), m_Phase1NameCandidates.end(),
+    std::sort(m_Phase1NamePrivateCandidates.begin(), m_Phase1NamePrivateCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    if (!m_Phase1NameCandidates.empty() && m_Phase1NameCandidates[0].confidence >= 0.9f) {
-        auto& best = m_Phase1NameCandidates[0];
-        auto& r = GetResult("UObject::Name");
+    if (!m_Phase1NamePrivateCandidates.empty() && m_Phase1NamePrivateCandidates[0].confidence >= 0.9f) {
+        auto& best = m_Phase1NamePrivateCandidates[0];
+        auto& r = GetResult("UObject::NamePrivate");
         r.offset = best.offset;
         r.size = 8;
         r.typeName = "FName";
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::Name 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
+        LogSuccess(std::format("UObject::NamePrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
     }
 }
 
-void UEProber::Phase1_ProbeClass(uintptr_t objAddr, const std::string& expectedClassName) {
-    m_Phase1ClassCandidates.clear();
-    int32_t nameOffset = GetConfirmedOffset("UObject::Name");
-    if (nameOffset < 0) {
+void UEProber::Phase1_ProbeClassPrivate(uintptr_t objAddr, const std::string& expectedClassName) {
+    m_Phase1ClassPrivateCandidates.clear();
+    int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    if (namePrivateOffset < 0) {
         LogWarning("需要先确定 UObject::Name 偏移才能探测 Class");
         return;
     }
@@ -428,7 +428,7 @@ void UEProber::Phase1_ProbeClass(uintptr_t objAddr, const std::string& expectedC
         if (!IsValidPtr(ptr)) continue;
 
         std::string name;
-        if (TryReadFName(ptr + nameOffset, name)) {
+        if (TryReadFName(ptr + namePrivateOffset, name)) {
             float confidence = 0.0f;
             if (name == expectedClassName)
                 confidence = 1.0f;
@@ -436,7 +436,7 @@ void UEProber::Phase1_ProbeClass(uintptr_t objAddr, const std::string& expectedC
                 confidence = 0.1f;
 
             if (confidence > 0.05f) {
-                m_Phase1ClassCandidates.push_back({
+                m_Phase1ClassPrivateCandidates.push_back({
                     off, ptr,
                     std::format("偏移 0x{:X} -> ptr {} -> Name = \"{}\"",
                         off, FormatPtr(ptr), name),
@@ -450,24 +450,24 @@ void UEProber::Phase1_ProbeClass(uintptr_t objAddr, const std::string& expectedC
         }
     }
 
-    std::sort(m_Phase1ClassCandidates.begin(), m_Phase1ClassCandidates.end(),
+    std::sort(m_Phase1ClassPrivateCandidates.begin(), m_Phase1ClassPrivateCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    if (!m_Phase1ClassCandidates.empty() && m_Phase1ClassCandidates[0].confidence >= 0.9f) {
-        auto& best = m_Phase1ClassCandidates[0];
-        auto& r = GetResult("UObject::Class");
+    if (!m_Phase1ClassPrivateCandidates.empty() && m_Phase1ClassPrivateCandidates[0].confidence >= 0.9f) {
+        auto& best = m_Phase1ClassPrivateCandidates[0];
+        auto& r = GetResult("UObject::ClassPrivate");
         r.offset = best.offset;
         r.size = 8;
         r.typeName = "UClass*";
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::Class 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
+        LogSuccess(std::format("UObject::ClassPrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
     }
 }
 
-void UEProber::Phase1_ProbeOuter(uintptr_t obj2Addr, uintptr_t obj1Addr) {
-    m_Phase1OuterCandidates.clear();
+void UEProber::Phase1_ProbeOuterPrivate(uintptr_t obj2Addr, uintptr_t obj1Addr) {
+    m_Phase1OuterPrivateCandidates.clear();
     LogInfo(std::format("探测 UObject::Outer @ {}, 期望指向 {}",
         FormatPtr(obj2Addr), FormatPtr(obj1Addr)));
 
@@ -476,7 +476,7 @@ void UEProber::Phase1_ProbeOuter(uintptr_t obj2Addr, uintptr_t obj1Addr) {
         if (!ReadMem(obj2Addr + off, &ptr, 8)) continue;
 
         if (ptr == obj1Addr) {
-            m_Phase1OuterCandidates.push_back({
+            m_Phase1OuterPrivateCandidates.push_back({
                 off, ptr,
                 std::format("偏移 0x{:X} -> ptr {} == obj[1] 地址", off, FormatPtr(ptr)),
                 1.0f
@@ -484,10 +484,10 @@ void UEProber::Phase1_ProbeOuter(uintptr_t obj2Addr, uintptr_t obj1Addr) {
             // 精确匹配则无需继续探测
             break;
         } else if (IsValidPtr(ptr)) {
-            int32_t nameOffset = GetConfirmedOffset("UObject::Name");
+            int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
             std::string name;
-            if (nameOffset >= 0 && TryReadFName(ptr + nameOffset, name)) {
-                m_Phase1OuterCandidates.push_back({
+            if (namePrivateOffset >= 0 && TryReadFName(ptr + namePrivateOffset, name)) {
+                m_Phase1OuterPrivateCandidates.push_back({
                     off, ptr,
                     std::format("偏移 0x{:X} -> ptr {} -> Name = \"{}\"",
                         off, FormatPtr(ptr), name),
@@ -497,24 +497,24 @@ void UEProber::Phase1_ProbeOuter(uintptr_t obj2Addr, uintptr_t obj1Addr) {
         }
     }
 
-    std::sort(m_Phase1OuterCandidates.begin(), m_Phase1OuterCandidates.end(),
+    std::sort(m_Phase1OuterPrivateCandidates.begin(), m_Phase1OuterPrivateCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    if (!m_Phase1OuterCandidates.empty() && m_Phase1OuterCandidates[0].confidence >= 0.9f) {
-        auto& best = m_Phase1OuterCandidates[0];
-        auto& r = GetResult("UObject::Outer");
+    if (!m_Phase1OuterPrivateCandidates.empty() && m_Phase1OuterPrivateCandidates[0].confidence >= 0.9f) {
+        auto& best = m_Phase1OuterPrivateCandidates[0];
+        auto& r = GetResult("UObject::OuterPrivate");
         r.offset = best.offset;
         r.size = 8;
         r.typeName = "UObject*";
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::Outer 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
+        LogSuccess(std::format("UObject::OuterPrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
     }
 }
 
-void UEProber::Phase1_ProbeFlags(uintptr_t objAddr) {
-    m_Phase1FlagsCandidates.clear();
+void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
+    m_Phase1ObjectFlagsCandidates.clear();
     LogInfo("探测 UObject::Flags (RF_xxx 位域)");
 
     // 排除已确定的偏移
@@ -546,7 +546,7 @@ void UEProber::Phase1_ProbeFlags(uintptr_t objAddr) {
         }
 
         float confidence = (float)validCount / 4.0f;
-        m_Phase1FlagsCandidates.push_back({
+        m_Phase1ObjectFlagsCandidates.push_back({
             off, val,
             std::format("偏移 0x{:X} -> 0x{:08X}, {}/4 对象有合理 Flag 值", off, val, validCount),
             confidence
@@ -557,19 +557,19 @@ void UEProber::Phase1_ProbeFlags(uintptr_t objAddr) {
             break;
     }
 
-    std::sort(m_Phase1FlagsCandidates.begin(), m_Phase1FlagsCandidates.end(),
+    std::sort(m_Phase1ObjectFlagsCandidates.begin(), m_Phase1ObjectFlagsCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    if (!m_Phase1FlagsCandidates.empty() && m_Phase1FlagsCandidates[0].confidence >= 0.75f) {
-        auto& best = m_Phase1FlagsCandidates[0];
-        auto& r = GetResult("UObject::Flags");
+    if (!m_Phase1ObjectFlagsCandidates.empty() && m_Phase1ObjectFlagsCandidates[0].confidence >= 0.75f) {
+        auto& best = m_Phase1ObjectFlagsCandidates[0];
+        auto& r = GetResult("UObject::ObjectFlags");
         r.offset = best.offset;
         r.size = 4;
         r.typeName = "int32";
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::Flags 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
+        LogSuccess(std::format("UObject::ObjectFlags 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
             best.offset, best.confidence * 100, r.confirmed ? " [已自动确认]" : ""));
     }
 }
@@ -603,23 +603,23 @@ void UEProber::Phase1_AutoProbe() {
     if (obj1) LogInfo(std::format("obj[1] = {}", FormatPtr(obj1)));
 
     // 探测 Index (用 obj[1] 的 Index 应为 1, 避免 0 误匹配)
-    Phase1_ProbeIndex(obj1, 1);
+    Phase1_ProbeInternalIndex(obj1, 1);
 
     // 探测 Name (obj[0] 的 Name 应为 "CoreUObject")
-    Phase1_ProbeName(obj0, "CoreUObject");
+    Phase1_ProbeNamePrivate(obj0, "CoreUObject");
 
     // 如果 Name 已确定，探测 Class
-    if (HasConfirmed("UObject::Name")) {
-        Phase1_ProbeClass(obj0, "Package");
+    if (HasConfirmed("UObject::NamePrivate")) {
+        Phase1_ProbeClassPrivate(obj0, "Package");
     }
 
     // 如果有 obj[1]，探测 Outer (obj[1].Outer 应指向 obj[0])
     if (obj1 && IsValidPtr(obj1)) {
-        Phase1_ProbeOuter(obj1, obj0);
+        Phase1_ProbeOuterPrivate(obj1, obj0);
     }
 
     // 探测 Flags
-    Phase1_ProbeFlags(obj0);
+    Phase1_ProbeObjectFlags(obj0);
 
     LogInfo("阶段 1 自动探测完成, 请查看候选结果并手动确认");
 }
@@ -628,12 +628,12 @@ void UEProber::Phase1_AutoProbe() {
 //  阶段 2: UField / UStruct 探测
 // ============================================================
 
-void UEProber::Phase2_ProbeSuper(uintptr_t classAddr) {
+void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
     PDBG(">>>>>>>>>> [ProbeSuper] BEGIN >>>>>>>>>>");
-    m_Phase2SuperCandidates.clear();
-    int32_t nameOffset = GetConfirmedOffset("UObject::Name");
-    PDBG("ProbeSuper: classAddr={}, nameOffset=0x{:X}", FormatPtr(classAddr), nameOffset);
-    if (nameOffset < 0) { PDBG("ProbeSuper: nameOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeSuper] END <<<<<<<<<<"); return; }
+    m_Phase2SuperStructCandidates.clear();
+    int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    PDBG("ProbeSuper: classAddr={}, namePrivateOffset=0x{:X}", FormatPtr(classAddr), namePrivateOffset);
+    if (namePrivateOffset < 0) { PDBG("ProbeSuper: namePrivateOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeSuper] END <<<<<<<<<<"); return; }
 
     // classAddr 是 GetByIndex(0) 的 Class ("Package" UClass)
     // 其 Super 应指向 obj[1] (UObject 基类, Name="Object")
@@ -657,7 +657,7 @@ void UEProber::Phase2_ProbeSuper(uintptr_t classAddr) {
         scannedPtrs++;
 
         std::string name;
-        if (!TryReadFName(ptr + nameOffset, name)) continue;
+        if (!TryReadFName(ptr + namePrivateOffset, name)) continue;
 
         float confidence = 0.0f;
         if (ptr == obj1 || FNameEq(name, "Object")) {
@@ -665,18 +665,18 @@ void UEProber::Phase2_ProbeSuper(uintptr_t classAddr) {
                  off, FormatPtr(ptr), name);
             // 直接匹配 obj[1] 地址或名称
             // 验证链: Object 的 Class -> "Class" UClass, 读 "Class".Super -> 应为 "Struct"
-            int32_t classOffset = GetConfirmedOffset("UObject::Class");
-            if (classOffset >= 0) {
+            int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
+            if (classPrivateOffset >= 0) {
                 uintptr_t objClass = 0;
-                if (ReadMem(ptr + classOffset, &objClass, 8) && IsValidPtr(objClass)) {
+                if (ReadMem(ptr + classPrivateOffset, &objClass, 8) && IsValidPtr(objClass)) {
                     // objClass 应是 "Object" UClass, 其 Class 应是 "Class" UClass
                     uintptr_t classClassAddr = 0;
-                    if (ReadMem(objClass + classOffset, &classClassAddr, 8) && IsValidPtr(classClassAddr)) {
+                    if (ReadMem(objClass + classPrivateOffset, &classClassAddr, 8) && IsValidPtr(classClassAddr)) {
                         // 验证 Class->Super == Struct
                         uintptr_t classSuperPtr = 0;
                         if (ReadMem(classClassAddr + off, &classSuperPtr, 8) && IsValidPtr(classSuperPtr)) {
                             std::string superName;
-                            if (TryReadFName(classSuperPtr + nameOffset, superName) &&
+                            if (TryReadFName(classSuperPtr + namePrivateOffset, superName) &&
                                 FNameEq(superName, "Struct")) {
                                 confidence = 1.0f;
                                 PDBG("ProbeSuper: 验证链成功 Class->Super->Name=\"Struct\", conf=1.0");
@@ -707,7 +707,7 @@ void UEProber::Phase2_ProbeSuper(uintptr_t classAddr) {
              off, FormatPtr(ptr), name, confidence);
 
         if (confidence > 0.05f) {
-            m_Phase2SuperCandidates.push_back({
+            m_Phase2SuperStructCandidates.push_back({
                 off, ptr,
                 std::format("偏移 0x{:X} -> {} -> Name = \"{}\"", off, FormatPtr(ptr), name),
                 confidence
@@ -717,13 +717,13 @@ void UEProber::Phase2_ProbeSuper(uintptr_t classAddr) {
         if (confidence >= 1.0f) break;
     }
 
-    PDBG("ProbeSuper: 扫描完毕, 有效指针={}, 候选数={}", scannedPtrs, m_Phase2SuperCandidates.size());
-    std::sort(m_Phase2SuperCandidates.begin(), m_Phase2SuperCandidates.end(),
+    PDBG("ProbeSuper: 扫描完毕, 有效指针={}, 候选数={}", scannedPtrs, m_Phase2SuperStructCandidates.size());
+    std::sort(m_Phase2SuperStructCandidates.begin(), m_Phase2SuperStructCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    if (!m_Phase2SuperCandidates.empty() && m_Phase2SuperCandidates[0].confidence >= 0.9f) {
-        auto& best = m_Phase2SuperCandidates[0];
-        auto& r = GetResult("UStruct::Super");
+    if (!m_Phase2SuperStructCandidates.empty() && m_Phase2SuperStructCandidates[0].confidence >= 0.9f) {
+        auto& best = m_Phase2SuperStructCandidates[0];
+        auto& r = GetResult("UStruct::SuperStruct");
         r.offset = best.offset; r.size = 8; r.typeName = "UStruct*";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
@@ -733,11 +733,11 @@ void UEProber::Phase2_ProbeSuper(uintptr_t classAddr) {
         // 通过继承链缓存各 UClass 地址
         // obj[1] 本身就是 UObject 基类 (Name="Object", Class.Name="Class")
         m_ClassObject = obj1;
-        int32_t classOffset = GetConfirmedOffset("UObject::Class");
-        if (classOffset >= 0) {
+        int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
+        if (classPrivateOffset >= 0) {
             // obj[1].Class = "Class" UClass (元类)
             uintptr_t classUClass = 0;
-            if (ReadMem(obj1 + classOffset, &classUClass, 8) && IsValidPtr(classUClass)) {
+            if (ReadMem(obj1 + classPrivateOffset, &classUClass, 8) && IsValidPtr(classUClass)) {
                 m_ClassClass = classUClass;
                 // Class->Super 应为 Struct
                 uintptr_t structAddr = 0;
@@ -753,7 +753,7 @@ void UEProber::Phase2_ProbeSuper(uintptr_t classAddr) {
         }
     } else {
         PDBG("ProbeSuper: 无满足阈值的候选 (最佳 confidence={:.2f})",
-             m_Phase2SuperCandidates.empty() ? 0.0f : m_Phase2SuperCandidates[0].confidence);
+             m_Phase2SuperStructCandidates.empty() ? 0.0f : m_Phase2SuperStructCandidates[0].confidence);
     }
     PDBG("<<<<<<<<<< [ProbeSuper] END <<<<<<<<<<");
 }
@@ -883,9 +883,9 @@ void UEProber::Phase2_ProbePropertiesSize(uintptr_t execUbergraph, uintptr_t obj
 void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
     PDBG(">>>>>>>>>> [ProbeChildren] BEGIN >>>>>>>>>>");
     m_Phase2ChildrenCandidates.clear();
-    int32_t nameOffset = GetConfirmedOffset("UObject::Name");
-    PDBG("ProbeChildren: classAddr={}, nameOffset=0x{:X}", FormatPtr(classAddr), nameOffset);
-    if (nameOffset < 0) { PDBG("ProbeChildren: nameOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeChildren] END <<<<<<<<<<"); return; }
+    int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    PDBG("ProbeChildren: classAddr={}, namePrivateOffset=0x{:X}", FormatPtr(classAddr), namePrivateOffset);
+    if (namePrivateOffset < 0) { PDBG("ProbeChildren: namePrivateOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeChildren] END <<<<<<<<<<"); return; }
 
     // Children 是 UStruct 成员, 搜索范围: sizeof(UObject) ~ sizeof(UStruct)
     // MinAlignment/Size 已优先探测, Size 必然已确认
@@ -907,18 +907,18 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
         validPtrCount++;
 
         std::string name;
-        if (TryReadFName(ptr + nameOffset, name) && !name.empty()) {
+        if (TryReadFName(ptr + namePrivateOffset, name) && !name.empty()) {
             float confidence = 0.0f;
             if (FNameEq(name, "ExecuteUbergraph"))
                 confidence = 1.0f;
             else {
                 // 检查 Class->Name 是否为 "Function"
-                int32_t classOffset = GetConfirmedOffset("UObject::Class");
-                if (classOffset >= 0) {
+                int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
+                if (classPrivateOffset >= 0) {
                     uintptr_t childClass = 0;
-                    if (ReadMem(ptr + classOffset, &childClass, 8) && IsValidPtr(childClass)) {
+                    if (ReadMem(ptr + classPrivateOffset, &childClass, 8) && IsValidPtr(childClass)) {
                         std::string className;
-                        if (TryReadFName(childClass + nameOffset, className) && FNameEq(className, "Function"))
+                        if (TryReadFName(childClass + namePrivateOffset, className) && FNameEq(className, "Function"))
                             confidence = 0.5f;
                     }
                 }
@@ -997,9 +997,9 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
         // 在 FField 的不同偏移处尝试读 FName
         float bestConf = 0.0f;
         std::string bestDesc;
-        for (int nameOff = 0x18; nameOff <= 0x30; nameOff += 4) {
+        for (int namePrivateOff = 0x18; namePrivateOff <= 0x30; namePrivateOff += 4) {
             std::string name;
-            if (TryReadFName(ptr + nameOff, name) && !name.empty()) {
+            if (TryReadFName(ptr + namePrivateOff, name) && !name.empty()) {
                 float conf = 0.0f;
                 if (FNameEq(name, "EntryPoint"))
                     conf = 1.0f;
@@ -1008,7 +1008,7 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
                 if (conf > bestConf) {
                     bestConf = conf;
                     bestDesc = std::format("偏移 0x{:X} -> {} -> FField Name@0x{:X} = \"{}\"",
-                        off, FormatPtr(ptr), nameOff, name);
+                        off, FormatPtr(ptr), namePrivateOff, name);
                 }
                 if (conf >= 1.0f) break;
             }
@@ -1046,12 +1046,12 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
 void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
     PDBG(">>>>>>>>>> [ProbeUFieldNext] BEGIN >>>>>>>>>>");
     m_Phase2NextCandidates.clear();
-    int32_t nameOffset = GetConfirmedOffset("UObject::Name");
-    int32_t classOffset = GetConfirmedOffset("UObject::Class");
+    int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
     int32_t childrenOffset = GetConfirmedOffset("UStruct::Children");
-    PDBG("ProbeUFieldNext: nameOffset=0x{:X}, classOffset=0x{:X}, childrenOffset=0x{:X}",
-         nameOffset, classOffset, childrenOffset);
-    if (nameOffset < 0 || classOffset < 0 || childrenOffset < 0) {
+    PDBG("ProbeUFieldNext: namePrivateOffset=0x{:X}, classPrivateOffset=0x{:X}, childrenOffset=0x{:X}",
+         namePrivateOffset, classPrivateOffset, childrenOffset);
+    if (namePrivateOffset < 0 || classPrivateOffset < 0 || childrenOffset < 0) {
         PDBG("ProbeUFieldNext: 前置偏移不全, 中止");
         PDBG("<<<<<<<<<< [ProbeUFieldNext] END <<<<<<<<<<");
         return;
@@ -1075,9 +1075,9 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
         return;
     }
     std::string firstFuncName;
-    if (!TryReadFName(firstFunc + nameOffset, firstFuncName) || firstFuncName.empty()) {
+    if (!TryReadFName(firstFunc + namePrivateOffset, firstFuncName) || firstFuncName.empty()) {
         PDBG("ProbeUFieldNext: TryReadFName(firstFunc+0x{:X}) 失败, firstFunc={}",
-             nameOffset, FormatPtr(firstFunc));
+             namePrivateOffset, FormatPtr(firstFunc));
         PDBG("<<<<<<<<<< [ProbeUFieldNext] END <<<<<<<<<<");
         return;
     }
@@ -1095,7 +1095,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
         if (!IsValidPtr(nextPtr)) continue;
 
         std::string nextName;
-        if (!TryReadFName(nextPtr + nameOffset, nextName) || nextName.empty()) continue;
+        if (!TryReadFName(nextPtr + namePrivateOffset, nextName) || nextName.empty()) continue;
 
         // 找到了! 沿链遍历计算链长
         int chainLen = 2;
@@ -1105,7 +1105,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
             uintptr_t nn = 0;
             if (!ReadMem(cur + off, &nn, 8) || !IsValidPtr(nn)) break;
             std::string nnName;
-            if (!TryReadFName(nn + nameOffset, nnName) || nnName.empty()) break;
+            if (!TryReadFName(nn + namePrivateOffset, nnName) || nnName.empty()) break;
             chainLen++;
             lastFuncName = nnName;
             cur = nn;
@@ -1151,17 +1151,17 @@ void UEProber::Phase2_AutoProbe() {
 
     PDBG("========== [Phase2_AutoProbe] BEGIN ==========");
     PDBG("Phase2 开始, 检查前置条件: Name={}, Class={}",
-         HasConfirmed("UObject::Name"), HasConfirmed("UObject::Class"));
+         HasConfirmed("UObject::NamePrivate"), HasConfirmed("UObject::ClassPrivate"));
 
-    if (!HasConfirmed("UObject::Name") || !HasConfirmed("UObject::Class")) {
+    if (!HasConfirmed("UObject::NamePrivate") || !HasConfirmed("UObject::ClassPrivate")) {
         PDBG("Phase2 中止: 需要先完成阶段1 (Name={}, Class={})",
-             HasConfirmed("UObject::Name"), HasConfirmed("UObject::Class"));
+             HasConfirmed("UObject::NamePrivate"), HasConfirmed("UObject::ClassPrivate"));
         return;
     }
 
-    int32_t nameOffset = GetConfirmedOffset("UObject::Name");
-    int32_t classOffset = GetConfirmedOffset("UObject::Class");
-    PDBG("nameOffset=0x{:X}, classOffset=0x{:X}", nameOffset, classOffset);
+    int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
+    PDBG("namePrivateOffset=0x{:X}, classPrivateOffset=0x{:X}", namePrivateOffset, classPrivateOffset);
 
     uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
     PDBG("obj[0] = {}", FormatPtr(obj0));
@@ -1201,27 +1201,27 @@ void UEProber::Phase2_AutoProbe() {
     // === Super ===
     PDBG("---------- [Step 2/5] Super ----------");
     uintptr_t packageClass = 0;
-    PDBG("读取 obj[0]+0x{:X} (Class 偏移) ...", classOffset);
-    if (!ReadMem(obj0 + classOffset, &packageClass, 8) || !IsValidPtr(packageClass)) {
-        PDBG("Phase2 中止: ReadMem(obj0+classOffset) 失败或 packageClass={} 无效", FormatPtr(packageClass));
+    PDBG("读取 obj[0]+0x{:X} (Class 偏移) ...", classPrivateOffset);
+    if (!ReadMem(obj0 + classPrivateOffset, &packageClass, 8) || !IsValidPtr(packageClass)) {
+        PDBG("Phase2 中止: ReadMem(obj0+classPrivateOffset) 失败或 packageClass={} 无效", FormatPtr(packageClass));
         return;
     }
     std::string pkgClassName;
-    TryReadFName(packageClass + nameOffset, pkgClassName);
+    TryReadFName(packageClass + namePrivateOffset, pkgClassName);
     PDBG("obj[0].Class = {}, Name=\"{}\"", FormatPtr(packageClass), pkgClassName);
-    Phase2_ProbeSuper(packageClass);
-    PDBG("Super 探测结果: confirmed={}", HasConfirmed("UStruct::Super"));
+    Phase2_ProbeSuperStruct(packageClass);
+    PDBG("Super 探测结果: confirmed={}", HasConfirmed("UStruct::SuperStruct"));
 
     // === Children ===
     PDBG("---------- [Step 3/5] Children ----------");
     uintptr_t obj1Class = 0;
-    PDBG("读取 obj[1]+0x{:X} (Class 偏移) ...", classOffset);
-    if (!ReadMem(obj1 + classOffset, &obj1Class, 8) || !IsValidPtr(obj1Class)) {
-        PDBG("Phase2 中止: ReadMem(obj1+classOffset) 失败或 obj1Class={} 无效", FormatPtr(obj1Class));
+    PDBG("读取 obj[1]+0x{:X} (Class 偏移) ...", classPrivateOffset);
+    if (!ReadMem(obj1 + classPrivateOffset, &obj1Class, 8) || !IsValidPtr(obj1Class)) {
+        PDBG("Phase2 中止: ReadMem(obj1+classPrivateOffset) 失败或 obj1Class={} 无效", FormatPtr(obj1Class));
         return;
     }
     std::string obj1ClassName;
-    TryReadFName(obj1Class + nameOffset, obj1ClassName);
+    TryReadFName(obj1Class + namePrivateOffset, obj1ClassName);
     if (!FNameEq(obj1ClassName, "Class")) {
         PDBG("obj[1].Class.Name 不是 Class, 实际=\"{}\"", obj1ClassName);
     }
@@ -1251,7 +1251,7 @@ void UEProber::Phase2_AutoProbe() {
     }
 
     PDBG("Phase2 完成, 汇总: MinAlign={} Super={} Children={} ChildProps={} Next={}",
-         HasConfirmed("UStruct::MinAlignment"), HasConfirmed("UStruct::Super"),
+         HasConfirmed("UStruct::MinAlignment"), HasConfirmed("UStruct::SuperStruct"),
          HasConfirmed("UStruct::Children"), HasConfirmed("UStruct::ChildProperties"),
          HasConfirmed("UField::Next"));
     PDBG("========== [Phase2_AutoProbe] END ==========");
@@ -1265,10 +1265,10 @@ void UEProber::Phase3_ProbeCastFlags() {
     m_Phase3CastFlagsCandidates.clear();
     LogInfo("探测 UClass::CastFlags");
 
-    int32_t nameOffset = GetConfirmedOffset("UObject::Name");
-    int32_t classOffset = GetConfirmedOffset("UObject::Class");
-    int32_t superOffset = GetConfirmedOffset("UStruct::Super");
-    if (nameOffset < 0 || classOffset < 0) return;
+    int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
+    int32_t superStructOffset = GetConfirmedOffset("UStruct::SuperStruct");
+    if (namePrivateOffset < 0 || classPrivateOffset < 0) return;
 
     // 确保 m_ClassClass 已初始化
     if (!m_ClassClass) {
@@ -1276,14 +1276,14 @@ void UEProber::Phase3_ProbeCastFlags() {
         uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
         if (!obj1) return;
         uintptr_t obj1Class = 0;
-        ReadMem(obj1 + classOffset, &obj1Class, 8);
+        ReadMem(obj1 + classPrivateOffset, &obj1Class, 8);
         if (!IsValidPtr(obj1Class)) return;
         m_ClassClass = obj1Class;
     }
     // 确保 m_ClassStruct 已初始化
-    if (!m_ClassStruct && superOffset >= 0) {
+    if (!m_ClassStruct && superStructOffset >= 0) {
         uintptr_t structAddr = 0;
-        ReadMem(m_ClassClass + superOffset, &structAddr, 8);
+        ReadMem(m_ClassClass + superStructOffset, &structAddr, 8);
         if (IsValidPtr(structAddr)) m_ClassStruct = structAddr;
     }
 
@@ -1292,7 +1292,7 @@ void UEProber::Phase3_ProbeCastFlags() {
     {
         uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
         if (obj0 && IsValidPtr(obj0)) {
-            ReadMem(obj0 + classOffset, &packageClass, 8);
+            ReadMem(obj0 + classPrivateOffset, &packageClass, 8);
             if (!IsValidPtr(packageClass)) packageClass = 0;
         }
     }
@@ -1364,8 +1364,8 @@ void UEProber::Phase3_ProbeCastFlags() {
     }
 }
 
-void UEProber::Phase3_ProbeDefaultObject(uintptr_t classAddr) {
-    m_Phase2DefaultObjCandidates.clear();
+void UEProber::Phase3_ProbeClassDefaultObject(uintptr_t classAddr) {
+    m_Phase2ClassDefaultObjCandidates.clear();
 
     LogInfo(std::format("探测 UClass::DefaultObject @ {}", FormatPtr(classAddr)));
 
@@ -1393,7 +1393,7 @@ void UEProber::Phase3_ProbeDefaultObject(uintptr_t classAddr) {
             confidence = 0.05f;
 
         if (confidence > 0.04f) {
-            m_Phase2DefaultObjCandidates.push_back({
+            m_Phase2ClassDefaultObjCandidates.push_back({
                 off, ptr,
                 std::format("偏移 0x{:X} -> {} {}", off, FormatPtr(ptr),
                     ptr == defaultObj ? "== Default__Object [精确匹配]" : "(其他指针)"),
@@ -1404,16 +1404,16 @@ void UEProber::Phase3_ProbeDefaultObject(uintptr_t classAddr) {
         if (confidence >= 1.0f) break;
     }
 
-    std::sort(m_Phase2DefaultObjCandidates.begin(), m_Phase2DefaultObjCandidates.end(),
+    std::sort(m_Phase2ClassDefaultObjCandidates.begin(), m_Phase2ClassDefaultObjCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
-    if (!m_Phase2DefaultObjCandidates.empty() && m_Phase2DefaultObjCandidates[0].confidence >= 0.9f) {
-        auto& best = m_Phase2DefaultObjCandidates[0];
-        auto& r = GetResult("UClass::DefaultObject");
+    if (!m_Phase2ClassDefaultObjCandidates.empty() && m_Phase2ClassDefaultObjCandidates[0].confidence >= 0.9f) {
+        auto& best = m_Phase2ClassDefaultObjCandidates[0];
+        auto& r = GetResult("UClass::ClassDefaultObject");
         r.offset = best.offset; r.size = 8; r.typeName = "UObject*";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UClass::DefaultObject 自动探测: 偏移 0x{:X}{}",
+        LogSuccess(std::format("UClass::ClassDefaultObject 自动探测: 偏移 0x{:X}{}",
             best.offset, r.confirmed ? " [已自动确认]" : ""));
     }
 }
@@ -1427,7 +1427,7 @@ void UEProber::Phase3_AutoProbe() {
     // === DefaultObject ===
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
     if (obj1 && IsValidPtr(obj1)) {
-        Phase3_ProbeDefaultObject(obj1);
+        Phase3_ProbeClassDefaultObject(obj1);
     }
 
     LogInfo("阶段 3 自动探测完成");
@@ -1441,7 +1441,7 @@ void UEProber::Phase3_AutoProbe() {
 // ---- 辅助: 沿 Children→Next 链查找指定名称的 UFunction ----
 uintptr_t UEProber::WalkChildrenChain(
     uintptr_t classAddr, const std::string& funcName,
-    int32_t childrenOff, int32_t nextOff, int32_t nameOff)
+    int32_t childrenOff, int32_t nextOff, int32_t namePrivateOff)
 {
     uintptr_t cur = 0;
     if (!ReadMem(classAddr + childrenOff, &cur, 8) || !IsValidPtr(cur))
@@ -1449,7 +1449,7 @@ uintptr_t UEProber::WalkChildrenChain(
 
     for (int i = 0; i < 500 && cur; ++i) {
         std::string n;
-        if (TryReadFName(cur + nameOff, n) && n == funcName)
+        if (TryReadFName(cur + namePrivateOff, n) && n == funcName)
             return cur;
         uintptr_t next = 0;
         if (!ReadMem(cur + nextOff, &next, 8)) break;
@@ -1459,11 +1459,11 @@ uintptr_t UEProber::WalkChildrenChain(
 }
 
 void UEProber::Phase4_CollectAnchors() {
-    int32_t nameOff     = GetConfirmedOffset("UObject::Name");
-    int32_t classOff    = GetConfirmedOffset("UObject::Class");
+    int32_t namePrivateOff     = GetConfirmedOffset("UObject::NamePrivate");
+    int32_t classPrivateOff    = GetConfirmedOffset("UObject::ClassPrivate");
     int32_t childrenOff = GetConfirmedOffset("UStruct::Children");
     int32_t nextOff     = GetConfirmedOffset("UField::Next");
-    if (nameOff < 0 || classOff < 0 || childrenOff < 0 || nextOff < 0) {
+    if (namePrivateOff < 0 || classPrivateOff < 0 || childrenOff < 0 || nextOff < 0) {
         LogError("缺少前置偏移 (Name/Class/Children/Next), 无法收集锚点");
         return;
     }
@@ -1475,11 +1475,11 @@ void UEProber::Phase4_CollectAnchors() {
     } else {
         LogInfo(std::format("Actor UClass @ {}", FormatPtr(actorClass)));
         if (!m_FuncReceiveBeginPlay)
-            m_FuncReceiveBeginPlay = WalkChildrenChain(actorClass, "ReceiveBeginPlay", childrenOff, nextOff, nameOff);
+            m_FuncReceiveBeginPlay = WalkChildrenChain(actorClass, "ReceiveBeginPlay", childrenOff, nextOff, namePrivateOff);
         if (!m_FuncReceiveTick)
-            m_FuncReceiveTick = WalkChildrenChain(actorClass, "ReceiveTick", childrenOff, nextOff, nameOff);
+            m_FuncReceiveTick = WalkChildrenChain(actorClass, "ReceiveTick", childrenOff, nextOff, namePrivateOff);
         if (!m_FuncK2_GetActorLocation)
-            m_FuncK2_GetActorLocation = WalkChildrenChain(actorClass, "K2_GetActorLocation", childrenOff, nextOff, nameOff);
+            m_FuncK2_GetActorLocation = WalkChildrenChain(actorClass, "K2_GetActorLocation", childrenOff, nextOff, namePrivateOff);
     }
 
     // --- KismetSystemLibrary Children 链: IsValid, PrintString ---
@@ -1489,9 +1489,9 @@ void UEProber::Phase4_CollectAnchors() {
     } else {
         LogInfo(std::format("KismetSystemLibrary UClass @ {}", FormatPtr(kismetClass)));
         if (!m_FuncIsValid)
-            m_FuncIsValid = WalkChildrenChain(kismetClass, "IsValid", childrenOff, nextOff, nameOff);
+            m_FuncIsValid = WalkChildrenChain(kismetClass, "IsValid", childrenOff, nextOff, namePrivateOff);
         if (!m_FuncPrintString)
-            m_FuncPrintString = WalkChildrenChain(kismetClass, "PrintString", childrenOff, nextOff, nameOff);
+            m_FuncPrintString = WalkChildrenChain(kismetClass, "PrintString", childrenOff, nextOff, namePrivateOff);
     }
 
     // 打印收集结果
@@ -1850,7 +1850,7 @@ void UEProber::Phase4_AutoProbe() {
     m_PhaseStatus[4] = EPhaseStatus::InProgress;
     LogInfo("===== 阶段 4: UFunction 自动探测 =====");
 
-    if (!HasConfirmed("UObject::Name") || !HasConfirmed("UObject::Class") ||
+    if (!HasConfirmed("UObject::NamePrivate") || !HasConfirmed("UObject::ClassPrivate") ||
         !HasConfirmed("UStruct::Children") || !HasConfirmed("UField::Next")) {
         LogError("需要先完成阶段 1~2 (确认 Name, Class, Children, Next 偏移)");
         return;
@@ -2030,11 +2030,11 @@ void UEProber::Phase5_ProbeFFieldOwner() {
     PDBG("ProbeFFieldOwner: EntryPoint={}, execUbergraph={}",
          FormatPtr(m_FFEntryPoint), FormatPtr(execUbergraph));
 
-    int32_t nameOff = GetConfirmedOffset("FField::NamePrivate");
-    PDBG("ProbeFFieldOwner: nameOff=0x{:X}", nameOff);
+    int32_t namePrivateOff = GetConfirmedOffset("FField::NamePrivate");
+    PDBG("ProbeFFieldOwner: namePrivateOff=0x{:X}", namePrivateOff);
 
     for (int32_t off = 0x00; off < 0x30; off += 8) {
-        if (off == nameOff) continue; // 排除已确认的 Name 偏移
+        if (off == namePrivateOff) continue; // 排除已确认的 Name 偏移
 
         uintptr_t ptr1 = 0;
         if (!ReadMem(m_FFEntryPoint + off, &ptr1, 8)) continue;
@@ -2091,8 +2091,8 @@ void UEProber::Phase5_ProbeFFieldNext() {
     PDBG(">>>>>>>>>> [ProbeFFieldNext] BEGIN >>>>>>>>>>");
     m_Phase5FFieldNextCandidates.clear();
 
-    int32_t nameOff = GetConfirmedOffset("FField::NamePrivate");
-    if (nameOff < 0) {
+    int32_t namePrivateOff = GetConfirmedOffset("FField::NamePrivate");
+    if (namePrivateOff < 0) {
         PDBG("ProbeFFieldNext: FField::NamePrivate 未确认, 中止");
         PDBG("<<<<<<<<<< [ProbeFFieldNext] END <<<<<<<<<<");
         return;
@@ -2105,11 +2105,11 @@ void UEProber::Phase5_ProbeFFieldNext() {
         PDBG("<<<<<<<<<< [ProbeFFieldNext] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeFFieldNext: nameOff=0x{:X}, ownerOff=0x{:X}, EntryPoint={}, IsValidP0={}",
-         nameOff, ownerOff, FormatPtr(m_FFEntryPoint), FormatPtr(m_FFIsValidParam0));
+    PDBG("ProbeFFieldNext: namePrivateOff=0x{:X}, ownerOff=0x{:X}, EntryPoint={}, IsValidP0={}",
+         namePrivateOff, ownerOff, FormatPtr(m_FFEntryPoint), FormatPtr(m_FFIsValidParam0));
 
     for (int32_t off = 0x08; off < 0x30; off += 8) {
-        if (off == nameOff || off == ownerOff || (ownerOff >= 0 && off == ownerOff + 8)) continue;
+        if (off == namePrivateOff || off == ownerOff || (ownerOff >= 0 && off == ownerOff + 8)) continue;
 
         // EntryPoint (NumParms=1): Next 应为 nullptr
         uintptr_t ptr1 = 0;
@@ -2127,7 +2127,7 @@ void UEProber::Phase5_ProbeFFieldNext() {
         }
 
         std::string nextName;
-        if (!TryReadFName(ptr2 + nameOff, nextName) || !FNameEq(nextName, "ReturnValue")) {
+        if (!TryReadFName(ptr2 + namePrivateOff, nextName) || !FNameEq(nextName, "ReturnValue")) {
             PDBG("ProbeFFieldNext: off=0x{:X} Next->Name=\"{}\" 不是ReturnValue, 跳过", off, nextName);
             continue;
         }
@@ -2176,10 +2176,10 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
     PDBG(">>>>>>>>>> [ProbeFFieldClassPrivate] BEGIN >>>>>>>>>>");
     m_Phase5FFieldClassCandidates.clear();
 
-    int32_t nameOff = GetConfirmedOffset("FField::NamePrivate");
+    int32_t namePrivateOff = GetConfirmedOffset("FField::NamePrivate");
     int32_t ownerOff = GetConfirmedOffset("FField::Owner");
     int32_t nextOff = GetConfirmedOffset("FField::Next");
-    if (nameOff < 0) {
+    if (namePrivateOff < 0) {
         PDBG("ProbeFFieldClassPrivate: FField::NamePrivate 未确认, 中止");
         PDBG("<<<<<<<<<< [ProbeFFieldClassPrivate] END <<<<<<<<<<");
         return;
@@ -2190,11 +2190,11 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
         PDBG("<<<<<<<<<< [ProbeFFieldClassPrivate] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeFFieldClassPrivate: nameOff=0x{:X}, ownerOff=0x{:X}, nextOff=0x{:X}",
-         nameOff, ownerOff, nextOff);
+    PDBG("ProbeFFieldClassPrivate: namePrivateOff=0x{:X}, ownerOff=0x{:X}, nextOff=0x{:X}",
+         namePrivateOff, ownerOff, nextOff);
 
     for (int32_t off = 0x08; off < 0x30; off += 8) {
-        if (off == nameOff || off == ownerOff || off == nextOff) continue;
+        if (off == namePrivateOff || off == ownerOff || off == nextOff) continue;
         if (ownerOff >= 0 && off == ownerOff + 8) continue; // 跳过 bIsUObject 所在位置
 
         // EntryPoint 的 ClassPrivate -> FFieldClass, FFieldClass->Name(偏移0) 应为 "IntProperty"
@@ -2264,18 +2264,18 @@ void UEProber::Phase5_ProbeFFieldFlagsPrivate() {
     PDBG(">>>>>>>>>> [ProbeFFieldFlagsPrivate] BEGIN >>>>>>>>>>");
     m_Phase5FFieldFlagsPrivateCandidates.clear();
 
-    int32_t nameOff = GetConfirmedOffset("FField::NamePrivate");
+    int32_t namePrivateOff = GetConfirmedOffset("FField::NamePrivate");
     int32_t ownerOff = GetConfirmedOffset("FField::Owner");
     int32_t nextOff = GetConfirmedOffset("FField::Next");
-    int32_t classOff = GetConfirmedOffset("FField::ClassPrivate");
+    int32_t classPrivateOff = GetConfirmedOffset("FField::ClassPrivate");
 
     if (!m_FFEntryPoint) {
         PDBG("ProbeFFieldFlagsPrivate: 缺少 EntryPoint 锚点, 中止");
         PDBG("<<<<<<<<<< [ProbeFFieldFlagsPrivate] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeFFieldFlagsPrivate: nameOff=0x{:X}, ownerOff=0x{:X}, nextOff=0x{:X}, classOff=0x{:X}",
-         nameOff, ownerOff, nextOff, classOff);
+    PDBG("ProbeFFieldFlagsPrivate: namePrivateOff=0x{:X}, ownerOff=0x{:X}, nextOff=0x{:X}, classPrivateOff=0x{:X}",
+         namePrivateOff, ownerOff, nextOff, classPrivateOff);
 
     // EObjectFlags 有效位掩码 (RF_Public ~ RF_AllocatedInSharedPage 等)
     constexpr uint32_t kValidFlagsMask = 0x3FFFFFFF;
@@ -2283,10 +2283,10 @@ void UEProber::Phase5_ProbeFFieldFlagsPrivate() {
     // 在 FField 的 0x08~0x40 范围按 4 字节对齐搜索 int32
     // 排除 VTable(8字节) 和所有已确认的 FField 成员偏移
     for (int32_t off = 0x08; off < 0x40; off += 4) {
-        if (nameOff >= 0 && off >= nameOff && off < nameOff + 8) continue;
+        if (namePrivateOff >= 0 && off >= namePrivateOff && off < namePrivateOff + 8) continue;
         if (ownerOff >= 0 && off >= ownerOff && off < ownerOff + 16) continue;
         if (nextOff >= 0 && off >= nextOff && off < nextOff + 8) continue;
-        if (classOff >= 0 && off >= classOff && off < classOff + 8) continue;
+        if (classPrivateOff >= 0 && off >= classPrivateOff && off < classPrivateOff + 8) continue;
 
         int32_t val1 = -1;
         if (!ReadMemUnsafe(m_FFEntryPoint + off, &val1, 4)) continue;
@@ -2345,8 +2345,8 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
     m_Phase5FPropArrayDimCandidates.clear();
     m_Phase5FPropElemSizeCandidates.clear();
 
-    int32_t nameOff = GetConfirmedOffset("FField::NamePrivate");
-    if (nameOff < 0) {
+    int32_t namePrivateOff = GetConfirmedOffset("FField::NamePrivate");
+    if (namePrivateOff < 0) {
         PDBG("ProbeAD+ES: FField::NamePrivate 未确认, 中止");
         PDBG("<<<<<<<<<< [ProbeArrayDim+ElemSize] END <<<<<<<<<<");
         return;
@@ -2360,12 +2360,12 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
         return;
     }
 
-    // 如果 ObjFlags 已确认, 从 ObjFlags+4 开始; 否则从 nameOff+0x08 开始
+    // 如果 ObjFlags 已确认, 从 ObjFlags+4 开始; 否则从 namePrivateOff+0x08 开始
     int32_t objFlagsOff = GetConfirmedOffset("FField::FlagsPrivate");
-    int32_t searchStart = (objFlagsOff >= 0) ? (objFlagsOff + 4) : (nameOff + 0x08);
+    int32_t searchStart = (objFlagsOff >= 0) ? (objFlagsOff + 4) : (namePrivateOff + 0x08);
     int32_t searchEnd = searchStart + 0x50;
-    PDBG("ProbeAD+ES: nameOff=0x{:X}, objFlagsOff=0x{:X}, 搜索范围 [0x{:X}, 0x{:X})",
-         nameOff, objFlagsOff, searchStart, searchEnd);
+    PDBG("ProbeAD+ES: namePrivateOff=0x{:X}, objFlagsOff=0x{:X}, 搜索范围 [0x{:X}, 0x{:X})",
+         namePrivateOff, objFlagsOff, searchStart, searchEnd);
 
     for (int32_t off = searchStart; off < searchEnd; off += 4) {
         // ArrayDim: 所有锚点均应为 1
@@ -2629,9 +2629,9 @@ void UEProber::Phase5_ProbeFPropertySize() {
         return;
     }
 
-    int32_t nameOff = GetConfirmedOffset("UObject::Name");
-    if (nameOff < 0) {
-        PDBG("ProbePropSize: UObject::Name 未确认, 中止");
+    int32_t namePrivateOff = GetConfirmedOffset("UObject::NamePrivate");
+    if (namePrivateOff < 0) {
+        PDBG("ProbePropSize: UObject::NamePrivate 未确认, 中止");
         PDBG("<<<<<<<<<< [ProbeFPropertySize] END <<<<<<<<<<");
         return;
     }
@@ -2687,7 +2687,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
                 desc += "IsValidP0->Object";
             } else if (IsValidPtr(ptr2)) {
                 std::string clsName;
-                if (TryReadFName(ptr2 + nameOff, clsName) && !clsName.empty()) {
+                if (TryReadFName(ptr2 + namePrivateOff, clsName) && !clsName.empty()) {
                     confidence += 0.1f;
                     desc += desc.empty() ? "" : ", ";
                     desc += std::format("IsValidP0->\"{}\"", clsName);
@@ -2899,15 +2899,15 @@ void UEProber::Phase6_AutoProbe() {
 void UEProber::CallGetEngineVersion() {
     PDBG(">>>>>>>>>> [CallGetEngineVersion] BEGIN >>>>>>>>>>");
 
-    int32_t nameOff       = GetConfirmedOffset("UObject::Name");
-    int32_t classOff      = GetConfirmedOffset("UObject::Class");
-    int32_t defaultObjOff = GetConfirmedOffset("UClass::DefaultObject");
+    int32_t namePrivateOff       = GetConfirmedOffset("UObject::NamePrivate");
+    int32_t classPrivateOff      = GetConfirmedOffset("UObject::ClassPrivate");
+    int32_t classDefaultObjOff = GetConfirmedOffset("UClass::ClassDefaultObject");
     int32_t childrenOff   = GetConfirmedOffset("UStruct::Children");
     int32_t nextOff       = GetConfirmedOffset("UField::Next");
 
-    if (nameOff < 0 || classOff < 0 || defaultObjOff < 0 || childrenOff < 0 || nextOff < 0) {
+    if (namePrivateOff < 0 || classPrivateOff < 0 || classDefaultObjOff < 0 || childrenOff < 0 || nextOff < 0) {
         PDBG("GetEngVer: 缺少必要偏移 name=0x{:X} class=0x{:X} defObj=0x{:X} children=0x{:X} next=0x{:X}",
-             nameOff, classOff, defaultObjOff, childrenOff, nextOff);
+             namePrivateOff, classPrivateOff, classDefaultObjOff, childrenOff, nextOff);
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
     }
@@ -2923,15 +2923,15 @@ void UEProber::CallGetEngineVersion() {
 
     // 读取 CDO (Class Default Object)
     uintptr_t cdo = 0;
-    if (!ReadMem(kismetClass + defaultObjOff, &cdo, 8) || !IsValidPtr(cdo)) {
-        PDBG("GetEngVer: CDO 读取失败 @ offset 0x{:X}", defaultObjOff);
+    if (!ReadMem(kismetClass + classDefaultObjOff, &cdo, 8) || !IsValidPtr(cdo)) {
+        PDBG("GetEngVer: CDO 读取失败 @ offset 0x{:X}", classDefaultObjOff);
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
     }
     PDBG("GetEngVer: CDO @ {}", FormatPtr(cdo));
 
     // 沿 Children→Next 链查找 GetEngineVersion UFunction
-    uintptr_t func = WalkChildrenChain(kismetClass, "GetEngineVersion", childrenOff, nextOff, nameOff);
+    uintptr_t func = WalkChildrenChain(kismetClass, "GetEngineVersion", childrenOff, nextOff, namePrivateOff);
     if (!func) {
         PDBG("GetEngVer: GetEngineVersion UFunction 未找到");
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
@@ -3010,17 +3010,17 @@ void UEProber::Draw(bool* p_open) {
             ImGui::Separator();
             if (ImGui::MenuItem("全部自动探测")) {
                 Phase1_AutoProbe();
-                if (HasConfirmed("UObject::Name") || GetResult("UObject::Name").autoDetected) {
-                    if (!HasConfirmed("UObject::Name")) GetResult("UObject::Name").confirmed = true;
-                    if (!HasConfirmed("UObject::Class") && GetResult("UObject::Class").autoDetected)
-                        GetResult("UObject::Class").confirmed = true;
-                    if (!HasConfirmed("UObject::Outer") && GetResult("UObject::Outer").autoDetected)
-                        GetResult("UObject::Outer").confirmed = true;
-                    if (!HasConfirmed("UObject::Index") && GetResult("UObject::Index").autoDetected)
-                        GetResult("UObject::Index").confirmed = true;
+                if (HasConfirmed("UObject::NamePrivate") || GetResult("UObject::NamePrivate").autoDetected) {
+                    if (!HasConfirmed("UObject::NamePrivate")) GetResult("UObject::NamePrivate").confirmed = true;
+                    if (!HasConfirmed("UObject::ClassPrivate") && GetResult("UObject::ClassPrivate").autoDetected)
+                        GetResult("UObject::ClassPrivate").confirmed = true;
+                    if (!HasConfirmed("UObject::OuterPrivate") && GetResult("UObject::OuterPrivate").autoDetected)
+                        GetResult("UObject::OuterPrivate").confirmed = true;
+                    if (!HasConfirmed("UObject::InternalIndex") && GetResult("UObject::InternalIndex").autoDetected)
+                        GetResult("UObject::InternalIndex").confirmed = true;
                     Phase2_AutoProbe();
-                    if (GetResult("UStruct::Super").autoDetected && !HasConfirmed("UStruct::Super"))
-                        GetResult("UStruct::Super").confirmed = true;
+                    if (GetResult("UStruct::SuperStruct").autoDetected && !HasConfirmed("UStruct::SuperStruct"))
+                        GetResult("UStruct::SuperStruct").confirmed = true;
                     if (GetResult("UStruct::PropertiesSize").autoDetected && !HasConfirmed("UStruct::PropertiesSize"))
                         GetResult("UStruct::PropertiesSize").confirmed = true;
                     if (GetResult("UStruct::Children").autoDetected && !HasConfirmed("UStruct::Children"))
@@ -3032,8 +3032,8 @@ void UEProber::Draw(bool* p_open) {
                     if (GetResult("UStruct::MinAlignment").autoDetected && !HasConfirmed("UStruct::MinAlignment"))
                         GetResult("UStruct::MinAlignment").confirmed = true;
                     Phase3_AutoProbe();
-                    if (GetResult("UClass::DefaultObject").autoDetected && !HasConfirmed("UClass::DefaultObject"))
-                        GetResult("UClass::DefaultObject").confirmed = true;
+                    if (GetResult("UClass::ClassDefaultObject").autoDetected && !HasConfirmed("UClass::ClassDefaultObject"))
+                        GetResult("UClass::ClassDefaultObject").confirmed = true;
                     Phase4_AutoProbe();
                     Phase5_AutoProbe();
                     Phase6_AutoProbe();
@@ -3286,28 +3286,28 @@ void UEProber::DrawPhase1() {
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("UObject::Index")) {
-        DrawCandidateTable("UObject::Index", m_Phase1IndexCandidates, GetResult("UObject::Index"));
+    if (ImGui::TreeNode("UObject::InternalIndex")) {
+        DrawCandidateTable("UObject::InternalIndex", m_Phase1InternalIndexCandidates, GetResult("UObject::InternalIndex"));
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("UObject::Name")) {
-        DrawCandidateTable("UObject::Name", m_Phase1NameCandidates, GetResult("UObject::Name"));
+    if (ImGui::TreeNode("UObject::NamePrivate")) {
+        DrawCandidateTable("UObject::NamePrivate", m_Phase1NamePrivateCandidates, GetResult("UObject::NamePrivate"));
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("UObject::Class")) {
-        DrawCandidateTable("UObject::Class", m_Phase1ClassCandidates, GetResult("UObject::Class"));
+    if (ImGui::TreeNode("UObject::ClassPrivate")) {
+        DrawCandidateTable("UObject::ClassPrivate", m_Phase1ClassPrivateCandidates, GetResult("UObject::ClassPrivate"));
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("UObject::Outer")) {
-        DrawCandidateTable("UObject::Outer", m_Phase1OuterCandidates, GetResult("UObject::Outer"));
+    if (ImGui::TreeNode("UObject::OuterPrivate")) {
+        DrawCandidateTable("UObject::OuterPrivate", m_Phase1OuterPrivateCandidates, GetResult("UObject::OuterPrivate"));
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("UObject::Flags")) {
-        DrawCandidateTable("UObject::Flags", m_Phase1FlagsCandidates, GetResult("UObject::Flags"));
+    if (ImGui::TreeNode("UObject::ObjectFlags")) {
+        DrawCandidateTable("UObject::ObjectFlags", m_Phase1ObjectFlagsCandidates, GetResult("UObject::ObjectFlags"));
         ImGui::TreePop();
     }
 
@@ -3332,7 +3332,7 @@ void UEProber::DrawPhase2() {
     ImGui::TextWrapped("探测 UField::Next, UStruct::Super, Size, MinAlignment, Children, ChildProperties");
     ImGui::Spacing();
 
-    bool canAutoProbe = HasConfirmed("UObject::Name") && HasConfirmed("UObject::Class");
+    bool canAutoProbe = HasConfirmed("UObject::NamePrivate") && HasConfirmed("UObject::ClassPrivate");
     if (!canAutoProbe)
         ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.2f, 1.0f), "请先完成阶段 1 (确认 Name 和 Class)");
 
@@ -3341,8 +3341,8 @@ void UEProber::DrawPhase2() {
     }
     ImGui::Spacing();
 
-    if (ImGui::TreeNode("UStruct::Super")) {
-        DrawCandidateTable("UStruct::Super", m_Phase2SuperCandidates, GetResult("UStruct::Super"));
+    if (ImGui::TreeNode("UStruct::SuperStruct")) {
+        DrawCandidateTable("UStruct::SuperStruct", m_Phase2SuperStructCandidates, GetResult("UStruct::SuperStruct"));
         ImGui::TreePop();
     }
 
@@ -3412,8 +3412,8 @@ void UEProber::DrawPhase3() {
         ImGui::TreePop();
     }
 
-    if (ImGui::TreeNode("UClass::DefaultObject")) {
-        DrawCandidateTable("UClass::DefaultObject", m_Phase2DefaultObjCandidates, GetResult("UClass::DefaultObject"));
+    if (ImGui::TreeNode("UClass::ClassDefaultObject")) {
+        DrawCandidateTable("UClass::ClassDefaultObject", m_Phase2ClassDefaultObjCandidates, GetResult("UClass::ClassDefaultObject"));
         ImGui::TreePop();
     }
 }
@@ -3588,12 +3588,12 @@ void UEProber::DrawResultsSummary() {
         std::vector<std::string> fields;
     };
     Category categories[] = {
-        {"UObject", {"UObject::VTable", "UObject::Index", "UObject::Name",
-                     "UObject::Class", "UObject::Outer", "UObject::Flags"}},
+        {"UObject", {"UObject::VTable", "UObject::InternalIndex", "UObject::NamePrivate",
+                     "UObject::ClassPrivate", "UObject::OuterPrivate", "UObject::ObjectFlags"}},
         {"UField",  {"UField::Next"}},
-        {"UStruct", {"UStruct::Super", "UStruct::PropertiesSize", "UStruct::MinAlignment",
+        {"UStruct", {"UStruct::SuperStruct", "UStruct::PropertiesSize", "UStruct::MinAlignment",
                      "UStruct::Children", "UStruct::ChildProperties"}},
-        {"UClass",  {"UClass::CastFlags", "UClass::DefaultObject"}},
+        {"UClass",  {"UClass::CastFlags", "UClass::ClassDefaultObject"}},
         {"UFunction", {"UFunction::NumParms", "UFunction::ParmsSize",
                        "UFunction::FunctionFlags", "UFunction::Func"}},
         {"FField",  {"FField::NamePrivate", "FField::Next", "FField::Owner",
@@ -3688,12 +3688,12 @@ void UEProber::DrawExportPanel() {
 
     // 自动获取引擎版本
     if (m_EngineVersion.empty()) {
-        int32_t nameOff       = GetConfirmedOffset("UObject::Name");
-        int32_t classOff      = GetConfirmedOffset("UObject::Class");
-        int32_t defaultObjOff = GetConfirmedOffset("UClass::DefaultObject");
+        int32_t namePrivateOff       = GetConfirmedOffset("UObject::NamePrivate");
+        int32_t classPrivateOff      = GetConfirmedOffset("UObject::ClassPrivate");
+        int32_t classDefaultObjOff = GetConfirmedOffset("UClass::ClassDefaultObject");
         int32_t childrenOff   = GetConfirmedOffset("UStruct::Children");
         int32_t nextOff       = GetConfirmedOffset("UField::Next");
-        if (nameOff >= 0 && classOff >= 0 && defaultObjOff >= 0 && childrenOff >= 0 && nextOff >= 0)
+        if (namePrivateOff >= 0 && classPrivateOff >= 0 && classDefaultObjOff >= 0 && childrenOff >= 0 && nextOff >= 0)
             CallGetEngineVersion();
     }
 
@@ -3720,17 +3720,17 @@ void UEProber::DrawExportPanel() {
     ClassDef classes[] = {
         {"UObject", "", "UObject", "", {
             {"UObject::VTable", "VTable", "void**",          8},
-            {"UObject::Flags",  "Flags",  "uint32",          4},
-            {"UObject::Index",  "Index",  "uint32",          4},
-            {"UObject::Class",  "Class",  "class UClass*",   8},
-            {"UObject::Name",   "Name",   "FName",           8},
-            {"UObject::Outer",  "Outer",  "class UObject*",  8},
+            {"UObject::ObjectFlags",    "ObjectFlags",    "EObjectFlags",    4},
+            {"UObject::InternalIndex",  "InternalIndex",  "int32",            4},
+            {"UObject::ClassPrivate",   "ClassPrivate",   "class UClass*",    8},
+            {"UObject::NamePrivate",    "NamePrivate",    "FName",            8},
+            {"UObject::OuterPrivate",   "OuterPrivate",   "class UObject*",   8},
         }},
         {"UField", "UObject", "UField", "", {
             {"UField::Next", "Next", "class UField*", 8},
         }},
         {"UStruct", "UField", "UStruct", "", {
-            {"UStruct::Super",           "Super",           "class UStruct*", 8},
+            {"UStruct::SuperStruct",      "SuperStruct",     "class UStruct*", 8},
             {"UStruct::Children",        "Children",        "class UField*",  8},
             {"UStruct::ChildProperties", "ChildProperties", "class FField*",  8},
             {"UStruct::PropertiesSize",            "PropertiesSize",  "int32",          4},
@@ -3738,7 +3738,7 @@ void UEProber::DrawExportPanel() {
         }},
         {"UClass", "UStruct", "UClass", "", {
             {"UClass::CastFlags",     "CastFlags",     "EClassCastFlags", 8},
-            {"UClass::DefaultObject", "DefaultObject", "class UObject*",  8},
+            {"UClass::ClassDefaultObject", "ClassDefaultObject", "class UObject*",  8},
         }},
         {"UFunction", "UStruct", "UFunction", "", {
             {"UFunction::FunctionFlags",    "FunctionFlags",    "EFunctionFlags",  4},
@@ -3944,6 +3944,43 @@ void UEProber::DrawDumpPanel() {
     ImGui::Separator();
     ImGui::Spacing();
 
+    // ---- 探测偏移统计 ----
+    {
+        static const char* kOffsetNames[] = {
+            "UObject::ObjectFlags", "UObject::InternalIndex", "UObject::ClassPrivate", "UObject::NamePrivate", "UObject::OuterPrivate",
+            "UField::Next",
+            "UStruct::SuperStruct", "UStruct::Children", "UStruct::ChildProperties", "UStruct::PropertiesSize",
+            "UFunction::FunctionFlags", "UFunction::NumParms", "UFunction::ParmsSize", "UFunction::Func",
+            "FField::ClassPrivate", "FField::Next", "FField::NamePrivate", "FField::FlagsPrivate",
+            "FProperty::ArrayDim", "FProperty::ElementSize", "FProperty::PropertyFlags", "FProperty::Offset_Internal", "sizeof(FProperty)",
+        };
+        constexpr int kTotal = sizeof(kOffsetNames) / sizeof(kOffsetNames[0]);
+        int confirmed = 0;
+        for (int i = 0; i < kTotal; ++i) {
+            if (HasConfirmed(kOffsetNames[i])) ++confirmed;
+        }
+        bool useProbed = (confirmed > 0);
+        if (useProbed) {
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "探测偏移: 已启用 (%d/%d)", confirmed, kTotal);
+        } else {
+            ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "探测偏移: 未使用 (将使用 Profile 默认偏移)");
+        }
+        // 显示未确认的偏移名称
+        if (confirmed < kTotal) {
+            ImGui::SameLine();
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "  未确认:");
+            ImGui::Indent();
+            for (int i = 0; i < kTotal; ++i) {
+                if (!HasConfirmed(kOffsetNames[i])) {
+                    ImGui::BulletText("%s", kOffsetNames[i]);
+                }
+            }
+            ImGui::Unindent();
+        }
+    }
+
+    ImGui::Spacing();
+
     // ---- 阶段 B: Dump (需要探测完成) ----
     EDumpStatus status = m_DumpStatus.load();
     switch (status) {
@@ -4030,17 +4067,17 @@ void UEProber::StartDump() {
     ProbedOffsets offsets{};
 
     // UObject
-    if (HasConfirmed("UObject::ObjectFlags"))   offsets.objFlags = GetConfirmedOffset("UObject::ObjectFlags");
-    if (HasConfirmed("UObject::Index"))          offsets.objIndex = GetConfirmedOffset("UObject::Index");
-    if (HasConfirmed("UObject::Class"))          offsets.objClass = GetConfirmedOffset("UObject::Class");
-    if (HasConfirmed("UObject::Name"))           offsets.objName  = GetConfirmedOffset("UObject::Name");
-    if (HasConfirmed("UObject::Outer"))          offsets.objOuter = GetConfirmedOffset("UObject::Outer");
+    if (HasConfirmed("UObject::ObjectFlags"))          offsets.objFlags = GetConfirmedOffset("UObject::ObjectFlags");
+    if (HasConfirmed("UObject::InternalIndex"))          offsets.objIndex = GetConfirmedOffset("UObject::InternalIndex");
+    if (HasConfirmed("UObject::ClassPrivate"))          offsets.objClass = GetConfirmedOffset("UObject::ClassPrivate");
+    if (HasConfirmed("UObject::NamePrivate"))           offsets.objName  = GetConfirmedOffset("UObject::NamePrivate");
+    if (HasConfirmed("UObject::OuterPrivate"))          offsets.objOuter = GetConfirmedOffset("UObject::OuterPrivate");
 
     // UField
     if (HasConfirmed("UField::Next"))            offsets.fieldNext = GetConfirmedOffset("UField::Next");
 
     // UStruct
-    if (HasConfirmed("UStruct::SuperStruct"))    offsets.structSuper     = GetConfirmedOffset("UStruct::SuperStruct");
+    if (HasConfirmed("UStruct::SuperStruct"))          offsets.structSuper     = GetConfirmedOffset("UStruct::SuperStruct");
     if (HasConfirmed("UStruct::Children"))       offsets.structChildren  = GetConfirmedOffset("UStruct::Children");
     if (HasConfirmed("UStruct::ChildProperties")) offsets.structChildProps = GetConfirmedOffset("UStruct::ChildProperties");
     if (HasConfirmed("UStruct::PropertiesSize")) offsets.structSize      = GetConfirmedOffset("UStruct::PropertiesSize");
@@ -4062,7 +4099,7 @@ void UEProber::StartDump() {
     if (HasConfirmed("FProperty::ElementSize"))   offsets.fpropElemSize = GetConfirmedOffset("FProperty::ElementSize");
     if (HasConfirmed("FProperty::PropertyFlags")) offsets.fpropFlags    = GetConfirmedOffset("FProperty::PropertyFlags");
     if (HasConfirmed("FProperty::Offset_Internal")) offsets.fpropOffset = GetConfirmedOffset("FProperty::Offset_Internal");
-    if (HasConfirmed("FProperty::Size"))           offsets.fpropSize    = GetConfirmedOffset("FProperty::Size");
+    if (HasConfirmed("sizeof(FProperty)"))        offsets.fpropSize    = GetConfirmedOffset("sizeof(FProperty)");
 
     StartDumpWithProbedOffsets(offsets, m_DumpStatus, m_DumpError, m_DumpOutputDir);
 }
