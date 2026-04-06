@@ -3274,7 +3274,7 @@ void UEProber::DrawPhase1() {
     }
 
     ImGui::Spacing();
-    if (ImGui::Button("自动探测阶段 1", ImVec2(200, 30))) {
+    if (ImGui::Button("自动探测阶段 1")) {
         Phase1_AutoProbe();
     }
     ImGui::Spacing();
@@ -3336,7 +3336,7 @@ void UEProber::DrawPhase2() {
     if (!canAutoProbe)
         ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.2f, 1.0f), "请先完成阶段 1 (确认 Name 和 Class)");
 
-    if (ImGui::Button("自动探测阶段 2", ImVec2(200, 30)) && canAutoProbe) {
+    if (ImGui::Button("自动探测阶段 2") && canAutoProbe) {
         Phase2_AutoProbe();
     }
     ImGui::Spacing();
@@ -3402,7 +3402,7 @@ void UEProber::DrawPhase3() {
     ImGui::TextWrapped("探测 UClass::CastFlags, DefaultObject");
     ImGui::Spacing();
 
-    if (ImGui::Button("自动探测阶段 3", ImVec2(200, 30))) {
+    if (ImGui::Button("自动探测阶段 3")) {
         Phase3_AutoProbe();
     }
     ImGui::Spacing();
@@ -3440,7 +3440,7 @@ void UEProber::DrawPhase4() {
         ImGui::Text("K2_GetActorLocation: %s", FormatPtr(m_FuncK2_GetActorLocation).c_str());
 
     ImGui::Spacing();
-    if (ImGui::Button("自动探测阶段 4", ImVec2(200, 30))) {
+    if (ImGui::Button("自动探测阶段 4")) {
         Phase4_AutoProbe();
     }
     ImGui::Spacing();
@@ -3495,7 +3495,7 @@ void UEProber::DrawPhase5() {
     ImGui::TextWrapped("探测 FField::VTable, Owner, Name, Next, ClassPrivate 及 FProperty 成员");
     ImGui::Spacing();
 
-    if (ImGui::Button("自动探测阶段 5", ImVec2(200, 30))) {
+    if (ImGui::Button("自动探测阶段 5")) {
         Phase5_AutoProbe();
     }
     ImGui::Spacing();
@@ -3563,7 +3563,7 @@ void UEProber::DrawPhase6() {
     ImGui::Text("SDK 已知索引: 0x%X", Offsets::ProcessEventIdx);
     ImGui::Spacing();
 
-    if (ImGui::Button("扫描 VTable", ImVec2(200, 30))) {
+    if (ImGui::Button("扫描 VTable")) {
         Phase6_AutoProbe();
     }
     ImGui::Spacing();
@@ -3921,7 +3921,7 @@ void UEProber::DrawDumpPanel() {
     if (!m_GameDetected) {
         ImGui::TextWrapped("点击下方按钮自动检测当前运行的游戏，获取 GObjects 和 FName 解析器。");
         ImGui::Spacing();
-        if (ImGui::Button("检测游戏", ImVec2(200, 40))) {
+        if (ImGui::Button("检测游戏")) {
             DetectGame();
         }
         return;
@@ -4007,7 +4007,7 @@ void UEProber::DrawDumpPanel() {
     bool canDump = (status != EDumpStatus::Running);
     if (!canDump) ImGui::BeginDisabled();
 
-    if (ImGui::Button("开始 Dump (使用探测偏移)", ImVec2(280, 40))) {
+    if (ImGui::Button("开始 Dump (使用探测偏移)")) {
         StartDump();
     }
 
