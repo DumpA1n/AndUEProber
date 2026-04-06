@@ -4,9 +4,9 @@
 
 ### Screenshots
 
-| 探测结果总览 / Detection Results | 导出结构体 / Exported Structs |
-|:---:|:---:|
-| ![results](misc/p2.jpg) | ![export](misc/p1.jpg) |
+| 探测结果总览 / Detection Results | 导出结构体 / Exported Structs | Dump 结果 / Dump Result |
+|:---:|:---:|:---:|
+| ![results](misc/p2.jpg) | ![export](misc/p1.jpg) | ![dump](misc/p3.jpg) |
 
 导出结构体示例 / Exported structs example: [ReverseProber_04-06_01-26-58.log](misc/ReverseProber_04-06_01-26-58.log)
 
@@ -15,6 +15,10 @@
 ---
 
 <a id="中文"></a>
+
+### 重大更新
+
+集成了 [AndUEDumper](https://github.com/MJx0/AndUEDumper)，UEProber 可与 AndUEDumper 无缝衔接——探测完成后可直接触发 Dump，无需手动配置偏移。
 
 ### 构建
 
@@ -37,19 +41,6 @@ cmake --build build
 
 ### 使用方法
 
-该 Example 版本适用于 com.tencent.tmgp.dfm v1.201.37110.44
-
-如需适配其他 UE 游戏，需手动分析并修改 `source/UEProber/UECore/Basic.h` 中的偏移：
-
-```cpp
-namespace Offsets
-{
-    constexpr int32 GObjects           = 0x????????; // GUObjectArray 偏移
-    constexpr int32 GetPlainANSIString = 0x????????; // FName::GetPlainANSIString 偏移（同时需修改 FName::GetPlainANSIString 函数实现）
-    constexpr int32 ProcessEventIdx    = 0x????????; // ProcessEvent 虚函数表索引
-}
-```
-
 使用 [AndKittyInjector v5.1.0](https://github.com/MJx0/AndKittyInjector) 注入到目标应用：
 
 ```bash
@@ -59,18 +50,22 @@ namespace Offsets
 ### 已验证游戏
 
 | 游戏 | 版本 | GObjects | GetPlainANSIString | ProcessEventIdx |
-|------|------|----------|--------------------|-----------------| 
-| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A768` | `0x00000000` | `0x45` |
-| com.tencent.tmgp.nz | v1.0.30.860.0 | `0x1D67FD00` | `0x15A69F88` | `0x47` |
-| com.tencent.nrc | v1.100.0.88 | `0x0D9C06C8` | `0x08F57E1C` | `0x49` |
+|------|------|----------|--------------------|-----------------|
+| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A748` | Manual | ✅ |
+| com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
+| com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
 
 ### Todo
 
-- [ ] 自动获取 GUObjectArray / GetPlainANSIString / ProcessEventIdx
+- [x] 自动获取 GUObjectArray / GetPlainANSIString / ProcessEventIdx
 
 ---
 
 <a id="english"></a>
+
+### Major Update
+
+Integrated [AndUEDumper](https://github.com/MJx0/AndUEDumper) — UEProber now works seamlessly with AndUEDumper. After probing completes, you can trigger a Dump directly without manual offset configuration.
 
 ### Build
 
@@ -93,17 +88,6 @@ Output: `libAndUEProber.so`
 
 ### Usage
 
-To adapt for other UE games, manually analyze and modify the offsets in `source/UEProber/UECore/Basic.h`:
-
-```cpp
-namespace Offsets
-{
-    constexpr int32 GObjects           = 0x????????; // GUObjectArray offset
-    constexpr int32 GetPlainANSIString = 0x????????; // FName::GetPlainANSIString offset (also update the FName::GetPlainANSIString function implementation)
-    constexpr int32 ProcessEventIdx    = 0x????????; // ProcessEvent vtable index
-}
-```
-
 Inject into a target app using [AndKittyInjector v5.1.0](https://github.com/MJx0/AndKittyInjector):
 
 ```bash
@@ -112,15 +96,15 @@ Inject into a target app using [AndKittyInjector v5.1.0](https://github.com/MJx0
 
 ### Verified Games
 
-| Game | Version | GObjects | GetPlainANSIString | ProcessEventIdx |
+| Game | Version | GUObjectArray | GetPlainANSIString | ProcessEventIdx |
 |------|---------|----------|--------------------|-----------------|
-| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A768` | `0x00000000` | `0x45` |
-| com.tencent.tmgp.nz | v1.0.30.860.0 | `0x1D67FD00` | `0x15A69F88` | `0x47` |
-| com.tencent.nrc | v1.100.0.88 | `0x0D9C06C8` | `0x08F57E1C` | `0x49` |
+| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A748` | Manual | ✅ |
+| com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
+| com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
 
 ### Todo
 
-- [ ] Auto-detect GUObjectArray / GetPlainANSIString / ProcessEventIdx
+- [x] Auto-detect GUObjectArray / GetPlainANSIString / ProcessEventIdx
 
 ## Credits
 
