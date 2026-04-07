@@ -7,7 +7,7 @@
 #include <vector>
 
 #include "imgui/imgui.h"
-#include "DumpIntegration.h"
+#include "DumperBridge.h"
 
 // ============================================================
 //  UEProber — UE 结构逆向探测工具

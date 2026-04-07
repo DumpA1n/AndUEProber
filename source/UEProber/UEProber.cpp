@@ -1,7 +1,7 @@
 #include "UEProber.h"
 
 #include "Core/ElfScannerManager.h"
-#include "DumpIntegration.h"
+#include "DumperBridge.h"
 #include "UECore/CoreUObject_classes.h"
 #include "Utils/FileLogger.h"
 #include "Utils/Logger.h"

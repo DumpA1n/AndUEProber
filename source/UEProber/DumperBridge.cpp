@@ -1,7 +1,7 @@
-// DumpIntegration.cpp — compiled in AndUEDumperLib context (KittyMemoryEx headers only).
+// DumperBridge.cpp — compiled in AndUEDumperLib context (KittyMemoryEx headers only).
 // Provides game detection + dump entry point for UEProber.
 
-#include "DumpIntegration.h"
+#include "DumperBridge.h"
 
 #include <chrono>
 #include <string>

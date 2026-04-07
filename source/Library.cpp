@@ -40,7 +40,7 @@ void main_thread()
 			while (true)
 			{
 				mprotect((void*)Elf.UE4().bss(), Elf.UE4().bssSize(), PROT_READ | PROT_WRITE);
-				std::this_thread::sleep_for(std::chrono::milliseconds(1));
+				std::this_thread::sleep_for(std::chrono::milliseconds(10));
 			}
 		}).detach();
 	}

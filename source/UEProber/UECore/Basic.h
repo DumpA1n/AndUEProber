@@ -308,7 +308,7 @@ class FName final
 public:
 	static inline void*                           AppendString = nullptr;                            // 0x0000(0x0004)(NOT AUTO-GENERATED PROPERTY)
 
-	// Runtime name resolver — set by DumpIntegration to use profile's GetNameByID
+	// Runtime name resolver — set by DumperBridge to use profile's GetNameByID
 	static inline std::function<std::string(int32_t)> s_NameResolver;
 
 #define bWITH_CASE_PRESERVING_NAME false
