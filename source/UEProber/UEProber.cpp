@@ -4212,16 +4212,16 @@ void UEProber::DrawDumpPanel() {
     }
 
     // ---- 游戏已检测 ----
-    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "游戏: %s", m_GameDetection.gameName.c_str());
-    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "包名: %s", m_GameDetection.packageName.c_str());
+    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "游戏: %s", m_GameDetection.GameName.c_str());
+    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "包名: %s", m_GameDetection.PackageName.c_str());
     auto addrLine = [](const char* label, uintptr_t addr) {
         if (addr) ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "%s: 0x%lX", label, addr);
         else      ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s: N/A", label);
     };
-    addrLine("UE Base", m_GameDetection.ueBaseAddress);
-    addrLine("GUObjectArrayPtr",  m_GameDetection.guobjectArrayPtr);
-    addrLine("Objects Field Addr", m_GameDetection.objectsFieldAddr);
-    addrLine("GetPlainANSIString", m_GameDetection.getPlainANSIStringAddr);
+    addrLine("UE Base", m_GameDetection.UEBaseAddress);
+    addrLine("GUObjectArrayPtr",  m_GameDetection.GUObjectArrayPtr);
+    addrLine("Objects Field Addr", m_GameDetection.ObjectsFieldAddr);
+    addrLine("GetPlainANSIString", m_GameDetection.GetPlainANSIStringAddr);
     ImGui::Spacing();
 
     if (m_GObjectsInitialized) {
@@ -4338,13 +4338,14 @@ void UEProber::DetectGame() {
     m_GameDetection = result;
     m_GameDetected = true;
 
-    PDBG("检测到游戏: {} ({})", result.gameName, result.packageName);
+    PDBG("检测到游戏: {} ({})", result.GameName, result.PackageName);
     PDBG("UE Base: 0x{:X}, GUObjectArray: 0x{:X}, ObjectsFieldAddr: 0x{:X}",
-         result.ueBaseAddress, result.guobjectArrayPtr, result.objectsFieldAddr);
+         result.UEBaseAddress, result.GUObjectArrayPtr, result.ObjectsFieldAddr);
 
     // ---- 初始化 GObjects: 使用 profile 提供的地址, 在进程内读取 Objects 指针 ----
     auto* objArray = new TUObjectArray();
-    if (KMgrRead(result.objectsFieldAddr, &objArray->Objects, sizeof(void*))) {
+    if (KMgrRead(result.ObjectsFieldAddr, &objArray->Objects, sizeof(void*))) {
+        objArray->NumElementsPerChunk = result.NumElementsPerChunk;
         objArray->MaxElements = 327680;
         objArray->NumElements = 327680;
         objArray->MaxChunks = 5;
@@ -4356,7 +4357,8 @@ void UEProber::DetectGame() {
     }
     m_GObjectsInitialized = true;
 
-    PDBG("GObjects 初始化完成 (来自 Profile::GetGUObjectArrayPtr)");
+    PDBG("GObjects 初始化完成: NumElementsPerChunk={} ({})",
+         result.NumElementsPerChunk, result.NumElementsPerChunk > 0 ? "chunked" : "flat");
 }
 
 void UEProber::StartDump() {

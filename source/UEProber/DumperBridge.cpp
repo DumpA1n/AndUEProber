@@ -43,7 +43,7 @@
 #include "UE/UEGameProfiles/Auroria.hpp"
 #include "UE/UEGameProfiles/LineageW.hpp"
 #include "UE/UEGameProfiles/RLSideswipe.hpp"
-#include "UE/UEGameProfiles/PUBG.hpp"
+#include "GameProfiles/PUBG.hpp"
 #include "GameProfiles/DeltaForce.hpp"
 #include "GameProfiles/NiZhan.hpp"
 #include "GameProfiles/RocoKingdom.hpp"
@@ -175,38 +175,37 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
         return false;
     }
 
-    result.ueBaseAddress = ue_elf.base();
-    LOGI("UE Base: %p", (void*)result.ueBaseAddress);
+    result.UEBaseAddress = ue_elf.base();
+    LOGI("UE Base: %p", (void*)result.UEBaseAddress);
 
     // Call the profile's GetGUObjectArrayPtr to get GObjects address
-    result.guobjectArrayPtr = g_ExProfile->PublicGetGUObjectArrayPtr();
-    if (result.guobjectArrayPtr == 0) {
+    result.GUObjectArrayPtr = g_ExProfile->PublicGetGUObjectArrayPtr();
+    if (result.GUObjectArrayPtr == 0) {
         LOGE("GetGUObjectArrayPtr returned 0.");
         g_ExProfile = nullptr;
         return false;
     }
     LOGI("GUObjectArrayPtr: %p (offset: 0x%lX)",
-         (void*)result.guobjectArrayPtr,
-         result.guobjectArrayPtr - result.ueBaseAddress);
+         (void*)result.GUObjectArrayPtr,
+         result.GUObjectArrayPtr - result.UEBaseAddress);
 
     // Read Objects pointer from FUObjectArray
-    // FUObjectArray.ObjObjects default = 0x10 for UE4_25_27, but DeltaForce has custom TUObjectArray layout:
-    //   DeltaForce: TUObjectArray.Objects at offset 0x10 within ObjObjects
-    //   Standard:   TUObjectArray.Objects at offset 0x0 within ObjObjects
-    // Use the profile's offsets to compute correctly
     UE_Offsets* profileOffsets = g_ExProfile->AsGameProfile()->GetOffsets();
-    uintptr_t objObjectsAddr = result.guobjectArrayPtr + profileOffsets->FUObjectArray.ObjObjects;
-    result.objectsFieldAddr = objObjectsAddr + profileOffsets->TUObjectArray.Objects;
+    uintptr_t objObjectsAddr = result.GUObjectArrayPtr + profileOffsets->FUObjectArray.ObjObjects;
+    result.ObjectsFieldAddr = objObjectsAddr + profileOffsets->TUObjectArray.Objects;
     LOGI("Objects field addr: %p (offset: 0x%lX)",
-         (void*)result.objectsFieldAddr, result.objectsFieldAddr - result.ueBaseAddress);
+         (void*)result.ObjectsFieldAddr, result.ObjectsFieldAddr - result.UEBaseAddress);
 
-    result.getPlainANSIStringAddr = g_ExProfile->PublicGetPlainANSIStringAddr();
-    if (result.getPlainANSIStringAddr)
-        LOGI("GetPlainANSIString: %p", (void*)result.getPlainANSIStringAddr);
+    result.NumElementsPerChunk = static_cast<int32_t>(profileOffsets->TUObjectArray.NumElementsPerChunk);
+    LOGI("TUObjectArray: elementsPerChunk=%d", result.NumElementsPerChunk);
 
-    result.gameName = g_ExProfile->AsGameProfile()->GetAppName();
-    result.packageName = sGamePackage;
-    result.success = true;
+    result.GetPlainANSIStringAddr = g_ExProfile->PublicGetPlainANSIStringAddr();
+    if (result.GetPlainANSIStringAddr)
+        LOGI("GetPlainANSIString: %p", (void*)result.GetPlainANSIStringAddr);
+
+    result.GameName = g_ExProfile->AsGameProfile()->GetAppName();
+    result.PackageName = sGamePackage;
+    result.Success = true;
 
     return true;
 }

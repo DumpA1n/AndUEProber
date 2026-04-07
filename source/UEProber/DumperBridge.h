@@ -12,13 +12,14 @@ enum class EDumpStatus { Idle, Running, Success, Failed };
 // ============================================================
 
 struct GameDetectionResult {
-    bool success = false;
-    std::string gameName;
-    std::string packageName;
-    uintptr_t guobjectArrayPtr = 0;  // absolute VA of FUObjectArray
-    uintptr_t objectsFieldAddr = 0;  // address TO READ to get FUObjectItem** (Objects)
-    uintptr_t ueBaseAddress = 0;     // UE module base address
-    uintptr_t getPlainANSIStringAddr = 0; // GetPlainANSIString function address (0 if N/A)
+    bool Success = false;
+    std::string GameName;
+    std::string PackageName;
+    uintptr_t GUObjectArrayPtr = 0;  // absolute VA of FUObjectArray
+    uintptr_t ObjectsFieldAddr = 0;  // address TO READ to get Objects pointer
+    uintptr_t UEBaseAddress = 0;     // UE module base address
+    uintptr_t GetPlainANSIStringAddr = 0; // GetPlainANSIString function address (0 if N/A)
+    int32_t NumElementsPerChunk = 0;    // 0 = flat (FUObjectItem*), >0 = chunked (FUObjectItem**)
 };
 
 // Initialize KittyMemoryEx kMgr for self-process, iterate profiles,

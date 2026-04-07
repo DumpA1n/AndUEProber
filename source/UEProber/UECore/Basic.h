@@ -172,7 +172,7 @@ struct FUObjectItem final
 {
 public:
 	class UObject*                                Object;                                            // 0x0000(0x0008)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_8[0x18];                                       // 0x0008(0x0010)(Fixing Struct Size After Last Property [ Dumper-7 ])
+	uint8                                         Pad_8[0x10];                                       // 0x0008(0x0010)(Fixing Struct Size After Last Property [ Dumper-7 ])
 };
 
 class TUObjectArray final
@@ -183,7 +183,7 @@ public:
 		return reinterpret_cast<uint8*>(ObjPtr);
 	};
 
-	static constexpr int32                        ElementsPerChunk = 0x10000;                        // 0x0000(0x0004)(NOT AUTO-GENERATED PROPERTY)
+	int32                                         NumElementsPerChunk = 0x10000;                     // >0 = chunked, 0 = flat
 
 	struct FUObjectItem**                         Objects;                                           // 0x0000(0x0008)(NOT AUTO-GENERATED PROPERTY)
 	uint8                                         Pad_8[0x8];                                        // 0x0008(0x0008)(Fixing Size After Last Property [ Dumper-7 ])
@@ -208,17 +208,20 @@ public:
 		if (Index < 0 || Index >= NumElements || !Objects)
 			return nullptr;
 
-		const int32_t NumElementsPerChunk = 64 * 1024;
-		const int32_t chunkIndex = Index / NumElementsPerChunk;
-		const int32_t withinChunkIndex = Index % NumElementsPerChunk;
+		if (NumElementsPerChunk <= 0) {
+			return KT::Read<UObject*>(reinterpret_cast<uintptr_t>(Objects) + Index * sizeof(FUObjectItem) + offsetof(FUObjectItem, Object));
+		}
 
-		// if (chunkIndex >= NumChunks) return nullptr;
+		const int32_t ChunkIndex = Index / NumElementsPerChunk;
+		const int32_t WithinChunkIndex = Index % NumElementsPerChunk;
 
-		uint64_t chunk = KT::Read<uint64_t>(Objects + chunkIndex);
+		// if (ChunkIndex >= NumChunks) return nullptr;
+
+		uint64_t chunk = KT::Read<uint64_t>(Objects + ChunkIndex);
 		if (!chunk)
 			return nullptr;
 
-		return KT::Read<UObject*>(chunk + (withinChunkIndex * 0x18) + 0x0);
+		return KT::Read<UObject*>(chunk + (WithinChunkIndex * sizeof(FUObjectItem)) + offsetof(FUObjectItem, Object));
 	}
 
 	void ForEachObject(const std::function<bool(UObject*)> &callback) const
