@@ -13,6 +13,8 @@
 #include <cstring>
 #include <format>
 #include <set>
+#include <setjmp.h>
+#include <signal.h>
 #include <thread>
 #include <unistd.h>
 
@@ -37,6 +39,47 @@ static bool FNameEq(const std::string& a, const std::string& b) {
 }
 
 using namespace SDK;
+
+// ============================================================
+//  Safe Probe — sigsetjmp/siglongjmp 捕获 GetNameByID 内部的 SIGSEGV/SIGBUS
+//  NiZhan 等 Profile 通过函数指针调用引擎内 GetPlainANSIString,
+//  垃圾 ComparisonIndex 会导致引擎函数内部裸指针解引用崩溃.
+//  try/catch 无法捕获信号, 必须用信号处理.
+// ============================================================
+static thread_local sigjmp_buf t_safeJmpBuf;
+static thread_local volatile sig_atomic_t t_inSafeProbe = 0;
+
+static struct sigaction s_prevSEGV{};
+static struct sigaction s_prevBUS{};
+static std::atomic<bool> s_safeProbeInstalled{false};
+
+static void SafeProbeHandler(int sig, siginfo_t* info, void* ctx) {
+    if (t_inSafeProbe) {
+        t_inSafeProbe = 0;
+        siglongjmp(t_safeJmpBuf, 1);
+    }
+    // 非探测上下文, 转发给 CrashHandler
+    const struct sigaction& prev = (sig == SIGSEGV) ? s_prevSEGV : s_prevBUS;
+    if (prev.sa_flags & SA_SIGINFO) {
+        prev.sa_sigaction(sig, info, ctx);
+    } else if (prev.sa_handler != SIG_DFL && prev.sa_handler != SIG_IGN) {
+        prev.sa_handler(sig);
+    } else {
+        signal(sig, SIG_DFL);
+        raise(sig);
+    }
+}
+
+static void EnsureSafeProbeInstalled() {
+    if (s_safeProbeInstalled.exchange(true))
+        return;
+    struct sigaction sa{};
+    sa.sa_sigaction = SafeProbeHandler;
+    sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+    sigemptyset(&sa.sa_mask);
+    sigaction(SIGSEGV, &sa, &s_prevSEGV);
+    sigaction(SIGBUS, &sa, &s_prevBUS);
+}
 
 // ============================================================
 //  EFunctionFlags 位定义 (UE 4.24)
@@ -122,24 +165,46 @@ bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
     FName tempName;
     memcpy(&tempName, &fname, sizeof(fname));
 
-    try {
-        std::string result = tempName.GetRawString();
-        if (result.empty() || result.size() > 1024)
-            return false;
+    // GetRawString → GetNameByID 可能调用引擎函数做裸指针解引用,
+    // 垃圾 ComparisonIndex 会导致 SIGSEGV. 用 sigsetjmp 保护.
+    EnsureSafeProbeInstalled();
 
-        bool hasAlpha = false;
-        for (char c : result) {
-            if (c < 0x20 || c > 0x7E) return false;
-            if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
-                hasAlpha = true;
-        }
-        if (!hasAlpha) return false;
+    // 用 C buffer 避免 siglongjmp 跳过 std::string 析构
+    char resultBuf[1024] = {0};
+    size_t resultLen = 0;
 
-        outName = result;
-        return true;
-    } catch (...) {
+    t_inSafeProbe = 1;
+    if (sigsetjmp(t_safeJmpBuf, 1) != 0) {
+        // 捕获到 SIGSEGV/SIGBUS
         return false;
     }
+
+    try {
+        std::string result = tempName.GetRawString();
+        if (!result.empty() && result.size() < sizeof(resultBuf)) {
+            resultLen = result.size();
+            memcpy(resultBuf, result.c_str(), resultLen);
+        }
+    } catch (...) {
+        t_inSafeProbe = 0;
+        return false;
+    }
+    t_inSafeProbe = 0;
+
+    if (resultLen == 0 || resultLen > 1024)
+        return false;
+
+    bool hasAlpha = false;
+    for (size_t i = 0; i < resultLen; ++i) {
+        char c = resultBuf[i];
+        if (c < 0x20 || c > 0x7E) return false;
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'))
+            hasAlpha = true;
+    }
+    if (!hasAlpha) return false;
+
+    outName = std::string(resultBuf, resultLen);
+    return true;
 }
 
 bool UEProber::IsValidPtr(uintptr_t ptr) {
@@ -147,6 +212,16 @@ bool UEProber::IsValidPtr(uintptr_t ptr) {
     uint8_t top = (ptr >> 56) & 0xFF;
     if (top != 0x00 && top != 0xB4)
         return false;
+
+    // Strip 会将 bit[39:55] 截断, 如果这些位非零则不是真实指针
+    // 例: 0x0000087D00000000 → Strip 后变为 0x7D00000000, 会误判为有效
+    // PAC 指针仅 bit[56:63] 有标记, bit[39:55] 必须为 0
+    uintptr_t midBits = (ptr >> 39) & 0x1FFFF; // bit[39:55]
+    if (top == 0x00 && midBits != 0)
+        return false;
+    if (top == 0xB4 && midBits != 0x1FFFF) // PAC 时 bit[39:55] 应全为 1 (sign extension)
+        return false;
+
     return KT::IsValidStrong(ptr);
 }
 
@@ -906,6 +981,10 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
         scannedCount++;
         validPtrCount++;
 
+        // 验证 ptr 指向的内存可读
+        uint64_t testRead = 0;
+        if (!ReadMem(ptr, &testRead, 8)) continue;
+
         std::string name;
         if (TryReadFName(ptr + namePrivateOffset, name) && !name.empty()) {
             float confidence = 0.0f;
@@ -992,6 +1071,10 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
         uintptr_t ptr = 0;
         if (!ReadMem(childrenAddr + off, &ptr, 8)) continue;
         if (!IsValidPtr(ptr)) continue;
+
+        // 验证 ptr 指向的内存可读
+        uint64_t testRead = 0;
+        if (!ReadMem(ptr, &testRead, 8)) continue;
 
         // ChildProperties 指向 FField, 不是 UObject
         // 在 FField 的不同偏移处尝试读 FName
