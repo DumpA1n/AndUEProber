@@ -25,12 +25,11 @@
 **环境要求：**
 - CMake 3.22.1+
 - Android NDK（ARM64-v8a，API 27+）
-- C++20
 
 ```bash
 # 设置 NDK_HOME 环境变量（替换为你的 NDK 实际路径）
 export NDK_HOME=/path/to/android-ndk
-
+git submodule update --init --recursive
 cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
@@ -72,12 +71,11 @@ Integrated [AndUEDumper](https://github.com/MJx0/AndUEDumper) — UEProber now w
 **Requirements:**
 - CMake 3.22.1+
 - Android NDK (ARM64-v8a, API 27+)
-- C++20
 
 ```bash
 # Set NDK_HOME environment variable (replace with your actual NDK path)
 export NDK_HOME=/path/to/android-ndk
-
+git submodule update --init --recursive
 cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
