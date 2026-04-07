@@ -11,7 +11,7 @@ public:
     bool ArchSupprted() const override
     {
         auto e_machine = GetUnrealELF().header().e_machine;
-        return e_machine == EM_AARCH64 || e_machine == EM_ARM;
+        return e_machine == EM_AARCH64;
     }
 
     std::string GetAppName() const override
@@ -41,10 +41,6 @@ public:
 
     uintptr_t GetGUObjectArrayPtr() const override
     {
-        uintptr_t guobjectarray = GetUnrealELF().findSymbol("GUObjectArray");
-        if (guobjectarray != 0)
-            return guobjectarray;
-
         std::vector<std::pair<std::string, int>> idaPatterns = {
             {"91 E1 03 ? AA E0 03 08 AA E2 03 1F 2A", -7},
             {"B4 21 0C 40 B9 ? ? ? ? ? ? ? 91", 5},
