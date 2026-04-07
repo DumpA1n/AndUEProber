@@ -53,6 +53,34 @@
 using namespace UEMemory;
 
 // ============================================================
+//  Bridge: expose kMgr.readMem without leaking KittyMemoryEx headers
+// ============================================================
+
+ssize_t KMgrReadMem(uintptr_t address, void* buffer, size_t size)
+{
+    return kMgr.readMem(address, buffer, size);
+}
+
+size_t KMgrWriteMem(uintptr_t address, void* buffer, size_t size)
+{
+    return kMgr.writeMem(address, buffer, size);
+}
+
+bool KMgrRead(uintptr_t address, void* buffer, size_t size)
+{
+    return kMgr.readMem(address, buffer, size) == (ssize_t)size;
+}
+
+bool KMgrIsValidPtr(uintptr_t address)
+{
+    if (!address || address < 0x10000000)
+        return false;
+    // 高位只允许全 0 或 Android tagged pointer 前缀
+    uintptr_t highBits = address & ~(uintptr_t)0x7fffffffff;
+    return highBits == 0 || highBits == (uintptr_t)0xB400000000000000;
+}
+
+// ============================================================
 //  Global state: matched profile for the running game
 // ============================================================
 

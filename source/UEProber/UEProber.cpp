@@ -1,13 +1,14 @@
 #include "UEProber.h"
 
 #include "Core/ElfScannerManager.h"
+#include "DumpIntegration.h"
 #include "UECore/CoreUObject_classes.h"
 #include "Utils/FileLogger.h"
-#include "Utils/KittyEx.h"
 #include "Utils/Logger.h"
 
 #include <algorithm>
 #include <chrono>
+#include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
@@ -138,17 +139,6 @@ UEProber::UEProber() {
 //  内存操作
 // ============================================================
 
-bool UEProber::ReadMem(uintptr_t address, void* buffer, size_t size) {
-    if (!KT::IsValid(address))
-        return false;
-    return KT::Read(address, buffer, size);
-}
-
-bool UEProber::ReadMemUnsafe(uintptr_t address, void* buffer, size_t size) {
-    if (!address) return false;
-    return KT::ReadRaw(address, buffer, size);
-}
-
 bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
     struct RawFName {
         int32_t ComparisonIndex;
@@ -156,7 +146,7 @@ bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
     };
 
     RawFName fname{};
-    if (!ReadMem(address, &fname, sizeof(fname)))
+    if (!KMgrRead(address, &fname, sizeof(fname)))
         return false;
 
     if (fname.ComparisonIndex < 0 || fname.ComparisonIndex > 0x2000000 || fname.Number > 0xFFFF)
@@ -208,21 +198,7 @@ bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
 }
 
 bool UEProber::IsValidPtr(uintptr_t ptr) {
-    // 高位只允许 0 或 PAC 标记 (0xB4)，其余视为垃圾
-    uint8_t top = (ptr >> 56) & 0xFF;
-    if (top != 0x00 && top != 0xB4)
-        return false;
-
-    // Strip 会将 bit[39:55] 截断, 如果这些位非零则不是真实指针
-    // 例: 0x0000087D00000000 → Strip 后变为 0x7D00000000, 会误判为有效
-    // PAC 指针仅 bit[56:63] 有标记, bit[39:55] 必须为 0
-    uintptr_t midBits = (ptr >> 39) & 0x1FFFF; // bit[39:55]
-    if (top == 0x00 && midBits != 0)
-        return false;
-    if (top == 0xB4 && midBits != 0x1FFFF) // PAC 时 bit[39:55] 应全为 1 (sign extension)
-        return false;
-
-    return KT::IsValidStrong(ptr);
+    return KMgrIsValidPtr(ptr);
 }
 
 uintptr_t UEProber::FindObjectInGObjects(const std::string& targetName, const std::string& className) {
@@ -239,7 +215,7 @@ uintptr_t UEProber::FindObjectInGObjects(const std::string& targetName, const st
 
         if (filterByClass) {
             uintptr_t objClass = 0;
-            if (!ReadMem(obj + classPrivateOffset, &objClass, 8) || !IsValidPtr(objClass)) continue;
+            if (!KMgrRead(obj + classPrivateOffset, &objClass, 8) || !IsValidPtr(objClass)) continue;
             std::string clsName;
             if (!TryReadFName(objClass + namePrivateOffset, clsName) || !FNameEq(clsName, className)) continue;
         }
@@ -283,7 +259,7 @@ int32_t UEProber::GetStructSize(uintptr_t structAddr) {
     int32_t sizeOff = GetConfirmedOffset("UStruct::PropertiesSize");
     if (sizeOff < 0 || !structAddr) return 0;
     int32_t size = 0;
-    ReadMem(structAddr + sizeOff, &size, 4);
+    KMgrRead(structAddr + sizeOff, &size, 4);
     return size;
 }
 
@@ -378,7 +354,7 @@ void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedInde
 
     for (int32_t off = 0; off < m_ProbeRange; off += 4) {
         uint32_t val = 0;
-        if (!ReadMem(objAddr + off, &val, 4)) continue;
+        if (!KMgrRead(objAddr + off, &val, 4)) continue;
         if ((int32_t)val == expectedIndex) {
             float confidence = 0.5f;
             // 交叉验证: 检查其他对象
@@ -388,7 +364,7 @@ void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedInde
                 uintptr_t otherObj = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(idx));
                 if (!otherObj) continue;
                 uint32_t otherVal = 0;
-                if (ReadMem(otherObj + off, &otherVal, 4) && (int32_t)otherVal == idx)
+                if (KMgrRead(otherObj + off, &otherVal, 4) && (int32_t)otherVal == idx)
                     crossMatch++;
             }
             confidence = (float)crossMatch / 4.0f;
@@ -499,7 +475,7 @@ void UEProber::Phase1_ProbeClassPrivate(uintptr_t objAddr, const std::string& ex
 
     for (int32_t off = 0; off < m_ProbeRange; off += 8) {
         uintptr_t ptr = 0;
-        if (!ReadMem(objAddr + off, &ptr, 8)) continue;
+        if (!KMgrRead(objAddr + off, &ptr, 8)) continue;
         if (!IsValidPtr(ptr)) continue;
 
         std::string name;
@@ -548,7 +524,7 @@ void UEProber::Phase1_ProbeOuterPrivate(uintptr_t obj2Addr, uintptr_t obj1Addr) 
 
     for (int32_t off = 0; off < m_ProbeRange; off += 8) {
         uintptr_t ptr = 0;
-        if (!ReadMem(obj2Addr + off, &ptr, 8)) continue;
+        if (!KMgrRead(obj2Addr + off, &ptr, 8)) continue;
 
         if (ptr == obj1Addr) {
             m_Phase1OuterPrivateCandidates.push_back({
@@ -605,7 +581,7 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
         if (usedOffsets.count(off)) continue;
 
         uint32_t val = 0;
-        if (!ReadMem(objAddr + off, &val, 4)) continue;
+        if (!KMgrRead(objAddr + off, &val, 4)) continue;
 
         // obj[0] 的 Flags 已知为 1 (RF_Public)
         if (val != 1) continue;
@@ -616,7 +592,7 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
             uintptr_t otherObj = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(idx));
             if (!otherObj) continue;
             uint32_t otherVal = 0;
-            if (ReadMem(otherObj + off, &otherVal, 4) && otherVal > 0 && otherVal <= 0x03FFFFFF)
+            if (KMgrRead(otherObj + off, &otherVal, 4) && otherVal > 0 && otherVal <= 0x03FFFFFF)
                 validCount++;
         }
 
@@ -650,6 +626,10 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
 }
 
 void UEProber::Phase1_AutoProbe() {
+    if (!m_GameDetected) {
+        LogError("请先检测游戏后再进行探测操作");
+        return;
+    }
     m_PhaseStatus[1] = EPhaseStatus::InProgress;
     LogInfo("===== 阶段 1: UObject 基础成员自动探测 =====");
 
@@ -727,7 +707,7 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
     int scannedPtrs = 0;
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
         uintptr_t ptr = 0;
-        if (!ReadMem(classAddr + off, &ptr, 8)) continue;
+        if (!KMgrRead(classAddr + off, &ptr, 8)) continue;
         if (!IsValidPtr(ptr)) continue;
         scannedPtrs++;
 
@@ -743,13 +723,13 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
             int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
             if (classPrivateOffset >= 0) {
                 uintptr_t objClass = 0;
-                if (ReadMem(ptr + classPrivateOffset, &objClass, 8) && IsValidPtr(objClass)) {
+                if (KMgrRead(ptr + classPrivateOffset, &objClass, 8) && IsValidPtr(objClass)) {
                     // objClass 应是 "Object" UClass, 其 Class 应是 "Class" UClass
                     uintptr_t classClassAddr = 0;
-                    if (ReadMem(objClass + classPrivateOffset, &classClassAddr, 8) && IsValidPtr(classClassAddr)) {
+                    if (KMgrRead(objClass + classPrivateOffset, &classClassAddr, 8) && IsValidPtr(classClassAddr)) {
                         // 验证 Class->Super == Struct
                         uintptr_t classSuperPtr = 0;
-                        if (ReadMem(classClassAddr + off, &classSuperPtr, 8) && IsValidPtr(classSuperPtr)) {
+                        if (KMgrRead(classClassAddr + off, &classSuperPtr, 8) && IsValidPtr(classSuperPtr)) {
                             std::string superName;
                             if (TryReadFName(classSuperPtr + namePrivateOffset, superName) &&
                                 FNameEq(superName, "Struct")) {
@@ -812,16 +792,16 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
         if (classPrivateOffset >= 0) {
             // obj[1].Class = "Class" UClass (元类)
             uintptr_t classUClass = 0;
-            if (ReadMem(obj1 + classPrivateOffset, &classUClass, 8) && IsValidPtr(classUClass)) {
+            if (KMgrRead(obj1 + classPrivateOffset, &classUClass, 8) && IsValidPtr(classUClass)) {
                 m_ClassClass = classUClass;
                 // Class->Super 应为 Struct
                 uintptr_t structAddr = 0;
-                if (ReadMem(classUClass + best.offset, &structAddr, 8) && IsValidPtr(structAddr))
+                if (KMgrRead(classUClass + best.offset, &structAddr, 8) && IsValidPtr(structAddr))
                     m_ClassStruct = structAddr;
                 // Struct->Super 应为 Field
                 if (m_ClassStruct) {
                     uintptr_t fieldAddr = 0;
-                    if (ReadMem(m_ClassStruct + best.offset, &fieldAddr, 8) && IsValidPtr(fieldAddr))
+                    if (KMgrRead(m_ClassStruct + best.offset, &fieldAddr, 8) && IsValidPtr(fieldAddr))
                         m_ClassField = fieldAddr;
                 }
             }
@@ -844,12 +824,12 @@ void UEProber::Phase2_ProbeMinAlignment(uintptr_t execUbergraph, uintptr_t objec
     int scannedCount = 0;
     for (int32_t off = 0x28; ; off += 4) {
         int32_t valExec = 0, valObject = 0;
-        bool r1 = ReadMem(execUbergraph + off, &valExec, 4);
+        bool r1 = KMgrRead(execUbergraph + off, &valExec, 4);
         if (!r1) {
             PDBG("ProbeMinAlignment: ReadMem 失败 off=0x{:X}, 停止扫描 (已扫描 {} 个偏移)", off, scannedCount);
             break;
         }
-        bool r2 = objectUClass && ReadMem(objectUClass + off, &valObject, 4);
+        bool r2 = objectUClass && KMgrRead(objectUClass + off, &valObject, 4);
         scannedCount++;
 
         float confidence = 0.0f;
@@ -908,7 +888,7 @@ void UEProber::Phase2_ProbePropertiesSize(uintptr_t execUbergraph, uintptr_t obj
         if (off < 0) continue;
 
         int32_t valExec = 0;
-        if (!ReadMem(execUbergraph + off, &valExec, 4)) continue;
+        if (!KMgrRead(execUbergraph + off, &valExec, 4)) continue;
         scannedCount++;
         if (valExec != 0x4) continue;
 
@@ -917,7 +897,7 @@ void UEProber::Phase2_ProbePropertiesSize(uintptr_t execUbergraph, uintptr_t obj
         std::string desc = std::format("偏移 0x{:X}: ExecUbergraph=0x{:X}", off, valExec);
 
         int32_t valObject = 0;
-        if (objectUClass && ReadMem(objectUClass + off, &valObject, 4)) {
+        if (objectUClass && KMgrRead(objectUClass + off, &valObject, 4)) {
             if (valObject > 0x20 && valObject < 0x200 && (valObject % 8 == 0)) {
                 confidence = 1.0f;
                 desc += std::format(", Object=0x{:X}(合理)", valObject);
@@ -976,14 +956,14 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
 
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
         uintptr_t ptr = 0;
-        if (!ReadMem(classAddr + off, &ptr, 8)) continue;
+        if (!KMgrRead(classAddr + off, &ptr, 8)) continue;
         if (!IsValidPtr(ptr)) continue;
         scannedCount++;
         validPtrCount++;
 
         // 验证 ptr 指向的内存可读
         uint64_t testRead = 0;
-        if (!ReadMem(ptr, &testRead, 8)) continue;
+        if (!KMgrRead(ptr, &testRead, 8)) continue;
 
         std::string name;
         if (TryReadFName(ptr + namePrivateOffset, name) && !name.empty()) {
@@ -995,7 +975,7 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
                 int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
                 if (classPrivateOffset >= 0) {
                     uintptr_t childClass = 0;
-                    if (ReadMem(ptr + classPrivateOffset, &childClass, 8) && IsValidPtr(childClass)) {
+                    if (KMgrRead(ptr + classPrivateOffset, &childClass, 8) && IsValidPtr(childClass)) {
                         std::string className;
                         if (TryReadFName(childClass + namePrivateOffset, className) && FNameEq(className, "Function"))
                             confidence = 0.5f;
@@ -1049,8 +1029,8 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
     // 从 Children ("ExecuteUbergraph") 函数中探测 ChildProperties,
     // 其 ChildProperties 的第一个 FField Name 应为 "EntryPoint"
     uintptr_t childrenAddr = 0;
-    if (!ReadMem(classAddr + childrenOffset, &childrenAddr, 8) || !IsValidPtr(childrenAddr)) {
-        PDBG("ProbeChildProperties: 无法读取 Children 地址, ReadMem(classAddr+0x{:X}) 失败或 childrenAddr={} 无效",
+    if (!KMgrRead(classAddr + childrenOffset, &childrenAddr, 8) || !IsValidPtr(childrenAddr)) {
+        PDBG("ProbeChildProperties: 无法读取 Children 地址, KMgrRead(classAddr+0x{:X}) 失败或 childrenAddr={} 无效",
              childrenOffset, FormatPtr(childrenAddr));
         PDBG("<<<<<<<<<< [ProbeChildProperties] END <<<<<<<<<<");
         return;
@@ -1069,12 +1049,12 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
         if (off == childrenOffset) continue;
 
         uintptr_t ptr = 0;
-        if (!ReadMem(childrenAddr + off, &ptr, 8)) continue;
+        if (!KMgrRead(childrenAddr + off, &ptr, 8)) continue;
         if (!IsValidPtr(ptr)) continue;
 
         // 验证 ptr 指向的内存可读
         uint64_t testRead = 0;
-        if (!ReadMem(ptr, &testRead, 8)) continue;
+        if (!KMgrRead(ptr, &testRead, 8)) continue;
 
         // ChildProperties 指向 FField, 不是 UObject
         // 在 FField 的不同偏移处尝试读 FName
@@ -1151,8 +1131,8 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
 
     // 读取 UClass 的 Children -> 第一个 UFunction
     uintptr_t firstFunc = 0;
-    if (!ReadMem(kismetClass + childrenOffset, &firstFunc, 8) || !IsValidPtr(firstFunc)) {
-        PDBG("ProbeUFieldNext: ReadMem(kismetClass+0x{:X}) 失败或 firstFunc={} 无效",
+    if (!KMgrRead(kismetClass + childrenOffset, &firstFunc, 8) || !IsValidPtr(firstFunc)) {
+        PDBG("ProbeUFieldNext: KMgrRead(kismetClass+0x{:X}) 失败或 firstFunc={} 无效",
              childrenOffset, FormatPtr(firstFunc));
         PDBG("<<<<<<<<<< [ProbeUFieldNext] END <<<<<<<<<<");
         return;
@@ -1174,7 +1154,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
 
     for (int32_t off = nextSearchStart; off < nextSearchEnd; off += 8) {
         uintptr_t nextPtr = 0;
-        if (!ReadMem(firstFunc + off, &nextPtr, 8)) continue;
+        if (!KMgrRead(firstFunc + off, &nextPtr, 8)) continue;
         if (!IsValidPtr(nextPtr)) continue;
 
         std::string nextName;
@@ -1186,7 +1166,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
         std::string lastFuncName = nextName;
         for (int j = 0; j < 200; ++j) {
             uintptr_t nn = 0;
-            if (!ReadMem(cur + off, &nn, 8) || !IsValidPtr(nn)) break;
+            if (!KMgrRead(cur + off, &nn, 8) || !IsValidPtr(nn)) break;
             std::string nnName;
             if (!TryReadFName(nn + namePrivateOffset, nnName) || nnName.empty()) break;
             chainLen++;
@@ -1230,6 +1210,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
 }
 
 void UEProber::Phase2_AutoProbe() {
+    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
     m_PhaseStatus[2] = EPhaseStatus::InProgress;
 
     PDBG("========== [Phase2_AutoProbe] BEGIN ==========");
@@ -1285,8 +1266,8 @@ void UEProber::Phase2_AutoProbe() {
     PDBG("---------- [Step 2/5] Super ----------");
     uintptr_t packageClass = 0;
     PDBG("读取 obj[0]+0x{:X} (Class 偏移) ...", classPrivateOffset);
-    if (!ReadMem(obj0 + classPrivateOffset, &packageClass, 8) || !IsValidPtr(packageClass)) {
-        PDBG("Phase2 中止: ReadMem(obj0+classPrivateOffset) 失败或 packageClass={} 无效", FormatPtr(packageClass));
+    if (!KMgrRead(obj0 + classPrivateOffset, &packageClass, 8) || !IsValidPtr(packageClass)) {
+        PDBG("Phase2 中止: KMgrRead(obj0+classPrivateOffset) 失败或 packageClass={} 无效", FormatPtr(packageClass));
         return;
     }
     std::string pkgClassName;
@@ -1299,8 +1280,8 @@ void UEProber::Phase2_AutoProbe() {
     PDBG("---------- [Step 3/5] Children ----------");
     uintptr_t obj1Class = 0;
     PDBG("读取 obj[1]+0x{:X} (Class 偏移) ...", classPrivateOffset);
-    if (!ReadMem(obj1 + classPrivateOffset, &obj1Class, 8) || !IsValidPtr(obj1Class)) {
-        PDBG("Phase2 中止: ReadMem(obj1+classPrivateOffset) 失败或 obj1Class={} 无效", FormatPtr(obj1Class));
+    if (!KMgrRead(obj1 + classPrivateOffset, &obj1Class, 8) || !IsValidPtr(obj1Class)) {
+        PDBG("Phase2 中止: KMgrRead(obj1+classPrivateOffset) 失败或 obj1Class={} 无效", FormatPtr(obj1Class));
         return;
     }
     std::string obj1ClassName;
@@ -1359,14 +1340,14 @@ void UEProber::Phase3_ProbeCastFlags() {
         uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
         if (!obj1) return;
         uintptr_t obj1Class = 0;
-        ReadMem(obj1 + classPrivateOffset, &obj1Class, 8);
+        KMgrRead(obj1 + classPrivateOffset, &obj1Class, 8);
         if (!IsValidPtr(obj1Class)) return;
         m_ClassClass = obj1Class;
     }
     // 确保 m_ClassStruct 已初始化
     if (!m_ClassStruct && superStructOffset >= 0) {
         uintptr_t structAddr = 0;
-        ReadMem(m_ClassClass + superStructOffset, &structAddr, 8);
+        KMgrRead(m_ClassClass + superStructOffset, &structAddr, 8);
         if (IsValidPtr(structAddr)) m_ClassStruct = structAddr;
     }
 
@@ -1375,7 +1356,7 @@ void UEProber::Phase3_ProbeCastFlags() {
     {
         uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
         if (obj0 && IsValidPtr(obj0)) {
-            ReadMem(obj0 + classPrivateOffset, &packageClass, 8);
+            KMgrRead(obj0 + classPrivateOffset, &packageClass, 8);
             if (!IsValidPtr(packageClass)) packageClass = 0;
         }
     }
@@ -1389,9 +1370,9 @@ void UEProber::Phase3_ProbeCastFlags() {
 
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
         uint64_t valClass = 0, valStruct = 0, valPackage = 0;
-        bool readClass = m_ClassClass && ReadMem(m_ClassClass + off, &valClass, 8);
-        bool readStruct = m_ClassStruct && ReadMem(m_ClassStruct + off, &valStruct, 8);
-        bool readPackage = packageClass && ReadMem(packageClass + off, &valPackage, 8);
+        bool readClass = m_ClassClass && KMgrRead(m_ClassClass + off, &valClass, 8);
+        bool readStruct = m_ClassStruct && KMgrRead(m_ClassStruct + off, &valStruct, 8);
+        bool readPackage = packageClass && KMgrRead(packageClass + off, &valPackage, 8);
 
         if (!readClass) continue;
         if (valClass == 0) continue;
@@ -1467,7 +1448,7 @@ void UEProber::Phase3_ProbeClassDefaultObject(uintptr_t classAddr) {
 
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
         uintptr_t ptr = 0;
-        if (!ReadMem(classAddr + off, &ptr, 8)) continue;
+        if (!KMgrRead(classAddr + off, &ptr, 8)) continue;
 
         float confidence = 0.0f;
         if (ptr == defaultObj)
@@ -1502,6 +1483,7 @@ void UEProber::Phase3_ProbeClassDefaultObject(uintptr_t classAddr) {
 }
 
 void UEProber::Phase3_AutoProbe() {
+    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
     m_PhaseStatus[3] = EPhaseStatus::InProgress;
     LogInfo("===== 阶段 3: UClass 自动探测 =====");
 
@@ -1527,7 +1509,7 @@ uintptr_t UEProber::WalkChildrenChain(
     int32_t childrenOff, int32_t nextOff, int32_t namePrivateOff)
 {
     uintptr_t cur = 0;
-    if (!ReadMem(classAddr + childrenOff, &cur, 8) || !IsValidPtr(cur))
+    if (!KMgrRead(classAddr + childrenOff, &cur, 8) || !IsValidPtr(cur))
         return 0;
 
     for (int i = 0; i < 500 && cur; ++i) {
@@ -1535,7 +1517,7 @@ uintptr_t UEProber::WalkChildrenChain(
         if (TryReadFName(cur + namePrivateOff, n) && n == funcName)
             return cur;
         uintptr_t next = 0;
-        if (!ReadMem(cur + nextOff, &next, 8)) break;
+        if (!KMgrRead(cur + nextOff, &next, 8)) break;
         cur = (next && IsValidPtr(next)) ? next : 0;
     }
     return 0;
@@ -1615,9 +1597,9 @@ void UEProber::Phase4_ProbeFunctionFlags() {
 
     for (int32_t off = searchStart; off < searchEnd; off += 4) {
         uint32_t valIsValid = 0, valPrintStr = 0, valBeginPlay = 0;
-        if (!ReadMemUnsafe(m_FuncIsValid + off, &valIsValid, 4)) continue;
-        if (!ReadMemUnsafe(m_FuncPrintString + off, &valPrintStr, 4)) continue;
-        if (!ReadMemUnsafe(m_FuncReceiveBeginPlay + off, &valBeginPlay, 4)) continue;
+        if (!KMgrRead(m_FuncIsValid + off, &valIsValid, 4)) continue;
+        if (!KMgrRead(m_FuncPrintString + off, &valPrintStr, 4)) continue;
+        if (!KMgrRead(m_FuncReceiveBeginPlay + off, &valBeginPlay, 4)) continue;
 
         // IsValid: 必含 Native|Final|BlueprintPure
         if ((valIsValid & isValidExpected) != isValidExpected) continue;
@@ -1634,7 +1616,7 @@ void UEProber::Phase4_ProbeFunctionFlags() {
         // ReceiveTick 交叉验证: 应与 ReceiveBeginPlay 相同的事件标志
         if (m_FuncReceiveTick) {
             uint32_t valTick = 0;
-            if (ReadMemUnsafe(m_FuncReceiveTick + off, &valTick, 4) &&
+            if (KMgrRead(m_FuncReceiveTick + off, &valTick, 4) &&
                 (valTick & bpEventExpected) == bpEventExpected &&
                 !(valTick & EFuncFlags::FUNC_Native)) {
                 confidence += 0.1f;
@@ -1644,7 +1626,7 @@ void UEProber::Phase4_ProbeFunctionFlags() {
         // K2_GetActorLocation 交叉验证: 应含 Native|Final|BlueprintPure
         if (m_FuncK2_GetActorLocation) {
             uint32_t valLoc = 0;
-            if (ReadMemUnsafe(m_FuncK2_GetActorLocation + off, &valLoc, 4) &&
+            if (KMgrRead(m_FuncK2_GetActorLocation + off, &valLoc, 4) &&
                 (valLoc & isValidExpected) == isValidExpected) {
                 confidence += 0.1f;
                 desc += std::format(", GetLoc=0x{:X}", valLoc);
@@ -1693,8 +1675,8 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
     for (int32_t off = searchStart; off < searchEnd; off += 1) {
         if (off >= funcFlagsOff && off < funcFlagsOff + 4) continue; // 跳过 FunctionFlags 本身
         uint8_t valBP = 0, valIsValid = 0;
-        if (!ReadMemUnsafe(m_FuncReceiveBeginPlay + off, &valBP, 1)) continue;
-        if (!ReadMemUnsafe(m_FuncIsValid + off, &valIsValid, 1)) continue;
+        if (!KMgrRead(m_FuncReceiveBeginPlay + off, &valBP, 1)) continue;
+        if (!KMgrRead(m_FuncIsValid + off, &valIsValid, 1)) continue;
 
         if (valBP != 0 || valIsValid != 2) continue;
 
@@ -1703,7 +1685,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
 
         if (m_FuncReceiveTick) {
             uint8_t valTick = 0;
-            if (ReadMemUnsafe(m_FuncReceiveTick + off, &valTick, 1) && valTick == 1) {
+            if (KMgrRead(m_FuncReceiveTick + off, &valTick, 1) && valTick == 1) {
                 confidence += 0.15f;
                 desc += ", Tick=1";
             } else {
@@ -1712,7 +1694,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
         }
         if (m_FuncPrintString) {
             uint8_t valPS = 0;
-            if (ReadMemUnsafe(m_FuncPrintString + off, &valPS, 1) && valPS == 6) {
+            if (KMgrRead(m_FuncPrintString + off, &valPS, 1) && valPS == 6) {
                 confidence += 0.25f;
                 desc += ", PrintString=6";
             } else {
@@ -1729,8 +1711,8 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
     for (int32_t off = searchStart; off < searchEnd; off += 2) {
         if (off >= funcFlagsOff && off < funcFlagsOff + 4) continue; // 跳过 FunctionFlags 本身
         uint16_t valBP = 0, valIsValid = 0;
-        if (!ReadMemUnsafe(m_FuncReceiveBeginPlay + off, &valBP, 2)) continue;
-        if (!ReadMemUnsafe(m_FuncIsValid + off, &valIsValid, 2)) continue;
+        if (!KMgrRead(m_FuncReceiveBeginPlay + off, &valBP, 2)) continue;
+        if (!KMgrRead(m_FuncIsValid + off, &valIsValid, 2)) continue;
 
         if (valBP != 0 || valIsValid != 9) continue;
 
@@ -1739,7 +1721,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
 
         if (m_FuncReceiveTick) {
             uint16_t valTick = 0;
-            if (ReadMemUnsafe(m_FuncReceiveTick + off, &valTick, 2) && valTick == 4) {
+            if (KMgrRead(m_FuncReceiveTick + off, &valTick, 2) && valTick == 4) {
                 confidence += 0.15f;
                 desc += ", Tick=4";
             } else {
@@ -1747,7 +1729,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
         }
         if (m_FuncPrintString) {
             uint16_t valPS = 0;
-            if (ReadMemUnsafe(m_FuncPrintString + off, &valPS, 2) && valPS > 20) {
+            if (KMgrRead(m_FuncPrintString + off, &valPS, 2) && valPS > 20) {
                 confidence += 0.15f;
                 desc += std::format(", PrintString={}", valPS);
             }
@@ -1805,9 +1787,9 @@ void UEProber::Phase4_ProbeReturnValueOffset() {
         if (off >= funcFlagsOff && off < funcFlagsOff + 4) continue;
 
         uint16_t valLoc = 0, valIsValid = 0, valPS = 0;
-        if (!ReadMemUnsafe(m_FuncK2_GetActorLocation + off, &valLoc, 2)) continue;
-        if (!ReadMemUnsafe(m_FuncIsValid + off, &valIsValid, 2)) continue;
-        if (!ReadMemUnsafe(m_FuncPrintString + off, &valPS, 2)) continue;
+        if (!KMgrRead(m_FuncK2_GetActorLocation + off, &valLoc, 2)) continue;
+        if (!KMgrRead(m_FuncIsValid + off, &valIsValid, 2)) continue;
+        if (!KMgrRead(m_FuncPrintString + off, &valPS, 2)) continue;
 
         // K2_GetActorLocation=0, IsValid=8, PrintString=0xFFFF
         if (valLoc != 0 || valIsValid != 8 || valPS != 0xFFFF) continue;
@@ -1818,14 +1800,14 @@ void UEProber::Phase4_ProbeReturnValueOffset() {
         // 交叉验证: ReceiveBeginPlay 和 ReceiveTick 应为 0xFFFF
         if (m_FuncReceiveBeginPlay) {
             uint16_t valBP = 0;
-            if (ReadMemUnsafe(m_FuncReceiveBeginPlay + off, &valBP, 2) && valBP == 0xFFFF) {
+            if (KMgrRead(m_FuncReceiveBeginPlay + off, &valBP, 2) && valBP == 0xFFFF) {
                 confidence += 0.05f;
                 desc += ", BeginPlay=0xFFFF";
             }
         }
         if (m_FuncReceiveTick) {
             uint16_t valTick = 0;
-            if (ReadMemUnsafe(m_FuncReceiveTick + off, &valTick, 2) && valTick == 0xFFFF) {
+            if (KMgrRead(m_FuncReceiveTick + off, &valTick, 2) && valTick == 0xFFFF) {
                 confidence += 0.05f;
                 desc += ", Tick=0xFFFF";
             }
@@ -1878,7 +1860,7 @@ void UEProber::Phase4_ProbeFunc() {
         std::set<uintptr_t> nativeValues;
         for (auto fnAddr : nativeFuncs) {
             uintptr_t ptr = 0;
-            if (ReadMemUnsafe(fnAddr + off, &ptr, 8) && ptr >= textStart && ptr < textEnd) {
+            if (KMgrRead(fnAddr + off, &ptr, 8) && ptr >= textStart && ptr < textEnd) {
                 nativeInText++;
                 nativeValues.insert(ptr);
             }
@@ -1889,7 +1871,7 @@ void UEProber::Phase4_ProbeFunc() {
         std::set<uintptr_t> bpValues;
         for (auto fnAddr : bpFuncs) {
             uintptr_t ptr = 0;
-            if (ReadMemUnsafe(fnAddr + off, &ptr, 8) && ptr != 0)
+            if (KMgrRead(fnAddr + off, &ptr, 8) && ptr != 0)
                 bpValues.insert(ptr);
         }
         bool bpAllSame = (bpValues.size() == 1 && bpFuncs.size() >= 2);
@@ -1930,6 +1912,7 @@ void UEProber::Phase4_ProbeFunc() {
 }
 
 void UEProber::Phase4_AutoProbe() {
+    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
     m_PhaseStatus[4] = EPhaseStatus::InProgress;
     LogInfo("===== 阶段 4: UFunction 自动探测 =====");
 
@@ -1985,7 +1968,7 @@ void UEProber::Phase5_CollectAnchors() {
     uintptr_t execUbergraph = FindObjectInGObjects("ExecuteUbergraph");
     PDBG("CollectAnchors: FindObjectInGObjects(ExecuteUbergraph) = {}", FormatPtr(execUbergraph));
     if (execUbergraph) {
-        ReadMem(execUbergraph + childPropsOff, &m_FFEntryPoint, 8);
+        KMgrRead(execUbergraph + childPropsOff, &m_FFEntryPoint, 8);
         if (!IsValidPtr(m_FFEntryPoint)) m_FFEntryPoint = 0;
     }
     PDBG("CollectAnchors: m_FFEntryPoint={}", FormatPtr(m_FFEntryPoint));
@@ -1993,7 +1976,7 @@ void UEProber::Phase5_CollectAnchors() {
     // ReceiveTick -> "DeltaSeconds" (FloatProperty)
     PDBG("CollectAnchors: m_FuncReceiveTick={}", FormatPtr(m_FuncReceiveTick));
     if (m_FuncReceiveTick) {
-        ReadMem(m_FuncReceiveTick + childPropsOff, &m_FFDeltaSeconds, 8);
+        KMgrRead(m_FuncReceiveTick + childPropsOff, &m_FFDeltaSeconds, 8);
         if (!IsValidPtr(m_FFDeltaSeconds)) m_FFDeltaSeconds = 0;
     }
     PDBG("CollectAnchors: m_FFDeltaSeconds={}", FormatPtr(m_FFDeltaSeconds));
@@ -2001,7 +1984,7 @@ void UEProber::Phase5_CollectAnchors() {
     // IsValid -> 首参 (ObjectProperty) -> Next -> ReturnValue (BoolProperty)
     PDBG("CollectAnchors: m_FuncIsValid={}", FormatPtr(m_FuncIsValid));
     if (m_FuncIsValid) {
-        ReadMem(m_FuncIsValid + childPropsOff, &m_FFIsValidParam0, 8);
+        KMgrRead(m_FuncIsValid + childPropsOff, &m_FFIsValidParam0, 8);
         if (!IsValidPtr(m_FFIsValidParam0)) m_FFIsValidParam0 = 0;
         // IsValid ReturnValue 在 Next 探测后获取
     }
@@ -2010,7 +1993,7 @@ void UEProber::Phase5_CollectAnchors() {
     // K2_GetActorLocation -> "ReturnValue" (StructProperty)
     PDBG("CollectAnchors: m_FuncK2_GetActorLocation={}", FormatPtr(m_FuncK2_GetActorLocation));
     if (m_FuncK2_GetActorLocation) {
-        ReadMem(m_FuncK2_GetActorLocation + childPropsOff, &m_FFK2LocReturn, 8);
+        KMgrRead(m_FuncK2_GetActorLocation + childPropsOff, &m_FFK2LocReturn, 8);
         if (!IsValidPtr(m_FFK2LocReturn)) m_FFK2LocReturn = 0;
     }
     PDBG("CollectAnchors: m_FFK2LocReturn={}", FormatPtr(m_FFK2LocReturn));
@@ -2019,7 +2002,7 @@ void UEProber::Phase5_CollectAnchors() {
     PDBG("CollectAnchors: m_FuncReceiveBeginPlay={}", FormatPtr(m_FuncReceiveBeginPlay));
     if (m_FuncReceiveBeginPlay) {
         uintptr_t bpChildProps = 0;
-        ReadMem(m_FuncReceiveBeginPlay + childPropsOff, &bpChildProps, 8);
+        KMgrRead(m_FuncReceiveBeginPlay + childPropsOff, &bpChildProps, 8);
         if (bpChildProps != 0) {
             PDBG("CollectAnchors: WARNING ReceiveBeginPlay ChildProperties 不为 nullptr: {}, 可能 ChildProperties 偏移有误",
                 FormatPtr(bpChildProps));
@@ -2120,7 +2103,7 @@ void UEProber::Phase5_ProbeFFieldOwner() {
         if (off == namePrivateOff) continue; // 排除已确认的 Name 偏移
 
         uintptr_t ptr1 = 0;
-        if (!ReadMem(m_FFEntryPoint + off, &ptr1, 8)) continue;
+        if (!KMgrRead(m_FFEntryPoint + off, &ptr1, 8)) continue;
         if (ptr1 != execUbergraph) {
             PDBG("ProbeFFieldOwner: off=0x{:X} ptr1={} != execUbergraph, 跳过", off, FormatPtr(ptr1));
             continue;
@@ -2133,7 +2116,7 @@ void UEProber::Phase5_ProbeFFieldOwner() {
         // 交叉验证: DeltaSeconds 的 Owner 应指向 ReceiveTick
         if (m_FFDeltaSeconds && m_FuncReceiveTick) {
             uintptr_t ptr2 = 0;
-            if (ReadMem(m_FFDeltaSeconds + off, &ptr2, 8) && ptr2 == m_FuncReceiveTick) {
+            if (KMgrRead(m_FFDeltaSeconds + off, &ptr2, 8) && ptr2 == m_FuncReceiveTick) {
                 confidence += 0.2f;
                 desc += ", DeltaSeconds->ReceiveTick OK";
             }
@@ -2141,7 +2124,7 @@ void UEProber::Phase5_ProbeFFieldOwner() {
 
         // 检查 bIsUObject 标志 (紧随指针之后的 8 字节最低位)
         uint64_t bIsUObj = 0;
-        if (ReadMem(m_FFEntryPoint + off + 8, &bIsUObj, 8) && (bIsUObj & 1)) {
+        if (KMgrRead(m_FFEntryPoint + off + 8, &bIsUObj, 8) && (bIsUObj & 1)) {
             confidence += 0.1f;
             desc += ", bIsUObject=1";
         }
@@ -2196,7 +2179,7 @@ void UEProber::Phase5_ProbeFFieldNext() {
 
         // EntryPoint (NumParms=1): Next 应为 nullptr
         uintptr_t ptr1 = 0;
-        ReadMem(m_FFEntryPoint + off, &ptr1, 8);
+        KMgrRead(m_FFEntryPoint + off, &ptr1, 8);
         if (ptr1 != 0) {
             PDBG("ProbeFFieldNext: off=0x{:X} EntryPoint.Next={} != nullptr, 跳过", off, FormatPtr(ptr1));
             continue;
@@ -2204,7 +2187,7 @@ void UEProber::Phase5_ProbeFFieldNext() {
 
         // IsValid 首参 (NumParms=2): Next 应为有效指针 -> "ReturnValue"
         uintptr_t ptr2 = 0;
-        if (!ReadMem(m_FFIsValidParam0 + off, &ptr2, 8) || !IsValidPtr(ptr2)) {
+        if (!KMgrRead(m_FFIsValidParam0 + off, &ptr2, 8) || !IsValidPtr(ptr2)) {
             PDBG("ProbeFFieldNext: off=0x{:X} IsValidP0.Next={} 无效, 跳过", off, FormatPtr(ptr2));
             continue;
         }
@@ -2218,7 +2201,7 @@ void UEProber::Phase5_ProbeFFieldNext() {
 
         // 验证链长: IsValid 应恰好 2 个 (首参 + ReturnValue)
         uintptr_t nextNext = 0;
-        ReadMem(ptr2 + off, &nextNext, 8);
+        KMgrRead(ptr2 + off, &nextNext, 8);
         bool chainLen2 = (nextNext == 0); // ReturnValue 的 Next 应为 nullptr
 
         float confidence = 0.8f;
@@ -2282,7 +2265,7 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
 
         // EntryPoint 的 ClassPrivate -> FFieldClass, FFieldClass->Name(偏移0) 应为 "IntProperty"
         uintptr_t ptr1 = 0;
-        if (!ReadMem(m_FFEntryPoint + off, &ptr1, 8) || !IsValidPtr(ptr1)) continue;
+        if (!KMgrRead(m_FFEntryPoint + off, &ptr1, 8) || !IsValidPtr(ptr1)) continue;
 
         std::string typeName1;
         if (!TryReadFName(ptr1, typeName1) || !FNameEq(typeName1, "IntProperty")) {
@@ -2298,7 +2281,7 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
         // 交叉验证: DeltaSeconds 应为 "FloatProperty"
         if (m_FFDeltaSeconds) {
             uintptr_t ptr2 = 0;
-            if (ReadMem(m_FFDeltaSeconds + off, &ptr2, 8) && IsValidPtr(ptr2)) {
+            if (KMgrRead(m_FFDeltaSeconds + off, &ptr2, 8) && IsValidPtr(ptr2)) {
                 std::string typeName2;
                 if (TryReadFName(ptr2, typeName2) && FNameEq(typeName2, "FloatProperty")) {
                     confidence += 0.2f;
@@ -2310,7 +2293,7 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
         // 补充验证: IsValid ReturnValue 应为 "BoolProperty"
         if (m_FFIsValidReturn) {
             uintptr_t ptr3 = 0;
-            if (ReadMem(m_FFIsValidReturn + off, &ptr3, 8) && IsValidPtr(ptr3)) {
+            if (KMgrRead(m_FFIsValidReturn + off, &ptr3, 8) && IsValidPtr(ptr3)) {
                 std::string typeName3;
                 if (TryReadFName(ptr3, typeName3) && FNameEq(typeName3, "BoolProperty")) {
                     confidence += 0.1f;
@@ -2372,7 +2355,7 @@ void UEProber::Phase5_ProbeFFieldFlagsPrivate() {
         if (classPrivateOff >= 0 && off >= classPrivateOff && off < classPrivateOff + 8) continue;
 
         int32_t val1 = -1;
-        if (!ReadMemUnsafe(m_FFEntryPoint + off, &val1, 4)) continue;
+        if (!KMgrRead(m_FFEntryPoint + off, &val1, 4)) continue;
 
         // ObjFlags 是位域标志, 值可能非零但应仅含有效标志位, 且不应太大
         uint32_t uval1 = (uint32_t)val1;
@@ -2384,7 +2367,7 @@ void UEProber::Phase5_ProbeFFieldFlagsPrivate() {
         // 交叉验证: 所有函数参数的 FProperty 应具有相同的 ObjFlags
         if (m_FFDeltaSeconds) {
             int32_t val2 = -1;
-            ReadMemUnsafe(m_FFDeltaSeconds + off, &val2, 4);
+            KMgrRead(m_FFDeltaSeconds + off, &val2, 4);
             if (val2 == val1) {
                 confidence += 0.3f;
                 desc += std::format(", DeltaSeconds=0x{:X}(一致)", (uint32_t)val2);
@@ -2393,7 +2376,7 @@ void UEProber::Phase5_ProbeFFieldFlagsPrivate() {
 
         if (m_FFIsValidParam0) {
             int32_t val3 = -1;
-            ReadMemUnsafe(m_FFIsValidParam0 + off, &val3, 4);
+            KMgrRead(m_FFIsValidParam0 + off, &val3, 4);
             if (val3 == val1) {
                 confidence += 0.3f;
                 desc += std::format(", IsValidP0=0x{:X}(一致)", (uint32_t)val3);
@@ -2453,8 +2436,8 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
     for (int32_t off = searchStart; off < searchEnd; off += 4) {
         // ArrayDim: 所有锚点均应为 1
         int32_t ad1 = 0, ad2 = 0;
-        bool r1 = ReadMemUnsafe(m_FFEntryPoint + off, &ad1, 4);
-        bool r2 = ReadMemUnsafe(m_FFIsValidParam0 + off, &ad2, 4);
+        bool r1 = KMgrRead(m_FFEntryPoint + off, &ad1, 4);
+        bool r2 = KMgrRead(m_FFIsValidParam0 + off, &ad2, 4);
         if (!r1 || ad1 != 1 || !r2 || ad2 != 1) {
             PDBG("ProbeAD+ES: off=0x{:X} AD不匹配: r1={} ad1={} r2={} ad2={}", off, r1, ad1, r2, ad2);
             continue;
@@ -2462,8 +2445,8 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
 
         // ElementSize 紧邻其后 (+4)
         int32_t es1 = 0, es2 = 0;
-        if (!ReadMemUnsafe(m_FFEntryPoint + off + 4, &es1, 4)) continue;
-        if (!ReadMemUnsafe(m_FFIsValidParam0 + off + 4, &es2, 4)) continue;
+        if (!KMgrRead(m_FFEntryPoint + off + 4, &es1, 4)) continue;
+        if (!KMgrRead(m_FFIsValidParam0 + off + 4, &es2, 4)) continue;
 
         // EntryPoint(IntProperty) = 4, IsValid首参(ObjectProperty) = 8
         if (es1 != 4 || es2 != 8) {
@@ -2478,8 +2461,8 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
         // 交叉验证: DeltaSeconds (FloatProperty) = 4
         if (m_FFDeltaSeconds) {
             int32_t ad3 = 0, es3 = 0;
-            if (ReadMemUnsafe(m_FFDeltaSeconds + off, &ad3, 4) && ad3 == 1 &&
-                ReadMemUnsafe(m_FFDeltaSeconds + off + 4, &es3, 4) && es3 == 4) {
+            if (KMgrRead(m_FFDeltaSeconds + off, &ad3, 4) && ad3 == 1 &&
+                KMgrRead(m_FFDeltaSeconds + off + 4, &es3, 4) && es3 == 4) {
                 confidence += 0.1f;
                 desc += "; DeltaSec: AD=1,ES=4";
             }
@@ -2488,8 +2471,8 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
         // 交叉验证: IsValid ReturnValue (BoolProperty) = 1
         if (m_FFIsValidReturn) {
             int32_t ad4 = 0, es4 = 0;
-            if (ReadMemUnsafe(m_FFIsValidReturn + off, &ad4, 4) && ad4 == 1 &&
-                ReadMemUnsafe(m_FFIsValidReturn + off + 4, &es4, 4) && es4 == 1) {
+            if (KMgrRead(m_FFIsValidReturn + off, &ad4, 4) && ad4 == 1 &&
+                KMgrRead(m_FFIsValidReturn + off + 4, &es4, 4) && es4 == 1) {
                 confidence += 0.2f;
                 desc += "; IsValidRV: AD=1,ES=1";
             }
@@ -2558,8 +2541,8 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
 
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
         uint64_t flags1 = 0, flags2 = 0;
-        if (!ReadMemUnsafe(m_FFEntryPoint + off, &flags1, 8)) continue;
-        if (!ReadMemUnsafe(m_FFIsValidParam0 + off, &flags2, 8)) continue;
+        if (!KMgrRead(m_FFEntryPoint + off, &flags1, 8)) continue;
+        if (!KMgrRead(m_FFIsValidParam0 + off, &flags2, 8)) continue;
 
         // 所有锚点必含 CPF_Parm
         if (!(flags1 & ECPFFlags::CPF_Parm) || !(flags2 & ECPFFlags::CPF_Parm)) {
@@ -2579,7 +2562,7 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
         // IsValid ReturnValue 应含 CPF_ReturnParm | CPF_OutParm
         if (m_FFIsValidReturn) {
             uint64_t flags3 = 0;
-            if (ReadMemUnsafe(m_FFIsValidReturn + off, &flags3, 8) &&
+            if (KMgrRead(m_FFIsValidReturn + off, &flags3, 8) &&
                 (flags3 & ECPFFlags::CPF_ReturnParm) && (flags3 & ECPFFlags::CPF_OutParm)) {
                 confidence += 0.2f;
                 desc += std::format(", IsValidRV=0x{:X}(RetParm+OutParm)", flags3);
@@ -2589,7 +2572,7 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
         // K2_GetActorLocation ReturnValue 应含 CPF_ReturnParm
         if (m_FFK2LocReturn) {
             uint64_t flags4 = 0;
-            if (ReadMemUnsafe(m_FFK2LocReturn + off, &flags4, 8) &&
+            if (KMgrRead(m_FFK2LocReturn + off, &flags4, 8) &&
                 (flags4 & ECPFFlags::CPF_ReturnParm) && (flags4 & ECPFFlags::CPF_OutParm)) {
                 confidence += 0.2f;
                 desc += std::format(", K2LocRV=0x{:X}(RetParm+OutParm)", flags4);
@@ -2646,8 +2629,8 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
 
     for (int32_t off = searchStart; off < searchEnd; off += 4) {
         int32_t val1 = 0, val2 = 0;
-        if (!ReadMemUnsafe(m_FFEntryPoint + off, &val1, 4)) continue;
-        if (!ReadMemUnsafe(m_FFIsValidParam0 + off, &val2, 4)) continue;
+        if (!KMgrRead(m_FFEntryPoint + off, &val1, 4)) continue;
+        if (!KMgrRead(m_FFIsValidParam0 + off, &val2, 4)) continue;
 
         // EntryPoint = 0, IsValid首参 = 0 (均为首参, 偏移 0)
         if (val1 != 0 || val2 != 0) {
@@ -2662,7 +2645,7 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
         // IsValid ReturnValue = 8 (在 ObjectProperty(size=8) 之后)
         if (m_FFIsValidReturn) {
             int32_t val3 = 0;
-            if (ReadMemUnsafe(m_FFIsValidReturn + off, &val3, 4) && val3 == 8) {
+            if (KMgrRead(m_FFIsValidReturn + off, &val3, 4) && val3 == 8) {
                 confidence += 0.3f;
                 desc += ", IsValidRV=8";
             }
@@ -2671,7 +2654,7 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
         // DeltaSeconds = 0 (首参)
         if (m_FFDeltaSeconds) {
             int32_t val4 = 0;
-            if (ReadMemUnsafe(m_FFDeltaSeconds + off, &val4, 4) && val4 == 0) {
+            if (KMgrRead(m_FFDeltaSeconds + off, &val4, 4) && val4 == 0) {
                 confidence += 0.1f;
                 desc += ", DeltaSec=0";
             }
@@ -2750,7 +2733,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
         // K2_GetActorLocation ReturnValue (FStructProperty): Struct -> "Vector"
         if (m_FFK2LocReturn && vectorStruct) {
             uintptr_t ptr1 = 0;
-            if (!ReadMem(m_FFK2LocReturn + off, &ptr1, 8) || ptr1 != vectorStruct) {
+            if (!KMgrRead(m_FFK2LocReturn + off, &ptr1, 8) || ptr1 != vectorStruct) {
                 PDBG("ProbePropSize: off=0x{:X} K2Loc ptr1={} != vectorStruct, 跳过",
                      off, FormatPtr(ptr1));
                 continue;
@@ -2763,7 +2746,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
         // 两个独立子类在同一偏移命中各自的特征指针, 这是非常强的证据
         if (m_FFIsValidParam0 && objectClass) {
             uintptr_t ptr2 = 0;
-            if (!ReadMem(m_FFIsValidParam0 + off, &ptr2, 8)) continue;
+            if (!KMgrRead(m_FFIsValidParam0 + off, &ptr2, 8)) continue;
             if (ptr2 == objectClass) {
                 confidence += 0.5f;
                 desc += desc.empty() ? "" : ", ";
@@ -2809,6 +2792,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
 }
 
 void UEProber::Phase5_AutoProbe() {
+    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
     m_PhaseStatus[5] = EPhaseStatus::InProgress;
     PDBG("========== [Phase5_AutoProbe] BEGIN ==========");
 
@@ -2947,6 +2931,7 @@ void UEProber::Phase6_ScanProcessEvent() {
 }
 
 void UEProber::Phase6_AutoProbe() {
+    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
     m_PhaseStatus[6] = EPhaseStatus::InProgress;
     LogInfo("===== 阶段 6: ProcessEvent VTable 索引 =====");
     Phase6_ScanProcessEvent();
@@ -2984,7 +2969,7 @@ void UEProber::CallGetEngineVersion() {
 
     // 读取 CDO (Class Default Object)
     uintptr_t cdo = 0;
-    if (!ReadMem(kismetClass + classDefaultObjOff, &cdo, 8) || !IsValidPtr(cdo)) {
+    if (!KMgrRead(kismetClass + classDefaultObjOff, &cdo, 8) || !IsValidPtr(cdo)) {
         PDBG("GetEngVer: CDO 读取失败 @ offset 0x{:X}", classDefaultObjOff);
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
@@ -3009,7 +2994,7 @@ void UEProber::CallGetEngineVersion() {
 
     // 从 VTable 读取 ProcessEvent 函数指针
     uintptr_t vtable = 0;
-    if (!ReadMem(cdo, &vtable, 8) || !IsValidPtr(vtable)) {
+    if (!KMgrRead(cdo, &vtable, 8) || !IsValidPtr(vtable)) {
         PDBG("GetEngVer: VTable 读取失败");
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
@@ -3017,7 +3002,7 @@ void UEProber::CallGetEngineVersion() {
     PDBG("GetEngVer: VTable @ {}", FormatPtr(vtable));
 
     uintptr_t peFunc = 0;
-    if (!ReadMem(vtable + peIdx * 8, &peFunc, 8) || peFunc == 0) {
+    if (!KMgrRead(vtable + peIdx * 8, &peFunc, 8) || peFunc == 0) {
         PDBG("GetEngVer: ProcessEvent 函数指针读取失败 @ VTable[0x{:X}], peFunc={}",
              peIdx, FormatPtr(peFunc));
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
@@ -3066,7 +3051,7 @@ void UEProber::Draw(bool* p_open) {
     // 菜单栏
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("探测选项")) {
-            if (ImGui::MenuItem("全部自动探测")) {
+            if (ImGui::MenuItem("全部自动探测", nullptr, false, m_GameDetected)) {
                 Phase1_AutoProbe();
                 Phase2_AutoProbe();
                 Phase3_AutoProbe();
@@ -3242,7 +3227,7 @@ void UEProber::DrawMemoryDump(uintptr_t address, int32_t size, const std::string
     if (!address || size <= 0) return;
 
     m_DumpBuffer.resize(size);
-    if (!ReadMem(address, m_DumpBuffer.data(), size)) {
+    if (!KMgrRead(address, m_DumpBuffer.data(), size)) {
         ImGui::TextColored(ImVec4(1, 0.3f, 0.3f, 1), "读取失败: %s", FormatPtr(address).c_str());
         return;
     }
@@ -4085,7 +4070,7 @@ void UEProber::DetectGame() {
 
     // ---- 初始化 GObjects: 使用 profile 提供的地址, 在进程内读取 Objects 指针 ----
     auto* objArray = new TUObjectArray();
-    objArray->Objects = KT::Read<FUObjectItem**>(result.objectsFieldAddr);
+    KMgrRead(result.objectsFieldAddr, &objArray->Objects, sizeof(void*));
     objArray->MaxElements = 327680;
     objArray->NumElements = 327680;
     objArray->MaxChunks = 5;

@@ -24,6 +24,13 @@ struct GameDetectionResult {
 // match by AppID, call GetGUObjectArrayPtr. Returns GObjects info.
 bool DetectAndPrepareGame(GameDetectionResult& result);
 
+// Bridge: memory operations via KittyMemoryEx kMgr (avoids KittyMemory/KittyMemoryEx
+// header conflicts in translation units that already include KittyMemory).
+ssize_t KMgrReadMem(uintptr_t address, void* buffer, size_t size);
+size_t  KMgrWriteMem(uintptr_t address, void* buffer, size_t size);
+bool    KMgrRead(uintptr_t address, void* buffer, size_t size);
+bool    KMgrIsValidPtr(uintptr_t address);
+
 // Resolve FName by calling the matched profile's GetNameByID.
 // Only valid after DetectAndPrepareGame returns true.
 std::string ProfileGetNameByID(int32_t id);

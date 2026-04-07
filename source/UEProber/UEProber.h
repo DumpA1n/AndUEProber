@@ -60,8 +60,6 @@ private:
 
     // ======================== 内存操作 ========================
 
-    bool ReadMem(uintptr_t address, void* buffer, size_t size);
-    bool ReadMemUnsafe(uintptr_t address, void* buffer, size_t size);
     bool TryReadFName(uintptr_t address, std::string& outName);
     bool IsValidPtr(uintptr_t ptr);
 
