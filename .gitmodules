@@ -1,3 +1,6 @@
 [submodule "external/AndUEDumper"]
 	path = external/AndUEDumper
 	url = https://github.com/MJx0/AndUEDumper.git
+[submodule "external/AndSwapChainHook"]
+	path = external/AndSwapChainHook
+	url = https://github.com/DumpA1n/AndSwapChainHook.git
