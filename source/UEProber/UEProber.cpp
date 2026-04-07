@@ -268,16 +268,11 @@ int32_t UEProber::GetStructSize(uintptr_t structAddr) {
 // ============================================================
 
 uintptr_t UEProber::GetTextSegStart() {
-    if (m_TextStart) return m_TextStart;
-    // 从 ElfScanner 获取
-    m_TextStart = Elf.UE4().base();
-    return m_TextStart;
+    return Elf.UE4().base();
 }
 
 uintptr_t UEProber::GetTextSegEnd() {
-    if (m_TextEnd) return m_TextEnd;
-    m_TextEnd = Elf.UE4().end();
-    return m_TextEnd;
+    return Elf.UE4().end();
 }
 
 std::string UEProber::FormatHex(uint64_t value) {
@@ -349,8 +344,9 @@ void UEProber::LogError(const std::string& text) {
 // ============================================================
 
 void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedIndex) {
+    PDBG(">>>>>>>>>> [ProbeInternalIndex] BEGIN >>>>>>>>>>");
     m_Phase1InternalIndexCandidates.clear();
-    LogInfo(std::format("探测 UObject::Index @ {}, 期望值={}", FormatPtr(objAddr), expectedIndex));
+    PDBG("ProbeInternalIndex: objAddr=0x{:X}, expectedIndex={}", objAddr, expectedIndex);
 
     for (int32_t off = 0; off < m_ProbeRange; off += 4) {
         uint32_t val = 0;
@@ -369,6 +365,8 @@ void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedInde
             }
             confidence = (float)crossMatch / 4.0f;
 
+            PDBG("ProbeInternalIndex: 偏移 0x{:X} -> 值={}, 交叉验证 {}/4, confidence={:.2f}",
+                 off, val, crossMatch, confidence);
             m_Phase1InternalIndexCandidates.push_back({
                 off, val,
                 std::format("在 obj[{}] 偏移 0x{:X} 找到值 {}, 交叉验证 {}/4",
@@ -377,16 +375,20 @@ void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedInde
             });
 
             // 全部交叉验证通过则无需继续
-            if (confidence >= 1.0f)
+            if (confidence >= 1.0f) {
+                PDBG("ProbeInternalIndex: 置信度 100%, early break");
                 break;
+            }
         }
     }
 
+    PDBG("ProbeInternalIndex: 扫描完毕, 候选数={}", m_Phase1InternalIndexCandidates.size());
     std::sort(m_Phase1InternalIndexCandidates.begin(), m_Phase1InternalIndexCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
     if (!m_Phase1InternalIndexCandidates.empty()) {
         auto& best = m_Phase1InternalIndexCandidates[0];
+        PDBG("ProbeInternalIndex: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
         if (best.confidence >= 0.75f) {
             auto& r = GetResult("UObject::InternalIndex");
             r.offset = best.offset;
@@ -395,17 +397,24 @@ void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedInde
             r.evidence = best.description;
             r.autoDetected = true;
             if (best.confidence >= 1.0f) r.confirmed = true;
-            LogSuccess(std::format("UObject::InternalIndex 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
-                best.offset, best.confidence * 100, r.confirmed ? " [已自动确认]" : ""));
+            PDBG("ProbeInternalIndex: UObject::InternalIndex 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
+                best.offset, best.confidence * 100, r.confirmed ? " [已自动确认]" : "");
+        } else {
+            PDBG("ProbeInternalIndex: 最佳候选置信度不足 (< 0.75), 不写入结果");
         }
+    } else {
+        PDBG("ProbeInternalIndex: 无候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeInternalIndex] END <<<<<<<<<<");
 }
 
 void UEProber::Phase1_ProbeNamePrivate(uintptr_t objAddr, const std::string& expectedName) {
+    PDBG(">>>>>>>>>> [ProbeNamePrivate] BEGIN >>>>>>>>>>");
     m_Phase1NamePrivateCandidates.clear();
-    LogInfo(std::format("探测 UObject::Name @ {}, 期望 ToString()=\"{}\"", FormatPtr(objAddr), expectedName));
+    PDBG("ProbeNamePrivate: objAddr=0x{:X}, expectedName=\"{}\"", objAddr, expectedName);
 
     const int32_t maxRange = std::min(m_ProbeRange, 0x40);
+    PDBG("ProbeNamePrivate: 搜索范围 [0x0, 0x{:X})", maxRange);
     uint8_t* base = reinterpret_cast<uint8_t*>(objAddr);
 
     for (int32_t off = 0; off < maxRange; off += 4) {
@@ -447,11 +456,13 @@ void UEProber::Phase1_ProbeNamePrivate(uintptr_t objAddr, const std::string& exp
         }
     }
 
+    PDBG("ProbeNamePrivate: 扫描完毕, 候选数={}", m_Phase1NamePrivateCandidates.size());
     std::sort(m_Phase1NamePrivateCandidates.begin(), m_Phase1NamePrivateCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
     if (!m_Phase1NamePrivateCandidates.empty() && m_Phase1NamePrivateCandidates[0].confidence >= 0.9f) {
         auto& best = m_Phase1NamePrivateCandidates[0];
+        PDBG("ProbeNamePrivate: 最佳候选 偏移=0x{:X}, confidence={:.2f}, desc={}", best.offset, best.confidence, best.description);
         auto& r = GetResult("UObject::NamePrivate");
         r.offset = best.offset;
         r.size = 8;
@@ -459,19 +470,24 @@ void UEProber::Phase1_ProbeNamePrivate(uintptr_t objAddr, const std::string& exp
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::NamePrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeNamePrivate: UObject::NamePrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeNamePrivate: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeNamePrivate] END <<<<<<<<<<");
 }
 
 void UEProber::Phase1_ProbeClassPrivate(uintptr_t objAddr, const std::string& expectedClassName) {
+    PDBG(">>>>>>>>>> [ProbeClassPrivate] BEGIN >>>>>>>>>>");
     m_Phase1ClassPrivateCandidates.clear();
+    PDBG("ProbeClassPrivate: objAddr=0x{:X}, expectedClassName=\"{}\"", objAddr, expectedClassName);
     int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
+    PDBG("ProbeClassPrivate: namePrivateOffset=0x{:X}", namePrivateOffset);
     if (namePrivateOffset < 0) {
-        LogWarning("需要先确定 UObject::Name 偏移才能探测 Class");
+        PDBG("ProbeClassPrivate: namePrivateOffset < 0, 中止");
+        PDBG("<<<<<<<<<< [ProbeClassPrivate] END <<<<<<<<<<");
         return;
     }
-    LogInfo(std::format("探测 UObject::Class @ {}, 期望 Class Name = \"{}\"",
-        FormatPtr(objAddr), expectedClassName));
 
     for (int32_t off = 0; off < m_ProbeRange; off += 8) {
         uintptr_t ptr = 0;
@@ -486,26 +502,32 @@ void UEProber::Phase1_ProbeClassPrivate(uintptr_t objAddr, const std::string& ex
             else if (!name.empty())
                 confidence = 0.1f;
 
+            PDBG("ProbeClassPrivate: 偏移 0x{:X} -> ptr=0x{:X}, Name=\"{}\", confidence={:.2f}",
+                 off, ptr, name, confidence);
             if (confidence > 0.05f) {
                 m_Phase1ClassPrivateCandidates.push_back({
                     off, ptr,
-                    std::format("偏移 0x{:X} -> ptr {} -> Name = \"{}\"",
-                        off, FormatPtr(ptr), name),
+                    std::format("偏移 0x{:X} -> 0x{:X} -> Name = \"{}\"",
+                        off, ptr, name),
                     confidence
                 });
             }
 
             // 精确匹配则无需继续探测
-            if (confidence >= 1.0f)
+            if (confidence >= 1.0f) {
+                PDBG("ProbeClassPrivate: 精确匹配, early break");
                 break;
+            }
         }
     }
 
+    PDBG("ProbeClassPrivate: 扫描完毕, 候选数={}", m_Phase1ClassPrivateCandidates.size());
     std::sort(m_Phase1ClassPrivateCandidates.begin(), m_Phase1ClassPrivateCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
     if (!m_Phase1ClassPrivateCandidates.empty() && m_Phase1ClassPrivateCandidates[0].confidence >= 0.9f) {
         auto& best = m_Phase1ClassPrivateCandidates[0];
+        PDBG("ProbeClassPrivate: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
         auto& r = GetResult("UObject::ClassPrivate");
         r.offset = best.offset;
         r.size = 8;
@@ -513,26 +535,31 @@ void UEProber::Phase1_ProbeClassPrivate(uintptr_t objAddr, const std::string& ex
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::ClassPrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeClassPrivate: UObject::ClassPrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeClassPrivate: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeClassPrivate] END <<<<<<<<<<");
 }
 
 void UEProber::Phase1_ProbeOuterPrivate(uintptr_t obj2Addr, uintptr_t obj1Addr) {
+    PDBG(">>>>>>>>>> [ProbeOuterPrivate] BEGIN >>>>>>>>>>");
     m_Phase1OuterPrivateCandidates.clear();
-    LogInfo(std::format("探测 UObject::Outer @ {}, 期望指向 {}",
-        FormatPtr(obj2Addr), FormatPtr(obj1Addr)));
+    PDBG("ProbeOuterPrivate: obj2Addr=0x{:X}, expected obj1Addr=0x{:X}", obj2Addr, obj1Addr);
 
     for (int32_t off = 0; off < m_ProbeRange; off += 8) {
         uintptr_t ptr = 0;
         if (!KMgrRead(obj2Addr + off, &ptr, 8)) continue;
 
         if (ptr == obj1Addr) {
+            PDBG("ProbeOuterPrivate: 偏移 0x{:X} -> 精确匹配 obj1Addr={}", off, ptr);
             m_Phase1OuterPrivateCandidates.push_back({
                 off, ptr,
-                std::format("偏移 0x{:X} -> ptr {} == obj[1] 地址", off, FormatPtr(ptr)),
+                std::format("偏移 0x{:X} -> 0x{:X} == obj[1] 地址", off, ptr),
                 1.0f
             });
             // 精确匹配则无需继续探测
+            PDBG("ProbeOuterPrivate: 精确匹配, early break");
             break;
         } else if (IsValidPtr(ptr)) {
             int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
@@ -540,19 +567,21 @@ void UEProber::Phase1_ProbeOuterPrivate(uintptr_t obj2Addr, uintptr_t obj1Addr) 
             if (namePrivateOffset >= 0 && TryReadFName(ptr + namePrivateOffset, name)) {
                 m_Phase1OuterPrivateCandidates.push_back({
                     off, ptr,
-                    std::format("偏移 0x{:X} -> ptr {} -> Name = \"{}\"",
-                        off, FormatPtr(ptr), name),
+                    std::format("偏移 0x{:X} -> 0x{:X} -> Name = \"{}\"",
+                        off, ptr, name),
                     0.1f
                 });
             }
         }
     }
 
+    PDBG("ProbeOuterPrivate: 扫描完毕, 候选数={}", m_Phase1OuterPrivateCandidates.size());
     std::sort(m_Phase1OuterPrivateCandidates.begin(), m_Phase1OuterPrivateCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
     if (!m_Phase1OuterPrivateCandidates.empty() && m_Phase1OuterPrivateCandidates[0].confidence >= 0.9f) {
         auto& best = m_Phase1OuterPrivateCandidates[0];
+        PDBG("ProbeOuterPrivate: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
         auto& r = GetResult("UObject::OuterPrivate");
         r.offset = best.offset;
         r.size = 8;
@@ -560,13 +589,17 @@ void UEProber::Phase1_ProbeOuterPrivate(uintptr_t obj2Addr, uintptr_t obj1Addr) 
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::OuterPrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeOuterPrivate: UObject::OuterPrivate 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeOuterPrivate: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeOuterPrivate] END <<<<<<<<<<");
 }
 
 void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
+    PDBG(">>>>>>>>>> [ProbeObjectFlags] BEGIN >>>>>>>>>>");
     m_Phase1ObjectFlagsCandidates.clear();
-    LogInfo("探测 UObject::Flags (RF_xxx 位域)");
+    PDBG("ProbeObjectFlags: objAddr=0x{:X}", objAddr);
 
     // 排除已确定的偏移
     std::set<int32_t> usedOffsets;
@@ -597,6 +630,8 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
         }
 
         float confidence = (float)validCount / 4.0f;
+        PDBG("ProbeObjectFlags: 偏移 0x{:X} -> 0x{:08X}, 交叉验证 {}/4, confidence={:.2f}",
+             off, val, validCount, confidence);
         m_Phase1ObjectFlagsCandidates.push_back({
             off, val,
             std::format("偏移 0x{:X} -> 0x{:08X}, {}/4 对象有合理 Flag 值", off, val, validCount),
@@ -604,15 +639,19 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
         });
 
         // 全部交叉验证通过则无需继续
-        if (confidence >= 1.0f)
+        if (confidence >= 1.0f) {
+            PDBG("ProbeObjectFlags: 置信度 100%, early break");
             break;
+        }
     }
 
+    PDBG("ProbeObjectFlags: 扫描完毕, 候选数={}", m_Phase1ObjectFlagsCandidates.size());
     std::sort(m_Phase1ObjectFlagsCandidates.begin(), m_Phase1ObjectFlagsCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
     if (!m_Phase1ObjectFlagsCandidates.empty() && m_Phase1ObjectFlagsCandidates[0].confidence >= 0.75f) {
         auto& best = m_Phase1ObjectFlagsCandidates[0];
+        PDBG("ProbeObjectFlags: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
         auto& r = GetResult("UObject::ObjectFlags");
         r.offset = best.offset;
         r.size = 4;
@@ -620,18 +659,19 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
         r.evidence = best.description;
         r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UObject::ObjectFlags 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
-            best.offset, best.confidence * 100, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeObjectFlags: UObject::ObjectFlags 自动探测: 偏移 0x{:X} (置信度 {:.0f}%){}",
+            best.offset, best.confidence * 100, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeObjectFlags: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeObjectFlags] END <<<<<<<<<<");
 }
 
 void UEProber::Phase1_AutoProbe() {
-    if (!m_GameDetected) {
-        LogError("请先检测游戏后再进行探测操作");
-        return;
-    }
+    if (!m_GameDetected) { PDBG("请先检测游戏后再进行探测操作"); return; }
+    PDBG(">>>>>>>>>> [Phase1_AutoProbe] BEGIN >>>>>>>>>>");
     m_PhaseStatus[1] = EPhaseStatus::InProgress;
-    LogInfo("===== 阶段 1: UObject 基础成员自动探测 =====");
+    PDBG("===== 阶段 1: UObject 基础成员自动探测 =====");
 
     // VTable 始终在偏移 0
     {
@@ -639,7 +679,7 @@ void UEProber::Phase1_AutoProbe() {
         r.offset = 0; r.size = 8; r.typeName = "void**";
         r.evidence = "VTable 始终在偏移 0";
         r.autoDetected = true; r.confirmed = true;
-        LogSuccess("UObject::VTable = 0x00 (固定)");
+        PDBG("UObject::VTable = 0x00 (固定)");
     }
 
     // 获取 obj[0] 和 obj[1]
@@ -649,13 +689,14 @@ void UEProber::Phase1_AutoProbe() {
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
 
     if (!obj0 || !IsValidPtr(obj0)) {
-        LogError("无法获取 GetByIndex(0), 请检查 GObjects 地址");
+        PDBG("Phase1_AutoProbe: 无法获取 GetByIndex(0), 请检查 GObjects 地址");
         m_PhaseStatus[1] = EPhaseStatus::Failed;
+        PDBG("<<<<<<<<<< [Phase1_AutoProbe] END <<<<<<<<<<");
         return;
     }
 
-    LogInfo(std::format("obj[0] = {}", FormatPtr(obj0)));
-    if (obj1) LogInfo(std::format("obj[1] = {}", FormatPtr(obj1)));
+    PDBG("obj[0] = 0x{:X}", obj0);
+    if (obj1) PDBG("obj[1] = 0x{:X}", obj1);
 
     // 探测 Index (用 obj[1] 的 Index 应为 1, 避免 0 误匹配)
     Phase1_ProbeInternalIndex(obj1, 1);
@@ -676,7 +717,8 @@ void UEProber::Phase1_AutoProbe() {
     // 探测 Flags
     Phase1_ProbeObjectFlags(obj0);
 
-    LogInfo("阶段 1 自动探测完成, 请查看候选结果并手动确认");
+    PDBG("阶段 1 自动探测完成");
+    PDBG("<<<<<<<<<< [Phase1_AutoProbe] END <<<<<<<<<<");
 }
 
 // ============================================================
@@ -687,13 +729,13 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
     PDBG(">>>>>>>>>> [ProbeSuper] BEGIN >>>>>>>>>>");
     m_Phase2SuperStructCandidates.clear();
     int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
-    PDBG("ProbeSuper: classAddr={}, namePrivateOffset=0x{:X}", FormatPtr(classAddr), namePrivateOffset);
+    PDBG("ProbeSuper: classAddr=0x{:X}, namePrivateOffset=0x{:X}", classAddr, namePrivateOffset);
     if (namePrivateOffset < 0) { PDBG("ProbeSuper: namePrivateOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeSuper] END <<<<<<<<<<"); return; }
 
     // classAddr 是 GetByIndex(0) 的 Class ("Package" UClass)
     // 其 Super 应指向 obj[1] (UObject 基类, Name="Object")
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
-    PDBG("ProbeSuper: obj[1]={}", FormatPtr(obj1));
+    PDBG("ProbeSuper: obj[1]=0x{:X}", obj1);
 
     // Super 是 UStruct 成员, 搜索范围: sizeof(UObject) ~ sizeof(UStruct)
     // MinAlignment/Size 已优先探测, Size 必然已确认
@@ -716,8 +758,8 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
 
         float confidence = 0.0f;
         if (ptr == obj1 || FNameEq(name, "Object")) {
-            PDBG("ProbeSuper: off=0x{:X} 匹配 obj1/Object, ptr={} name=\"{}\", 开始验证链",
-                 off, FormatPtr(ptr), name);
+            PDBG("ProbeSuper: off=0x{:X} 匹配 obj1/Object, ptr=0x{:X} name=\"{}\", 开始验证链",
+                 off, ptr, name);
             // 直接匹配 obj[1] 地址或名称
             // 验证链: Object 的 Class -> "Class" UClass, 读 "Class".Super -> 应为 "Struct"
             int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
@@ -741,8 +783,7 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
                             }
                         } else {
                             confidence = 0.6f;
-                            PDBG("ProbeSuper: Class->Super 读取失败/无效 (classSuperPtr={}), conf=0.6",
-                                 FormatPtr(classSuperPtr));
+                            PDBG("ProbeSuper: Class->Super 读取失败/无效 (classSuperPtr=0x{:X}), conf=0.6", classSuperPtr);
                         }
                     } else {
                         confidence = 0.5f;
@@ -758,13 +799,13 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
             confidence = 0.1f;
         }
 
-        PDBG("ProbeSuper: off=0x{:X} ptr={} name=\"{}\" confidence={:.2f}",
-             off, FormatPtr(ptr), name, confidence);
+        PDBG("ProbeSuper: off=0x{:X} ptr=0x{:X} name=\"{}\" confidence={:.2f}",
+             off, ptr, name, confidence);
 
         if (confidence > 0.05f) {
             m_Phase2SuperStructCandidates.push_back({
                 off, ptr,
-                std::format("偏移 0x{:X} -> {} -> Name = \"{}\"", off, FormatPtr(ptr), name),
+                std::format("偏移 0x{:X} -> 0x{:X} -> Name = \"{}\"", off, ptr, name),
                 confidence
             });
         }
@@ -816,8 +857,8 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
 void UEProber::Phase2_ProbeMinAlignment(uintptr_t execUbergraph, uintptr_t objectUClass) {
     PDBG(">>>>>>>>>> [ProbeMinAlignment] BEGIN >>>>>>>>>>");
     m_Phase2MinAlignCandidates.clear();
-    PDBG("ProbeMinAlignment: execUbergraph={}, objectUClass={}",
-         FormatPtr(execUbergraph), FormatPtr(objectUClass));
+    PDBG("ProbeMinAlignment: execUbergraph=0x{:X}, objectUClass=0x{:X}",
+         execUbergraph, objectUClass);
 
     // MinAlignment 是 UStruct 成员, Size 此时尚未确认
     // confidence >= 1.0 时 early break, 无需设定上界
@@ -877,8 +918,8 @@ void UEProber::Phase2_ProbePropertiesSize(uintptr_t execUbergraph, uintptr_t obj
     PDBG(">>>>>>>>>> [ProbePropertiesSize] BEGIN >>>>>>>>>>");
     m_Phase2SizeCandidates.clear();
     int32_t alignOffset = GetConfirmedOffset("UStruct::MinAlignment");
-    PDBG("ProbePropertiesSize: execUbergraph={}, objectUClass={}, alignOffset=0x{:X}",
-         FormatPtr(execUbergraph), FormatPtr(objectUClass), alignOffset);
+    PDBG("ProbePropertiesSize: execUbergraph=0x{:X}, objectUClass=0x{:X}, alignOffset=0x{:X}",
+         execUbergraph, objectUClass, alignOffset);
     if (alignOffset < 0) { PDBG("ProbePropertiesSize: alignOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbePropertiesSize] END <<<<<<<<<<"); return; }
 
     int scannedCount = 0;
@@ -939,7 +980,7 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
     PDBG(">>>>>>>>>> [ProbeChildren] BEGIN >>>>>>>>>>");
     m_Phase2ChildrenCandidates.clear();
     int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
-    PDBG("ProbeChildren: classAddr={}, namePrivateOffset=0x{:X}", FormatPtr(classAddr), namePrivateOffset);
+    PDBG("ProbeChildren: classAddr=0x{:X}, namePrivateOffset=0x{:X}", classAddr, namePrivateOffset);
     if (namePrivateOffset < 0) { PDBG("ProbeChildren: namePrivateOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeChildren] END <<<<<<<<<<"); return; }
 
     // Children 是 UStruct 成员, 搜索范围: sizeof(UObject) ~ sizeof(UStruct)
@@ -985,12 +1026,12 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
                     confidence = 0.1f;
             }
 
-            PDBG("ProbeChildren: off=0x{:X} ptr={} name=\"{}\" conf={:.2f}",
-                 off, FormatPtr(ptr), name, confidence);
+            PDBG("ProbeChildren: off=0x{:X} ptr=0x{:X} name=\"{}\" conf={:.2f}",
+                 off, ptr, name, confidence);
 
             m_Phase2ChildrenCandidates.push_back({
                 off, ptr,
-                std::format("偏移 0x{:X} -> {} -> Name = \"{}\"", off, FormatPtr(ptr), name),
+                std::format("偏移 0x{:X} -> 0x{:X} -> Name = \"{}\"", off, ptr, name),
                 confidence
             });
 
@@ -1022,21 +1063,21 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
     PDBG(">>>>>>>>>> [ProbeChildProperties] BEGIN >>>>>>>>>>");
     m_Phase2ChildPropsCandidates.clear();
     int32_t childrenOffset = GetConfirmedOffset("UStruct::Children");
-    PDBG("ProbeChildProperties: classAddr={}, childrenOffset=0x{:X}",
-         FormatPtr(classAddr), childrenOffset);
+    PDBG("ProbeChildProperties: classAddr=0x{:X}, childrenOffset=0x{:X}",
+         classAddr, childrenOffset);
     if (childrenOffset < 0) { PDBG("ProbeChildProperties: childrenOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeChildProperties] END <<<<<<<<<<"); return; }
 
     // 从 Children ("ExecuteUbergraph") 函数中探测 ChildProperties,
     // 其 ChildProperties 的第一个 FField Name 应为 "EntryPoint"
     uintptr_t childrenAddr = 0;
     if (!KMgrRead(classAddr + childrenOffset, &childrenAddr, 8) || !IsValidPtr(childrenAddr)) {
-        PDBG("ProbeChildProperties: 无法读取 Children 地址, KMgrRead(classAddr+0x{:X}) 失败或 childrenAddr={} 无效",
-             childrenOffset, FormatPtr(childrenAddr));
+        PDBG("ProbeChildProperties: 无法读取 Children 地址, KMgrRead(classAddr+0x{:X}) 失败或 childrenAddr=0x{:X} 无效",
+             childrenOffset, childrenAddr);
         PDBG("<<<<<<<<<< [ProbeChildProperties] END <<<<<<<<<<");
         return;
     }
 
-    PDBG("ProbeChildProperties: childrenAddr(ExecuteUbergraph)={}", FormatPtr(childrenAddr));
+    PDBG("ProbeChildProperties: childrenAddr(ExecuteUbergraph)=0x{:X}", childrenAddr);
 
     // ChildProperties 是 UStruct 成员, 搜索范围: sizeof(UObject) ~ sizeof(UStruct)
     int32_t searchStart = GetStructSize("UObject");
@@ -1070,16 +1111,16 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
                     conf = 0.3f;
                 if (conf > bestConf) {
                     bestConf = conf;
-                    bestDesc = std::format("偏移 0x{:X} -> {} -> FField Name@0x{:X} = \"{}\"",
-                        off, FormatPtr(ptr), namePrivateOff, name);
+                    bestDesc = std::format("偏移 0x{:X} -> 0x{:X} -> FField Name@0x{:X} = \"{}\"",
+                        off, ptr, namePrivateOff, name);
                 }
                 if (conf >= 1.0f) break;
             }
         }
 
         if (bestConf > 0.05f) {
-            PDBG("ProbeChildProperties: off=0x{:X} ptr={} bestName=\"{}\" conf={:.2f}",
-                 off, FormatPtr(ptr), bestDesc, bestConf);
+            PDBG("ProbeChildProperties: off=0x{:X} ptr=0x{:X} bestName=\"{}\" conf={:.2f}",
+                 off, ptr, bestDesc, bestConf);
             m_Phase2ChildPropsCandidates.push_back({off, ptr, bestDesc, bestConf});
         }
 
@@ -1127,25 +1168,25 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
         PDBG("<<<<<<<<<< [ProbeUFieldNext] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeUFieldNext: KismetSystemLibrary @ {}", FormatPtr(kismetClass));
+    PDBG("ProbeUFieldNext: KismetSystemLibrary @ 0x{:X}", kismetClass);
 
     // 读取 UClass 的 Children -> 第一个 UFunction
     uintptr_t firstFunc = 0;
     if (!KMgrRead(kismetClass + childrenOffset, &firstFunc, 8) || !IsValidPtr(firstFunc)) {
-        PDBG("ProbeUFieldNext: KMgrRead(kismetClass+0x{:X}) 失败或 firstFunc={} 无效",
-             childrenOffset, FormatPtr(firstFunc));
+        PDBG("ProbeUFieldNext: KMgrRead(kismetClass+0x{:X}) 失败或 firstFunc=0x{:X} 无效",
+             childrenOffset, firstFunc);
         PDBG("<<<<<<<<<< [ProbeUFieldNext] END <<<<<<<<<<");
         return;
     }
     std::string firstFuncName;
     if (!TryReadFName(firstFunc + namePrivateOffset, firstFuncName) || firstFuncName.empty()) {
-        PDBG("ProbeUFieldNext: TryReadFName(firstFunc+0x{:X}) 失败, firstFunc={}",
-             namePrivateOffset, FormatPtr(firstFunc));
+        PDBG("ProbeUFieldNext: TryReadFName(firstFunc+0x{:X}) 失败, firstFunc=0x{:X}",
+             namePrivateOffset, firstFunc);
         PDBG("<<<<<<<<<< [ProbeUFieldNext] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeUFieldNext: Children 第一个函数 \"{}\" @ {}",
-         firstFuncName, FormatPtr(firstFunc));
+    PDBG("ProbeUFieldNext: Children 第一个函数 \"{}\" @ 0x{:X}",
+         firstFuncName, firstFunc);
 
     // UField::Next 是 UField 成员, 搜索范围: sizeof(UObject) ~ sizeof(UField)
     int32_t nextSearchStart = GetStructSize("UObject");
@@ -1210,7 +1251,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
 }
 
 void UEProber::Phase2_AutoProbe() {
-    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
+    if (!m_GameDetected) { PDBG("请先检测游戏后再进行探测操作"); return; }
     m_PhaseStatus[2] = EPhaseStatus::InProgress;
 
     PDBG("========== [Phase2_AutoProbe] BEGIN ==========");
@@ -1228,11 +1269,11 @@ void UEProber::Phase2_AutoProbe() {
     PDBG("namePrivateOffset=0x{:X}, classPrivateOffset=0x{:X}", namePrivateOffset, classPrivateOffset);
 
     uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
-    PDBG("obj[0] = {}", FormatPtr(obj0));
+    PDBG("obj[0] = {}", obj0);
     if (!obj0) { PDBG("Phase2 中止: obj[0] 为空"); return; }
 
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
-    PDBG("obj[1] = {}", FormatPtr(obj1));
+    PDBG("obj[1] = {}", obj1);
     if (!obj1) { PDBG("Phase2 中止: obj[1] 为空"); return; }
 
     // === MinAlignment & Size (最优先探测, 为所有后续探测提供精确 size 边界) ===
@@ -1242,7 +1283,7 @@ void UEProber::Phase2_AutoProbe() {
     if (!execUbergraph) {
         PDBG("FindObjectInGObjects(ExecuteUbergraph) 返回 0, MinAlignment/Size 探测将跳过");
     } else {
-        PDBG("ExecuteUbergraph = {}, 开始探测 MinAlignment", FormatPtr(execUbergraph));
+        PDBG("ExecuteUbergraph = {}, 开始探测 MinAlignment", execUbergraph);
         Phase2_ProbeMinAlignment(execUbergraph, obj1);
         bool minAlignOk = HasConfirmed("UStruct::MinAlignment");
         PDBG("MinAlignment 探测结果: confirmed={}", minAlignOk);
@@ -1267,12 +1308,12 @@ void UEProber::Phase2_AutoProbe() {
     uintptr_t packageClass = 0;
     PDBG("读取 obj[0]+0x{:X} (Class 偏移) ...", classPrivateOffset);
     if (!KMgrRead(obj0 + classPrivateOffset, &packageClass, 8) || !IsValidPtr(packageClass)) {
-        PDBG("Phase2 中止: KMgrRead(obj0+classPrivateOffset) 失败或 packageClass={} 无效", FormatPtr(packageClass));
+        PDBG("Phase2 中止: KMgrRead(obj0+classPrivateOffset) 失败或 packageClass={} 无效", packageClass);
         return;
     }
     std::string pkgClassName;
     TryReadFName(packageClass + namePrivateOffset, pkgClassName);
-    PDBG("obj[0].Class = {}, Name=\"{}\"", FormatPtr(packageClass), pkgClassName);
+    PDBG("obj[0].Class = 0x{:X}, Name=\"{}\"", packageClass, pkgClassName);
     Phase2_ProbeSuperStruct(packageClass);
     PDBG("Super 探测结果: confirmed={}", HasConfirmed("UStruct::SuperStruct"));
 
@@ -1281,7 +1322,7 @@ void UEProber::Phase2_AutoProbe() {
     uintptr_t obj1Class = 0;
     PDBG("读取 obj[1]+0x{:X} (Class 偏移) ...", classPrivateOffset);
     if (!KMgrRead(obj1 + classPrivateOffset, &obj1Class, 8) || !IsValidPtr(obj1Class)) {
-        PDBG("Phase2 中止: KMgrRead(obj1+classPrivateOffset) 失败或 obj1Class={} 无效", FormatPtr(obj1Class));
+        PDBG("Phase2 中止: KMgrRead(obj1+classPrivateOffset) 失败或 obj1Class={} 无效", obj1Class);
         return;
     }
     std::string obj1ClassName;
@@ -1289,8 +1330,8 @@ void UEProber::Phase2_AutoProbe() {
     if (!FNameEq(obj1ClassName, "Class")) {
         PDBG("obj[1].Class.Name 不是 Class, 实际=\"{}\"", obj1ClassName);
     }
-    PDBG("obj[1] = {}, Class = {}, Class.Name=\"{}\"",
-         FormatPtr(obj1), FormatPtr(obj1Class), obj1ClassName);
+    PDBG("obj[1] = 0x{:X}, Class = 0x{:X}, Class.Name=\"{}\"",
+         obj1, obj1Class, obj1ClassName);
     Phase2_ProbeChildren(obj1);
     PDBG("Children 探测结果: confirmed={}", HasConfirmed("UStruct::Children"));
 
@@ -1326,29 +1367,46 @@ void UEProber::Phase2_AutoProbe() {
 // ============================================================
 
 void UEProber::Phase3_ProbeCastFlags() {
+    PDBG(">>>>>>>>>> [ProbeCastFlags] BEGIN >>>>>>>>>>");
     m_Phase3CastFlagsCandidates.clear();
-    LogInfo("探测 UClass::CastFlags");
+    PDBG("ProbeCastFlags: 开始探测 UClass::CastFlags");
 
     int32_t namePrivateOffset = GetConfirmedOffset("UObject::NamePrivate");
     int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
     int32_t superStructOffset = GetConfirmedOffset("UStruct::SuperStruct");
-    if (namePrivateOffset < 0 || classPrivateOffset < 0) return;
+    PDBG("ProbeCastFlags: namePrivateOffset=0x{:X}, classPrivateOffset=0x{:X}, superStructOffset=0x{:X}",
+         namePrivateOffset, classPrivateOffset, superStructOffset);
+    if (namePrivateOffset < 0 || classPrivateOffset < 0) {
+        PDBG("ProbeCastFlags: 前置偏移未确认, 中止");
+        PDBG("<<<<<<<<<< [ProbeCastFlags] END <<<<<<<<<<");
+        return;
+    }
 
     // 确保 m_ClassClass 已初始化
     if (!m_ClassClass) {
         // obj[1] (UObject 基类) -> Class = "Class" 元类
         uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
-        if (!obj1) return;
+        if (!obj1) {
+            PDBG("ProbeCastFlags: obj[1] 无效, 中止");
+            PDBG("<<<<<<<<<< [ProbeCastFlags] END <<<<<<<<<<");
+            return;
+        }
         uintptr_t obj1Class = 0;
         KMgrRead(obj1 + classPrivateOffset, &obj1Class, 8);
-        if (!IsValidPtr(obj1Class)) return;
+        if (!IsValidPtr(obj1Class)) {
+            PDBG("ProbeCastFlags: obj1->ClassPrivate 无效, 中止");
+            PDBG("<<<<<<<<<< [ProbeCastFlags] END <<<<<<<<<<");
+            return;
+        }
         m_ClassClass = obj1Class;
+        PDBG("ProbeCastFlags: m_ClassClass=0x{:X}", m_ClassClass);
     }
     // 确保 m_ClassStruct 已初始化
     if (!m_ClassStruct && superStructOffset >= 0) {
         uintptr_t structAddr = 0;
         KMgrRead(m_ClassClass + superStructOffset, &structAddr, 8);
         if (IsValidPtr(structAddr)) m_ClassStruct = structAddr;
+        PDBG("ProbeCastFlags: m_ClassStruct=0x{:X}", m_ClassStruct);
     }
 
     // 获取 "Package" UClass: obj[0] 的 Class
@@ -1367,6 +1425,8 @@ void UEProber::Phase3_ProbeCastFlags() {
     int32_t sizeofUClass = GetStructSize("UClass");
     int32_t searchStart = sizeofUStruct;
     int32_t searchEnd = sizeofUClass;
+    PDBG("ProbeCastFlags: 搜索范围 [0x{:X}, 0x{:X}), ClassClass=0x{:X}, ClassStruct=0x{:X}, PackageClass=0x{:X}",
+         searchStart, searchEnd, m_ClassClass, m_ClassStruct, packageClass);
 
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
         uint64_t valClass = 0, valStruct = 0, valPackage = 0;
@@ -1405,6 +1465,8 @@ void UEProber::Phase3_ProbeCastFlags() {
         }
 
         if (confidence > 0.1f) {
+            PDBG("ProbeCastFlags: 偏移 0x{:X} -> Class=0x{:X}, Struct=0x{:X}, Package=0x{:X}, confidence={:.2f}",
+                 off, valClass, valStruct, valPackage, confidence);
             m_Phase3CastFlagsCandidates.push_back({
                 off, valClass,
                 std::format("偏移 0x{:X}: Class=0x{:X}, Struct=0x{:X} ({})",
@@ -1414,37 +1476,43 @@ void UEProber::Phase3_ProbeCastFlags() {
         }
     }
 
+    PDBG("ProbeCastFlags: 扫描完毕, 候选数={}", m_Phase3CastFlagsCandidates.size());
     std::sort(m_Phase3CastFlagsCandidates.begin(), m_Phase3CastFlagsCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
     if (!m_Phase3CastFlagsCandidates.empty() && m_Phase3CastFlagsCandidates[0].confidence >= 0.7f) {
         auto& best = m_Phase3CastFlagsCandidates[0];
+        PDBG("ProbeCastFlags: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
         auto& r = GetResult("UClass::CastFlags");
         r.offset = best.offset; r.size = 8; r.typeName = "EClassCastFlags";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UClass::CastFlags 自动探测: 偏移 0x{:X}{}",
-            best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeCastFlags: UClass::CastFlags 自动探测: 偏移 0x{:X}{}",
+            best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeCastFlags: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeCastFlags] END <<<<<<<<<<");
 }
 
 void UEProber::Phase3_ProbeClassDefaultObject(uintptr_t classAddr) {
+    PDBG(">>>>>>>>>> [ProbeClassDefaultObject] BEGIN >>>>>>>>>>");
     m_Phase2ClassDefaultObjCandidates.clear();
-
-    LogInfo(std::format("探测 UClass::DefaultObject @ {}", FormatPtr(classAddr)));
+    PDBG("ProbeClassDefaultObject: classAddr=0x{:X}", classAddr);
 
     // 先在 GObjects 中找到 "Default__Object" 的地址, 然后直接做指针值比较
     uintptr_t defaultObj = FindObjectInGObjects("Default__Object");
     if (!defaultObj) {
-        LogWarning("未在 GObjects 中找到 Default__Object");
+        PDBG("ProbeClassDefaultObject: 未在 GObjects 中找到 Default__Object, 中止");
+        PDBG("<<<<<<<<<< [ProbeClassDefaultObject] END <<<<<<<<<<");
         return;
     }
-
-    LogInfo(std::format("Default__Object 地址: {}", FormatPtr(defaultObj)));
+    PDBG("ProbeClassDefaultObject: Default__Object=0x{:X}", defaultObj);
 
     // DefaultObject 是 UClass 成员, 搜索范围: sizeof(UStruct) ~ sizeof(UClass)
     int32_t searchStart = GetStructSize("UStruct");
     int32_t searchEnd = GetStructSize("UClass");
+    PDBG("ProbeClassDefaultObject: 搜索范围 [0x{:X}, 0x{:X})", searchStart, searchEnd);
 
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
         uintptr_t ptr = 0;
@@ -1457,45 +1525,59 @@ void UEProber::Phase3_ProbeClassDefaultObject(uintptr_t classAddr) {
             confidence = 0.05f;
 
         if (confidence > 0.04f) {
+            PDBG("ProbeClassDefaultObject: 偏移 0x{:X} -> ptr={}, confidence={:.2f}", off, ptr, confidence);
             m_Phase2ClassDefaultObjCandidates.push_back({
                 off, ptr,
-                std::format("偏移 0x{:X} -> {} {}", off, FormatPtr(ptr),
+                std::format("偏移 0x{:X} -> 0x{:X} {}", off, ptr,
                     ptr == defaultObj ? "== Default__Object [精确匹配]" : "(其他指针)"),
                 confidence
             });
         }
 
-        if (confidence >= 1.0f) break;
+        if (confidence >= 1.0f) {
+            PDBG("ProbeClassDefaultObject: 精确匹配, early break");
+            break;
+        }
     }
 
+    PDBG("ProbeClassDefaultObject: 扫描完毕, 候选数={}", m_Phase2ClassDefaultObjCandidates.size());
     std::sort(m_Phase2ClassDefaultObjCandidates.begin(), m_Phase2ClassDefaultObjCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
     if (!m_Phase2ClassDefaultObjCandidates.empty() && m_Phase2ClassDefaultObjCandidates[0].confidence >= 0.9f) {
         auto& best = m_Phase2ClassDefaultObjCandidates[0];
+        PDBG("ProbeClassDefaultObject: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
         auto& r = GetResult("UClass::ClassDefaultObject");
         r.offset = best.offset; r.size = 8; r.typeName = "UObject*";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UClass::ClassDefaultObject 自动探测: 偏移 0x{:X}{}",
-            best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeClassDefaultObject: UClass::ClassDefaultObject 自动探测: 偏移 0x{:X}{}",
+            best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeClassDefaultObject: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeClassDefaultObject] END <<<<<<<<<<");
 }
 
 void UEProber::Phase3_AutoProbe() {
-    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
+    if (!m_GameDetected) { PDBG("请先检测游戏后再进行探测操作"); return; }
+    PDBG(">>>>>>>>>> [Phase3_AutoProbe] BEGIN >>>>>>>>>>");
     m_PhaseStatus[3] = EPhaseStatus::InProgress;
-    LogInfo("===== 阶段 3: UClass 自动探测 =====");
+    PDBG("===== 阶段 3: UClass 自动探测 =====");
 
     Phase3_ProbeCastFlags();
 
     // === DefaultObject ===
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
+    PDBG("Phase3_AutoProbe: obj[1]=0x{:X}", obj1);
     if (obj1 && IsValidPtr(obj1)) {
         Phase3_ProbeClassDefaultObject(obj1);
+    } else {
+        PDBG("Phase3_AutoProbe: obj[1] 无效, 跳过 ProbeClassDefaultObject");
     }
 
-    LogInfo("阶段 3 自动探测完成");
+    PDBG("阶段 3 自动探测完成");
+    PDBG("<<<<<<<<<< [Phase3_AutoProbe] END <<<<<<<<<<");
 }
 
 // ============================================================
@@ -1524,21 +1606,25 @@ uintptr_t UEProber::WalkChildrenChain(
 }
 
 void UEProber::Phase4_CollectAnchors() {
+    PDBG(">>>>>>>>>> [CollectAnchors] BEGIN >>>>>>>>>>");
     int32_t namePrivateOff     = GetConfirmedOffset("UObject::NamePrivate");
     int32_t classPrivateOff    = GetConfirmedOffset("UObject::ClassPrivate");
     int32_t childrenOff = GetConfirmedOffset("UStruct::Children");
     int32_t nextOff     = GetConfirmedOffset("UField::Next");
+    PDBG("CollectAnchors: namePrivateOff=0x{:X}, classPrivateOff=0x{:X}, childrenOff=0x{:X}, nextOff=0x{:X}",
+         namePrivateOff, classPrivateOff, childrenOff, nextOff);
     if (namePrivateOff < 0 || classPrivateOff < 0 || childrenOff < 0 || nextOff < 0) {
-        LogError("缺少前置偏移 (Name/Class/Children/Next), 无法收集锚点");
+        PDBG("CollectAnchors: 缺少前置偏移 (Name/Class/Children/Next), 中止");
+        PDBG("<<<<<<<<<< [CollectAnchors] END <<<<<<<<<<");
         return;
     }
 
     // --- Actor Children 链: ReceiveBeginPlay, ReceiveTick, K2_GetActorLocation ---
     uintptr_t actorClass = FindObjectInGObjects("Actor", "Class");
     if (!actorClass) {
-        LogWarning("未找到 Actor UClass");
+        PDBG("CollectAnchors: 未找到 Actor UClass");
     } else {
-        LogInfo(std::format("Actor UClass @ {}", FormatPtr(actorClass)));
+        PDBG("CollectAnchors: Actor UClass @ 0x{:X}", actorClass);
         if (!m_FuncReceiveBeginPlay)
             m_FuncReceiveBeginPlay = WalkChildrenChain(actorClass, "ReceiveBeginPlay", childrenOff, nextOff, namePrivateOff);
         if (!m_FuncReceiveTick)
@@ -1550,9 +1636,9 @@ void UEProber::Phase4_CollectAnchors() {
     // --- KismetSystemLibrary Children 链: IsValid, PrintString ---
     uintptr_t kismetClass = FindObjectInGObjects("KismetSystemLibrary", "Class");
     if (!kismetClass) {
-        LogWarning("未找到 KismetSystemLibrary UClass");
+        PDBG("CollectAnchors: 未找到 KismetSystemLibrary UClass");
     } else {
-        LogInfo(std::format("KismetSystemLibrary UClass @ {}", FormatPtr(kismetClass)));
+        PDBG("CollectAnchors: KismetSystemLibrary UClass @ 0x{:X}", kismetClass);
         if (!m_FuncIsValid)
             m_FuncIsValid = WalkChildrenChain(kismetClass, "IsValid", childrenOff, nextOff, namePrivateOff);
         if (!m_FuncPrintString)
@@ -1561,32 +1647,40 @@ void UEProber::Phase4_CollectAnchors() {
 
     // 打印收集结果
     auto logAnchor = [&](const char* name, uintptr_t addr) {
-        if (addr) LogSuccess(std::format("锚点 \"{}\" @ {}", name, FormatPtr(addr)));
-        else      LogWarning(std::format("锚点 \"{}\" 未找到", name));
+        if (addr) PDBG("CollectAnchors: 锚点 \"{}\" @ 0x{:X}", name, addr);
+        else      PDBG("CollectAnchors: 锚点 \"{}\" 未找到", name);
     };
     logAnchor("ReceiveBeginPlay",    m_FuncReceiveBeginPlay);
     logAnchor("ReceiveTick",         m_FuncReceiveTick);
     logAnchor("IsValid",             m_FuncIsValid);
     logAnchor("PrintString",         m_FuncPrintString);
     logAnchor("K2_GetActorLocation", m_FuncK2_GetActorLocation);
+    PDBG("<<<<<<<<<< [CollectAnchors] END <<<<<<<<<<");
 }
 
 void UEProber::Phase4_ProbeFunctionFlags() {
+    PDBG(">>>>>>>>>> [ProbeFunctionFlags] BEGIN >>>>>>>>>>");
     m_Phase4FuncFlagsCandidates.clear();
-    LogInfo("探测 UFunction::FunctionFlags");
+    PDBG("ProbeFunctionFlags: 开始探测 UFunction::FunctionFlags");
 
     if (!m_FuncIsValid || !m_FuncPrintString || !m_FuncReceiveBeginPlay) {
-        LogWarning("需要 IsValid, PrintString, ReceiveBeginPlay 锚点");
+        PDBG("ProbeFunctionFlags: 缺少 IsValid/PrintString/ReceiveBeginPlay 锚点, 中止");
+        PDBG("<<<<<<<<<< [ProbeFunctionFlags] END <<<<<<<<<<");
         return;
     }
+    PDBG("ProbeFunctionFlags: IsValid=0x{:X}, PrintString=0x{:X}, ReceiveBeginPlay=0x{:X}",
+         m_FuncIsValid, m_FuncPrintString, m_FuncReceiveBeginPlay);
 
     int32_t sizeofUStruct = GetStructSize("UStruct");
     int32_t sizeofUFunction = GetStructSize("UFunction");
     int32_t searchStart = sizeofUStruct;
     int32_t searchEnd = sizeofUFunction;
+    PDBG("ProbeFunctionFlags: 搜索范围 [0x{:X}, 0x{:X})", searchStart, searchEnd);
 
     if (searchStart <= 0 || searchEnd <= 0 || searchStart >= searchEnd) {
-        LogError(std::format("搜索范围无效: UStruct Size=0x{:X}, UFunction Size=0x{:X}", sizeofUStruct, sizeofUFunction));
+        PDBG("ProbeFunctionFlags: 搜索范围无效: UStruct Size=0x{:X}, UFunction Size=0x{:X}, 中止",
+             sizeofUStruct, sizeofUFunction);
+        PDBG("<<<<<<<<<< [ProbeFunctionFlags] END <<<<<<<<<<");
         return;
     }
 
@@ -1621,6 +1715,8 @@ void UEProber::Phase4_ProbeFunctionFlags() {
                 !(valTick & EFuncFlags::FUNC_Native)) {
                 confidence += 0.1f;
                 desc += std::format(", Tick=0x{:X}", valTick);
+            } else {
+                PDBG("ProbeFunctionFlags: off=0x{:X} ReceiveTick 交叉验证未通过 (val=0x{:X})", off, valTick);
             }
         }
         // K2_GetActorLocation 交叉验证: 应含 Native|Final|BlueprintPure
@@ -1630,13 +1726,20 @@ void UEProber::Phase4_ProbeFunctionFlags() {
                 (valLoc & isValidExpected) == isValidExpected) {
                 confidence += 0.1f;
                 desc += std::format(", GetLoc=0x{:X}", valLoc);
+            } else {
+                PDBG("ProbeFunctionFlags: off=0x{:X} K2_GetActorLocation 交叉验证未通过 (val=0x{:X})", off, valLoc);
             }
         }
 
+        PDBG("ProbeFunctionFlags: off=0x{:X} val=0x{:X}, confidence={:.2f}", off, valIsValid, confidence);
         m_Phase4FuncFlagsCandidates.push_back({off, valIsValid, desc, confidence});
-        if (confidence >= 1.0f) break;
+        if (confidence >= 1.0f) {
+            PDBG("ProbeFunctionFlags: 精确匹配/置信度 100%, early break");
+            break;
+        }
     }
 
+    PDBG("ProbeFunctionFlags: 扫描完毕, 候选数={}", m_Phase4FuncFlagsCandidates.size());
     std::sort(m_Phase4FuncFlagsCandidates.begin(), m_Phase4FuncFlagsCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
@@ -1646,29 +1749,46 @@ void UEProber::Phase4_ProbeFunctionFlags() {
         r.offset = best.offset; r.size = 4; r.typeName = "EFunctionFlags";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UFunction::FunctionFlags 自动探测: 偏移 0x{:X}{}",
-            best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeFunctionFlags: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
+        PDBG("ProbeFunctionFlags: UFunction::FunctionFlags 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
     } else {
-        LogWarning("UFunction::FunctionFlags 探测失败, 未找到满足所有条件的偏移");
+        PDBG("ProbeFunctionFlags: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeFunctionFlags] END <<<<<<<<<<");
 }
 
 void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
+    PDBG(">>>>>>>>>> [ProbeNumParmsAndParmsSize] BEGIN >>>>>>>>>>");
     m_Phase4NumParmsCandidates.clear();
     m_Phase4ParmsSizeCandidates.clear();
-    LogInfo("探测 UFunction::NumParms 和 ParmsSize");
+    PDBG("ProbeNumParmsAndParmsSize: 开始探测 UFunction::NumParms 和 ParmsSize");
 
     // 至少需要 3 个不同 NumParms 值的锚点
     if (!m_FuncReceiveBeginPlay || !m_FuncIsValid) {
-        LogWarning("需要 ReceiveBeginPlay 和 IsValid 锚点");
+        PDBG("ProbeNumParmsAndParmsSize: 缺少 ReceiveBeginPlay/IsValid 锚点, 中止");
+        PDBG("<<<<<<<<<< [ProbeNumParmsAndParmsSize] END <<<<<<<<<<");
+        return;
+    }
+    PDBG("ProbeNumParmsAndParmsSize: ReceiveBeginPlay=0x{:X}, IsValid=0x{:X}",
+         m_FuncReceiveBeginPlay, m_FuncIsValid);
+
+    int32_t funcFlagsOff = GetConfirmedOffset("UFunction::FunctionFlags");
+    if (funcFlagsOff < 0) {
+        PDBG("ProbeNumParmsAndParmsSize: 需要先确认 FunctionFlags, 中止");
+        PDBG("<<<<<<<<<< [ProbeNumParmsAndParmsSize] END <<<<<<<<<<");
         return;
     }
 
-    int32_t funcFlagsOff = GetConfirmedOffset("UFunction::FunctionFlags");
-    if (funcFlagsOff < 0) { LogWarning("需要先确认 FunctionFlags"); return; }
-
     int32_t searchStart = GetStructSize("UStruct");
     int32_t searchEnd = GetStructSize("UFunction");
+    PDBG("ProbeNumParmsAndParmsSize: 搜索范围 [0x{:X}, 0x{:X}), funcFlagsOff=0x{:X}",
+         searchStart, searchEnd, funcFlagsOff);
+    if (searchStart <= 0 || searchEnd <= 0 || searchStart >= searchEnd) {
+        PDBG("ProbeNumParmsAndParmsSize: 搜索范围无效: UStruct=0x{:X}, UFunction=0x{:X}, 中止",
+             searchStart, searchEnd);
+        PDBG("<<<<<<<<<< [ProbeNumParmsAndParmsSize] END <<<<<<<<<<");
+        return;
+    }
 
     // === NumParms (uint8) ===
     // PrintString=6, IsValid=2, ReceiveTick=1, ReceiveBeginPlay=0
@@ -1689,6 +1809,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
                 confidence += 0.15f;
                 desc += ", Tick=1";
             } else {
+                PDBG("ProbeNumParmsAndParmsSize: [NumParms] off=0x{:X} ReceiveTick 验证失败 (val={}), 跳过", off, (uint32_t)valTick);
                 continue;
             }
         }
@@ -1698,12 +1819,17 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
                 confidence += 0.25f;
                 desc += ", PrintString=6";
             } else {
+                PDBG("ProbeNumParmsAndParmsSize: [NumParms] off=0x{:X} PrintString 验证失败 (val={}), 跳过", off, (uint32_t)valPS);
                 continue;
             }
         }
 
+        PDBG("ProbeNumParmsAndParmsSize: [NumParms] off=0x{:X} val=0x{:X}, confidence={:.2f}", off, (uint32_t)valIsValid, confidence);
         m_Phase4NumParmsCandidates.push_back({off, valIsValid, desc, confidence});
-        if (confidence >= 1.0f) break;
+        if (confidence >= 1.0f) {
+            PDBG("ProbeNumParmsAndParmsSize: [NumParms] 精确匹配/置信度 100%, early break");
+            break;
+        }
     }
 
     // === ParmsSize (uint16) ===
@@ -1725,6 +1851,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
                 confidence += 0.15f;
                 desc += ", Tick=4";
             } else {
+                PDBG("ProbeNumParmsAndParmsSize: [ParmsSize] off=0x{:X} ReceiveTick 交叉验证未通过 (val={})", off, (uint32_t)valTick);
             }
         }
         if (m_FuncPrintString) {
@@ -1735,10 +1862,16 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
             }
         }
 
+        PDBG("ProbeNumParmsAndParmsSize: [ParmsSize] off=0x{:X} val=0x{:X}, confidence={:.2f}", off, (uint32_t)valIsValid, confidence);
         m_Phase4ParmsSizeCandidates.push_back({off, valIsValid, desc, confidence});
-        if (confidence >= 1.0f) break;
+        if (confidence >= 1.0f) {
+            PDBG("ProbeNumParmsAndParmsSize: [ParmsSize] 精确匹配/置信度 100%, early break");
+            break;
+        }
     }
 
+    PDBG("ProbeNumParmsAndParmsSize: NumParms 扫描完毕, 候选数={}", m_Phase4NumParmsCandidates.size());
+    PDBG("ProbeNumParmsAndParmsSize: ParmsSize 扫描完毕, 候选数={}", m_Phase4ParmsSizeCandidates.size());
     std::sort(m_Phase4NumParmsCandidates.begin(), m_Phase4NumParmsCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
     std::sort(m_Phase4ParmsSizeCandidates.begin(), m_Phase4ParmsSizeCandidates.end(),
@@ -1750,8 +1883,10 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
         r.offset = best.offset; r.size = 1; r.typeName = "uint8";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UFunction::NumParms 自动探测: 偏移 0x{:X}{}",
-            best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeNumParmsAndParmsSize: 最佳候选 [NumParms] 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
+        PDBG("ProbeNumParmsAndParmsSize: UFunction::NumParms 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeNumParmsAndParmsSize: [NumParms] 无满足置信度的候选项");
     }
     if (!m_Phase4ParmsSizeCandidates.empty() && m_Phase4ParmsSizeCandidates[0].confidence >= 0.7f) {
         auto& best = m_Phase4ParmsSizeCandidates[0];
@@ -1759,28 +1894,51 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
         r.offset = best.offset; r.size = 2; r.typeName = "uint16";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UFunction::ParmsSize 自动探测: 偏移 0x{:X}{}",
-            best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeNumParmsAndParmsSize: 最佳候选 [ParmsSize] 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
+        PDBG("ProbeNumParmsAndParmsSize: UFunction::ParmsSize 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeNumParmsAndParmsSize: [ParmsSize] 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeNumParmsAndParmsSize] END <<<<<<<<<<");
 }
 
 void UEProber::Phase4_ProbeReturnValueOffset() {
+    PDBG(">>>>>>>>>> [ProbeReturnValueOffset] BEGIN >>>>>>>>>>");
     m_Phase4ReturnValueOffCandidates.clear();
-    LogInfo("探测 UFunction::ReturnValueOffset");
+    PDBG("ProbeReturnValueOffset: 开始探测 UFunction::ReturnValueOffset");
 
     // 需要三种不同值: K2_GetActorLocation=0, IsValid=8, PrintString=0xFFFF
     if (!m_FuncK2_GetActorLocation || !m_FuncIsValid || !m_FuncPrintString) {
-        LogWarning("需要 K2_GetActorLocation, IsValid, PrintString 锚点");
+        PDBG("ProbeReturnValueOffset: 缺少 K2_GetActorLocation/IsValid/PrintString 锚点, 中止");
+        PDBG("<<<<<<<<<< [ProbeReturnValueOffset] END <<<<<<<<<<");
         return;
     }
+    PDBG("ProbeReturnValueOffset: K2_GetActorLocation=0x{:X}, IsValid=0x{:X}, PrintString=0x{:X}",
+         m_FuncK2_GetActorLocation, m_FuncIsValid, m_FuncPrintString);
 
     int32_t funcFlagsOff = GetConfirmedOffset("UFunction::FunctionFlags");
-    if (funcFlagsOff < 0) { LogWarning("需要先确认 FunctionFlags"); return; }
+    if (funcFlagsOff < 0) {
+        PDBG("ProbeReturnValueOffset: 需要先确认 FunctionFlags, 中止");
+        PDBG("<<<<<<<<<< [ProbeReturnValueOffset] END <<<<<<<<<<");
+        return;
+    }
     int32_t numParmsOff = GetConfirmedOffset("UFunction::NumParms");
     int32_t parmsSizeOff = GetConfirmedOffset("UFunction::ParmsSize");
+    if (numParmsOff < 0)
+        PDBG("ProbeReturnValueOffset: NumParms 未确认, off=-1, 该排除过滤将不生效");
+    if (parmsSizeOff < 0)
+        PDBG("ProbeReturnValueOffset: ParmsSize 未确认, off=-1, 该排除过滤将不生效");
 
     int32_t searchStart = GetStructSize("UStruct");
     int32_t searchEnd = GetStructSize("UFunction");
+    PDBG("ProbeReturnValueOffset: 搜索范围 [0x{:X}, 0x{:X}), funcFlagsOff=0x{:X}, numParmsOff=0x{:X}, parmsSizeOff=0x{:X}",
+         searchStart, searchEnd, funcFlagsOff, numParmsOff, parmsSizeOff);
+    if (searchStart <= 0 || searchEnd <= 0 || searchStart >= searchEnd) {
+        PDBG("ProbeReturnValueOffset: 搜索范围无效: UStruct=0x{:X}, UFunction=0x{:X}, 中止",
+             searchStart, searchEnd);
+        PDBG("<<<<<<<<<< [ProbeReturnValueOffset] END <<<<<<<<<<");
+        return;
+    }
 
     for (int32_t off = searchStart; off < searchEnd; off += 2) {
         if (off == numParmsOff || off == parmsSizeOff) continue;
@@ -1803,6 +1961,8 @@ void UEProber::Phase4_ProbeReturnValueOffset() {
             if (KMgrRead(m_FuncReceiveBeginPlay + off, &valBP, 2) && valBP == 0xFFFF) {
                 confidence += 0.05f;
                 desc += ", BeginPlay=0xFFFF";
+            } else {
+                PDBG("ProbeReturnValueOffset: off=0x{:X} ReceiveBeginPlay 交叉验证未通过 (val=0x{:X})", off, (uint32_t)valBP);
             }
         }
         if (m_FuncReceiveTick) {
@@ -1810,13 +1970,20 @@ void UEProber::Phase4_ProbeReturnValueOffset() {
             if (KMgrRead(m_FuncReceiveTick + off, &valTick, 2) && valTick == 0xFFFF) {
                 confidence += 0.05f;
                 desc += ", Tick=0xFFFF";
+            } else {
+                PDBG("ProbeReturnValueOffset: off=0x{:X} ReceiveTick 交叉验证未通过 (val=0x{:X})", off, (uint32_t)valTick);
             }
         }
 
+        PDBG("ProbeReturnValueOffset: off=0x{:X} val=0x{:X}, confidence={:.2f}", off, (uint32_t)valLoc, confidence);
         m_Phase4ReturnValueOffCandidates.push_back({off, valLoc, desc, confidence});
-        if (confidence >= 1.0f) break;
+        if (confidence >= 1.0f) {
+            PDBG("ProbeReturnValueOffset: 精确匹配/置信度 100%, early break");
+            break;
+        }
     }
 
+    PDBG("ProbeReturnValueOffset: 扫描完毕, 候选数={}", m_Phase4ReturnValueOffCandidates.size());
     std::sort(m_Phase4ReturnValueOffCandidates.begin(), m_Phase4ReturnValueOffCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
@@ -1826,25 +1993,45 @@ void UEProber::Phase4_ProbeReturnValueOffset() {
         r.offset = best.offset; r.size = 2; r.typeName = "uint16";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UFunction::ReturnValueOffset 自动探测: 偏移 0x{:X}{}",
-            best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeReturnValueOffset: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
+        PDBG("ProbeReturnValueOffset: UFunction::ReturnValueOffset 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeReturnValueOffset: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeReturnValueOffset] END <<<<<<<<<<");
 }
 
 void UEProber::Phase4_ProbeFunc() {
+    PDBG(">>>>>>>>>> [ProbeFunc] BEGIN >>>>>>>>>>");
     m_Phase4ExecFuncCandidates.clear();
-    LogInfo("探测 UFunction::Func");
+    PDBG("ProbeFunc: 开始探测 UFunction::Func");
 
     if (!m_FuncIsValid || !m_FuncPrintString || !m_FuncReceiveBeginPlay) {
-        LogWarning("需要 IsValid, PrintString, ReceiveBeginPlay 锚点");
+        PDBG("ProbeFunc: 缺少 IsValid/PrintString/ReceiveBeginPlay 锚点, 中止");
+        PDBG("<<<<<<<<<< [ProbeFunc] END <<<<<<<<<<");
         return;
     }
+    PDBG("ProbeFunc: IsValid=0x{:X}, PrintString=0x{:X}, ReceiveBeginPlay=0x{:X}",
+         m_FuncIsValid, m_FuncPrintString, m_FuncReceiveBeginPlay);
 
     uintptr_t textStart = GetTextSegStart();
     uintptr_t textEnd = GetTextSegEnd();
+    PDBG("ProbeFunc: .text [0x{:X}, 0x{:X})", textStart, textEnd);
+    if (textStart == 0 || textEnd == 0 || textEnd <= textStart) {
+        PDBG("ProbeFunc: .text 段范围无效 (start=0x{:X}, end=0x{:X}), 中止", textStart, textEnd);
+        PDBG("<<<<<<<<<< [ProbeFunc] END <<<<<<<<<<");
+        return;
+    }
 
     int32_t sizeofUStruct = GetStructSize("UStruct");
     int32_t sizeofUFunction = GetStructSize("UFunction");
+    PDBG("ProbeFunc: 搜索范围 [0x{:X}, 0x{:X})", sizeofUStruct, sizeofUFunction);
+    if (sizeofUStruct <= 0 || sizeofUFunction <= 0 || sizeofUStruct >= sizeofUFunction) {
+        PDBG("ProbeFunc: UStruct/UFunction size 无效: UStruct=0x{:X}, UFunction=0x{:X}, 中止",
+             sizeofUStruct, sizeofUFunction);
+        PDBG("<<<<<<<<<< [ProbeFunc] END <<<<<<<<<<");
+        return;
+    }
 
     // Native 锚点: IsValid, PrintString, K2_GetActorLocation
     std::vector<uintptr_t> nativeFuncs = {m_FuncIsValid, m_FuncPrintString};
@@ -1888,15 +2075,21 @@ void UEProber::Phase4_ProbeFunc() {
 
         if (confidence < 0.5f) continue;
 
+        PDBG("ProbeFunc: off=0x{:X} nativeInText={}, nativeAllDiff={}, bpAllSame={}, confidence={:.2f}",
+             off, nativeInText, nativeAllDiff, bpAllSame, confidence);
         m_Phase4ExecFuncCandidates.push_back({
             off, 0,
             std::format("Native在.text={}/{} 互不同={}, BP值相同={}({}个)",
                 nativeInText, (int)nativeFuncs.size(), nativeAllDiff, bpAllSame, (int)bpFuncs.size()),
             confidence
         });
-        if (confidence >= 1.0f) break;
+        if (confidence >= 1.0f) {
+            PDBG("ProbeFunc: 精确匹配/置信度 100%, early break");
+            break;
+        }
     }
 
+    PDBG("ProbeFunc: 扫描完毕, 候选数={}", m_Phase4ExecFuncCandidates.size());
     std::sort(m_Phase4ExecFuncCandidates.begin(), m_Phase4ExecFuncCandidates.end(),
         [](const auto& a, const auto& b) { return a.confidence > b.confidence; });
 
@@ -1906,23 +2099,29 @@ void UEProber::Phase4_ProbeFunc() {
         r.offset = best.offset; r.size = 8; r.typeName = "FNativeFuncPtr";
         r.evidence = best.description; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
-        LogSuccess(std::format("UFunction::Func 自动探测: 偏移 0x{:X}{}",
-            best.offset, r.confirmed ? " [已自动确认]" : ""));
+        PDBG("ProbeFunc: 最佳候选 偏移=0x{:X}, confidence={:.2f}", best.offset, best.confidence);
+        PDBG("ProbeFunc: UFunction::Func 自动探测: 偏移 0x{:X}{}", best.offset, r.confirmed ? " [已自动确认]" : "");
+    } else {
+        PDBG("ProbeFunc: 无满足置信度的候选项");
     }
+    PDBG("<<<<<<<<<< [ProbeFunc] END <<<<<<<<<<");
 }
 
 void UEProber::Phase4_AutoProbe() {
-    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
+    if (!m_GameDetected) { PDBG("请先检测游戏后再进行探测操作"); return; }
+    PDBG(">>>>>>>>>> [Phase4_AutoProbe] BEGIN >>>>>>>>>>");
     m_PhaseStatus[4] = EPhaseStatus::InProgress;
-    LogInfo("===== 阶段 4: UFunction 自动探测 =====");
+    PDBG("===== 阶段 4: UFunction 自动探测 =====");
 
     if (!HasConfirmed("UObject::NamePrivate") || !HasConfirmed("UObject::ClassPrivate") ||
         !HasConfirmed("UStruct::Children") || !HasConfirmed("UField::Next")) {
-        LogError("需要先完成阶段 1~2 (确认 Name, Class, Children, Next 偏移)");
+        PDBG("Phase4_AutoProbe: 需要先完成阶段 1~2 (确认 Name, Class, Children, Next 偏移), 中止");
+        PDBG("<<<<<<<<<< [Phase4_AutoProbe] END <<<<<<<<<<");
         return;
     }
 
     // === 收集 5 个锚点函数 ===
+    PDBG("---------- [Step 1/3] CollectAnchors ----------");
     Phase4_CollectAnchors();
 
     int anchorCount = 0;
@@ -1931,22 +2130,32 @@ void UEProber::Phase4_AutoProbe() {
     if (m_FuncIsValid)             anchorCount++;
     if (m_FuncPrintString)         anchorCount++;
     if (m_FuncK2_GetActorLocation) anchorCount++;
+    PDBG("Phase4_AutoProbe: 收集到 {} 个锚点", anchorCount);
 
     if (anchorCount < 3) {
-        LogError(std::format("只找到 {} 个锚点, 至少需要 3 个", anchorCount));
+        PDBG("Phase4_AutoProbe: 只找到 {} 个锚点, 至少需要 3 个, 中止", anchorCount);
+        PDBG("<<<<<<<<<< [Phase4_AutoProbe] END <<<<<<<<<<");
         return;
     }
 
     // === 按依赖顺序探测 ===
+    PDBG("---------- [Step 2/3] FunctionFlags ----------");
     Phase4_ProbeFunctionFlags();
+    PDBG("FunctionFlags 探测结果: confirmed={}", HasConfirmed("UFunction::FunctionFlags"));
 
     if (HasConfirmed("UFunction::FunctionFlags")) {
+        PDBG("---------- [Step 3/3] NumParms/ParmsSize/ReturnValueOffset/Func ----------");
         Phase4_ProbeNumParmsAndParmsSize();
+        PDBG("NumParms 探测结果: confirmed={}", HasConfirmed("UFunction::NumParms"));
+        PDBG("ParmsSize 探测结果: confirmed={}", HasConfirmed("UFunction::ParmsSize"));
         Phase4_ProbeReturnValueOffset();
+        PDBG("ReturnValueOffset 探测结果: confirmed={}", HasConfirmed("UFunction::ReturnValueOffset"));
         Phase4_ProbeFunc();
+        PDBG("Func 探测结果: confirmed={}", HasConfirmed("UFunction::Func"));
     }
 
-    LogInfo("阶段 4 自动探测完成");
+    PDBG("阶段 4 自动探测完成");
+    PDBG("<<<<<<<<<< [Phase4_AutoProbe] END <<<<<<<<<<");
 }
 
 // ============================================================
@@ -1966,54 +2175,54 @@ void UEProber::Phase5_CollectAnchors() {
 
     // ExecuteUbergraph -> "EntryPoint" (IntProperty)
     uintptr_t execUbergraph = FindObjectInGObjects("ExecuteUbergraph");
-    PDBG("CollectAnchors: FindObjectInGObjects(ExecuteUbergraph) = {}", FormatPtr(execUbergraph));
+    PDBG("CollectAnchors: FindObjectInGObjects(ExecuteUbergraph) = {}", execUbergraph);
     if (execUbergraph) {
         KMgrRead(execUbergraph + childPropsOff, &m_FFEntryPoint, 8);
         if (!IsValidPtr(m_FFEntryPoint)) m_FFEntryPoint = 0;
     }
-    PDBG("CollectAnchors: m_FFEntryPoint={}", FormatPtr(m_FFEntryPoint));
+    PDBG("CollectAnchors: m_FFEntryPoint={}", m_FFEntryPoint);
 
     // ReceiveTick -> "DeltaSeconds" (FloatProperty)
-    PDBG("CollectAnchors: m_FuncReceiveTick={}", FormatPtr(m_FuncReceiveTick));
+    PDBG("CollectAnchors: m_FuncReceiveTick={}", m_FuncReceiveTick);
     if (m_FuncReceiveTick) {
         KMgrRead(m_FuncReceiveTick + childPropsOff, &m_FFDeltaSeconds, 8);
         if (!IsValidPtr(m_FFDeltaSeconds)) m_FFDeltaSeconds = 0;
     }
-    PDBG("CollectAnchors: m_FFDeltaSeconds={}", FormatPtr(m_FFDeltaSeconds));
+    PDBG("CollectAnchors: m_FFDeltaSeconds={}", m_FFDeltaSeconds);
 
     // IsValid -> 首参 (ObjectProperty) -> Next -> ReturnValue (BoolProperty)
-    PDBG("CollectAnchors: m_FuncIsValid={}", FormatPtr(m_FuncIsValid));
+    PDBG("CollectAnchors: m_FuncIsValid={}", m_FuncIsValid);
     if (m_FuncIsValid) {
         KMgrRead(m_FuncIsValid + childPropsOff, &m_FFIsValidParam0, 8);
         if (!IsValidPtr(m_FFIsValidParam0)) m_FFIsValidParam0 = 0;
         // IsValid ReturnValue 在 Next 探测后获取
     }
-    PDBG("CollectAnchors: m_FFIsValidParam0={}", FormatPtr(m_FFIsValidParam0));
+    PDBG("CollectAnchors: m_FFIsValidParam0={}", m_FFIsValidParam0);
 
     // K2_GetActorLocation -> "ReturnValue" (StructProperty)
-    PDBG("CollectAnchors: m_FuncK2_GetActorLocation={}", FormatPtr(m_FuncK2_GetActorLocation));
+    PDBG("CollectAnchors: m_FuncK2_GetActorLocation={}", m_FuncK2_GetActorLocation);
     if (m_FuncK2_GetActorLocation) {
         KMgrRead(m_FuncK2_GetActorLocation + childPropsOff, &m_FFK2LocReturn, 8);
         if (!IsValidPtr(m_FFK2LocReturn)) m_FFK2LocReturn = 0;
     }
-    PDBG("CollectAnchors: m_FFK2LocReturn={}", FormatPtr(m_FFK2LocReturn));
+    PDBG("CollectAnchors: m_FFK2LocReturn={}", m_FFK2LocReturn);
 
     // 预验证: ReceiveBeginPlay 的 ChildProperties 应为 nullptr (NumParms=0)
-    PDBG("CollectAnchors: m_FuncReceiveBeginPlay={}", FormatPtr(m_FuncReceiveBeginPlay));
+    PDBG("CollectAnchors: m_FuncReceiveBeginPlay={}", m_FuncReceiveBeginPlay);
     if (m_FuncReceiveBeginPlay) {
         uintptr_t bpChildProps = 0;
         KMgrRead(m_FuncReceiveBeginPlay + childPropsOff, &bpChildProps, 8);
         if (bpChildProps != 0) {
-            PDBG("CollectAnchors: WARNING ReceiveBeginPlay ChildProperties 不为 nullptr: {}, 可能 ChildProperties 偏移有误",
-                FormatPtr(bpChildProps));
+            PDBG("CollectAnchors: WARNING ReceiveBeginPlay ChildProperties 不为 nullptr: 0x{:X}, 可能 ChildProperties 偏移有误",
+                bpChildProps);
         } else {
             PDBG("CollectAnchors: ReceiveBeginPlay ChildProperties = nullptr (预验证通过)");
         }
     }
 
-    PDBG("CollectAnchors: 汇总: EntryPoint={}, DeltaSeconds={}, IsValidP0={}, K2LocRV={}",
-        FormatPtr(m_FFEntryPoint), FormatPtr(m_FFDeltaSeconds),
-        FormatPtr(m_FFIsValidParam0), FormatPtr(m_FFK2LocReturn));
+    PDBG("CollectAnchors: 汇总: EntryPoint=0x{:X}, DeltaSeconds=0x{:X}, IsValidP0=0x{:X}, K2LocRV=0x{:X}",
+        m_FFEntryPoint, m_FFDeltaSeconds,
+        m_FFIsValidParam0, m_FFK2LocReturn);
     PDBG("<<<<<<<<<< [CollectAnchors] END <<<<<<<<<<");
 }
 
@@ -2026,8 +2235,8 @@ void UEProber::Phase5_ProbeFFieldNamePrivate() {
         PDBG("<<<<<<<<<< [ProbeFFieldNamePrivate] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeFFieldNamePrivate: EntryPoint={}, DeltaSeconds={}",
-         FormatPtr(m_FFEntryPoint), FormatPtr(m_FFDeltaSeconds));
+    PDBG("ProbeFFieldNamePrivate: EntryPoint=0x{:X}, DeltaSeconds=0x{:X}",
+         m_FFEntryPoint, m_FFDeltaSeconds);
 
     for (int32_t off = 0x08; off < 0x40; off += 4) {
         std::string name1;
@@ -2093,8 +2302,8 @@ void UEProber::Phase5_ProbeFFieldOwner() {
         PDBG("<<<<<<<<<< [ProbeFFieldOwner] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeFFieldOwner: EntryPoint={}, execUbergraph={}",
-         FormatPtr(m_FFEntryPoint), FormatPtr(execUbergraph));
+    PDBG("ProbeFFieldOwner: EntryPoint=0x{:X}, execUbergraph=0x{:X}",
+         m_FFEntryPoint, execUbergraph);
 
     int32_t namePrivateOff = GetConfirmedOffset("FField::NamePrivate");
     PDBG("ProbeFFieldOwner: namePrivateOff=0x{:X}", namePrivateOff);
@@ -2105,7 +2314,7 @@ void UEProber::Phase5_ProbeFFieldOwner() {
         uintptr_t ptr1 = 0;
         if (!KMgrRead(m_FFEntryPoint + off, &ptr1, 8)) continue;
         if (ptr1 != execUbergraph) {
-            PDBG("ProbeFFieldOwner: off=0x{:X} ptr1={} != execUbergraph, 跳过", off, FormatPtr(ptr1));
+            PDBG("ProbeFFieldOwner: off=0x{:X} ptr1={} != execUbergraph, 跳过", off, ptr1);
             continue;
         }
         PDBG("ProbeFFieldOwner: off=0x{:X} 命中! ptr1 == execUbergraph", off);
@@ -2166,13 +2375,13 @@ void UEProber::Phase5_ProbeFFieldNext() {
     int32_t ownerOff = GetConfirmedOffset("FField::Owner");
 
     if (!m_FFEntryPoint || !m_FFIsValidParam0) {
-        PDBG("ProbeFFieldNext: 缺少锚点 EntryPoint={} IsValidP0={}, 中止",
-             FormatPtr(m_FFEntryPoint), FormatPtr(m_FFIsValidParam0));
+        PDBG("ProbeFFieldNext: 缺少锚点 EntryPoint=0x{:X} IsValidP0=0x{:X}, 中止",
+             m_FFEntryPoint, m_FFIsValidParam0);
         PDBG("<<<<<<<<<< [ProbeFFieldNext] END <<<<<<<<<<");
         return;
     }
-    PDBG("ProbeFFieldNext: namePrivateOff=0x{:X}, ownerOff=0x{:X}, EntryPoint={}, IsValidP0={}",
-         namePrivateOff, ownerOff, FormatPtr(m_FFEntryPoint), FormatPtr(m_FFIsValidParam0));
+    PDBG("ProbeFFieldNext: namePrivateOff=0x{:X}, ownerOff=0x{:X}, EntryPoint=0x{:X}, IsValidP0=0x{:X}",
+         namePrivateOff, ownerOff, m_FFEntryPoint, m_FFIsValidParam0);
 
     for (int32_t off = 0x08; off < 0x30; off += 8) {
         if (off == namePrivateOff || off == ownerOff || (ownerOff >= 0 && off == ownerOff + 8)) continue;
@@ -2181,14 +2390,14 @@ void UEProber::Phase5_ProbeFFieldNext() {
         uintptr_t ptr1 = 0;
         KMgrRead(m_FFEntryPoint + off, &ptr1, 8);
         if (ptr1 != 0) {
-            PDBG("ProbeFFieldNext: off=0x{:X} EntryPoint.Next={} != nullptr, 跳过", off, FormatPtr(ptr1));
+            PDBG("ProbeFFieldNext: off=0x{:X} EntryPoint.Next=0x{:X} != nullptr, 跳过", off, ptr1);
             continue;
         }
 
         // IsValid 首参 (NumParms=2): Next 应为有效指针 -> "ReturnValue"
         uintptr_t ptr2 = 0;
         if (!KMgrRead(m_FFIsValidParam0 + off, &ptr2, 8) || !IsValidPtr(ptr2)) {
-            PDBG("ProbeFFieldNext: off=0x{:X} IsValidP0.Next={} 无效, 跳过", off, FormatPtr(ptr2));
+            PDBG("ProbeFFieldNext: off=0x{:X} IsValidP0.Next=0x{:X} 无效, 跳过", off, ptr2);
             continue;
         }
 
@@ -2269,11 +2478,11 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
 
         std::string typeName1;
         if (!TryReadFName(ptr1, typeName1) || !FNameEq(typeName1, "IntProperty")) {
-            PDBG("ProbeFFieldClassPrivate: off=0x{:X} ptr1={} typeName=\"{}\" 不是IntProperty",
-                 off, FormatPtr(ptr1), typeName1);
+            PDBG("ProbeFFieldClassPrivate: off=0x{:X} ptr1=0x{:X} typeName=\"{}\" 不是IntProperty",
+                 off, ptr1, typeName1);
             continue;
         }
-        PDBG("ProbeFFieldClassPrivate: off=0x{:X} 命中! ptr1={} -> \"IntProperty\"", off, FormatPtr(ptr1));
+        PDBG("ProbeFFieldClassPrivate: off=0x{:X} 命中! ptr1=0x{:X} -> \"IntProperty\"", off, ptr1);
 
         float confidence = 0.7f;
         std::string desc = std::format("EntryPoint ClassPrivate -> \"IntProperty\"");
@@ -2420,8 +2629,8 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
 
     // 至少需要 EntryPoint(4) 和 IsValid首参(8) 两个不同 ElementSize 的锚点
     if (!m_FFEntryPoint || !m_FFIsValidParam0) {
-        PDBG("ProbeAD+ES: 缺少锚点 EntryPoint={} IsValidP0={}, 中止",
-             FormatPtr(m_FFEntryPoint), FormatPtr(m_FFIsValidParam0));
+        PDBG("ProbeAD+ES: 缺少锚点 EntryPoint=0x{:X} IsValidP0=0x{:X}, 中止",
+             m_FFEntryPoint, m_FFIsValidParam0);
         PDBG("<<<<<<<<<< [ProbeArrayDim+ElemSize] END <<<<<<<<<<");
         return;
     }
@@ -2527,8 +2736,8 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
     }
 
     if (!m_FFEntryPoint || !m_FFIsValidParam0) {
-        PDBG("ProbePropFlags: 缺少锚点 EntryPoint={} IsValidP0={}, 中止",
-             FormatPtr(m_FFEntryPoint), FormatPtr(m_FFIsValidParam0));
+        PDBG("ProbePropFlags: 缺少锚点 EntryPoint=0x{:X} IsValidP0=0x{:X}, 中止",
+             m_FFEntryPoint, m_FFIsValidParam0);
         PDBG("<<<<<<<<<< [ProbeFPropertyFlags] END <<<<<<<<<<");
         return;
     }
@@ -2615,8 +2824,8 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
     }
 
     if (!m_FFEntryPoint || !m_FFIsValidParam0) {
-        PDBG("ProbeOffInt: 缺少锚点 EntryPoint={} IsValidP0={}, 中止",
-             FormatPtr(m_FFEntryPoint), FormatPtr(m_FFIsValidParam0));
+        PDBG("ProbeOffInt: 缺少锚点 EntryPoint=0x{:X} IsValidP0=0x{:X}, 中止",
+             m_FFEntryPoint, m_FFIsValidParam0);
         PDBG("<<<<<<<<<< [ProbeOffset_Internal] END <<<<<<<<<<");
         return;
     }
@@ -2703,8 +2912,8 @@ void UEProber::Phase5_ProbeFPropertySize() {
     }
 
     if (!m_FFK2LocReturn || !m_FFIsValidParam0) {
-        PDBG("ProbePropSize: 缺少锚点 K2LocRV={} IsValidP0={}, 中止",
-             FormatPtr(m_FFK2LocReturn), FormatPtr(m_FFIsValidParam0));
+        PDBG("ProbePropSize: 缺少锚点 K2LocRV=0x{:X} IsValidP0=0x{:X}, 中止",
+             m_FFK2LocReturn, m_FFIsValidParam0);
         PDBG("<<<<<<<<<< [ProbeFPropertySize] END <<<<<<<<<<");
         return;
     }
@@ -2712,8 +2921,8 @@ void UEProber::Phase5_ProbeFPropertySize() {
     // 查找 "Vector" ScriptStruct 和 "Object" UClass 用于验证
     uintptr_t vectorStruct = FindObjectInGObjects("Vector", "ScriptStruct");
     uintptr_t objectClass = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
-    PDBG("ProbePropSize: offsetInternalOff=0x{:X}, vectorStruct={}, objectClass={}",
-         offsetInternalOff, FormatPtr(vectorStruct), FormatPtr(objectClass));
+    PDBG("ProbePropSize: offsetInternalOff=0x{:X}, vectorStruct=0x{:X}, objectClass=0x{:X}",
+         offsetInternalOff, vectorStruct, objectClass);
 
     if (!vectorStruct && !objectClass) {
         PDBG("ProbePropSize: 无法找到 Vector ScriptStruct 或 Object UClass, 中止");
@@ -2734,8 +2943,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
         if (m_FFK2LocReturn && vectorStruct) {
             uintptr_t ptr1 = 0;
             if (!KMgrRead(m_FFK2LocReturn + off, &ptr1, 8) || ptr1 != vectorStruct) {
-                PDBG("ProbePropSize: off=0x{:X} K2Loc ptr1={} != vectorStruct, 跳过",
-                     off, FormatPtr(ptr1));
+                PDBG("ProbePropSize: off=0x{:X} K2Loc ptr1=0x{:X} != vectorStruct, 跳过", off, ptr1);
                 continue;
             }
             confidence += 0.5f;
@@ -2792,7 +3000,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
 }
 
 void UEProber::Phase5_AutoProbe() {
-    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
+    if (!m_GameDetected) { PDBG("请先检测游戏后再进行探测操作"); return; }
     m_PhaseStatus[5] = EPhaseStatus::InProgress;
     PDBG("========== [Phase5_AutoProbe] BEGIN ==========");
 
@@ -2899,43 +3107,56 @@ void UEProber::Phase5_AutoProbe() {
 // ============================================================
 
 void UEProber::Phase6_ScanProcessEvent() {
+    PDBG(">>>>>>>>>> [ScanProcessEvent] BEGIN>>>>>>>>>>");
     m_Phase6ProcessEventCandidates.clear();
-    LogInfo("探测 ProcessEvent VTable 索引 (via Profile::findProcessEvent)");
+    PDBG("ScanProcessEvent: 开始探测 ProcessEvent VTable 索引 (via Profile::findProcessEvent)");
 
     uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
+    PDBG("ScanProcessEvent: obj[0]=0x{:X}", obj0);
     if (!obj0 || !IsValidPtr(obj0)) {
-        LogError("无法获取 obj[0]");
+        PDBG("ScanProcessEvent: obj[0] 无效, 中止");
+        PDBG("<<<<<<<<<< [ScanProcessEvent] END <<<<<<<<<<");
         return;
     }
 
     uintptr_t peAddr = 0;
     int peIndex = -1;
     if (!ProfileFindProcessEvent(reinterpret_cast<uint8_t*>(obj0), &peAddr, &peIndex)) {
-        LogError("Profile::findProcessEvent 未找到 ProcessEvent");
+        PDBG("ScanProcessEvent: Profile::findProcessEvent 未找到 ProcessEvent, 中止");
+        PDBG("<<<<<<<<<< [ScanProcessEvent] END <<<<<<<<<<");
         return;
     }
-
-    LogSuccess(std::format("findProcessEvent => index=0x{:X}, addr={}", peIndex, FormatPtr(peAddr)));
+    PDBG("ScanProcessEvent: findProcessEvent => index=0x{:X}, addr=0x{:X}", peIndex, peAddr);
 
     m_Phase6ProcessEventCandidates.push_back({
         peIndex, peAddr,
-        std::format("VTable[0x{:X}] = {} [Profile]", peIndex, FormatPtr(peAddr)),
+        std::format("VTable[0x{:X}] = 0x{:X} [Profile]", peIndex, peAddr),
         1.0f
     });
+    PDBG("ScanProcessEvent: 扫描完毕, 候选数={}", m_Phase6ProcessEventCandidates.size());
 
     auto& result = GetResult("ProcessEvent::VTableIdx");
     result.offset = peIndex;
     result.autoDetected = true;
     result.confirmed = true;
-    result.evidence = std::format("Profile::findProcessEvent addr={}", FormatPtr(peAddr));
+    result.evidence = std::format("Profile::findProcessEvent addr=0x{:X}", peAddr);
+    PDBG("ScanProcessEvent: 最佳候选 偏移=0x{:X}, confidence=1.00", peIndex);
+    PDBG("ScanProcessEvent: ProcessEvent::VTableIdx 自动探测: 索引 0x{:X} [已自动确认]", peIndex);
+    PDBG("<<<<<<<<<< [ScanProcessEvent] END <<<<<<<<<<");
 }
 
 void UEProber::Phase6_AutoProbe() {
-    if (!m_GameDetected) { LogError("请先检测游戏后再进行探测操作"); return; }
+    if (!m_GameDetected) { PDBG("请先检测游戏后再进行探测操作"); return; }
+    PDBG(">>>>>>>>>> [Phase6_AutoProbe] BEGIN>>>>>>>>>>");
     m_PhaseStatus[6] = EPhaseStatus::InProgress;
-    LogInfo("===== 阶段 6: ProcessEvent VTable 索引 =====");
+    PDBG("===== 阶段 6: ProcessEvent VTable 索引 =====");
+
+    PDBG("---------- [Step 1/1] ScanProcessEvent ----------");
     Phase6_ScanProcessEvent();
-    LogInfo("阶段 6 探测完成");
+    PDBG("ProcessEvent 探测结果: confirmed={}", HasConfirmed("ProcessEvent::VTableIdx"));
+
+    PDBG("阶段 6 自动探测完成");
+    PDBG("<<<<<<<<<< [Phase6_AutoProbe] END <<<<<<<<<<");
 }
 
 // ============================================================
@@ -2965,7 +3186,7 @@ void UEProber::CallGetEngineVersion() {
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
     }
-    PDBG("GetEngVer: KismetSystemLibrary @ {}", FormatPtr(kismetClass));
+    PDBG("GetEngVer: KismetSystemLibrary @ {}", kismetClass);
 
     // 读取 CDO (Class Default Object)
     uintptr_t cdo = 0;
@@ -2974,7 +3195,7 @@ void UEProber::CallGetEngineVersion() {
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
     }
-    PDBG("GetEngVer: CDO @ {}", FormatPtr(cdo));
+    PDBG("GetEngVer: CDO @ {}", cdo);
 
     // 沿 Children→Next 链查找 GetEngineVersion UFunction
     uintptr_t func = WalkChildrenChain(kismetClass, "GetEngineVersion", childrenOff, nextOff, namePrivateOff);
@@ -2983,7 +3204,7 @@ void UEProber::CallGetEngineVersion() {
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
     }
-    PDBG("GetEngVer: GetEngineVersion @ {}", FormatPtr(func));
+    PDBG("GetEngVer: GetEngineVersion @ {}", func);
 
     // 确定 ProcessEvent VTable 索引
     int32_t peIdx = Offsets::ProcessEventIdx; // SDK 已知值
@@ -2999,12 +3220,12 @@ void UEProber::CallGetEngineVersion() {
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
     }
-    PDBG("GetEngVer: VTable @ {}", FormatPtr(vtable));
+    PDBG("GetEngVer: VTable @ {}", vtable);
 
     uintptr_t peFunc = 0;
     if (!KMgrRead(vtable + peIdx * 8, &peFunc, 8) || peFunc == 0) {
-        PDBG("GetEngVer: ProcessEvent 函数指针读取失败 @ VTable[0x{:X}], peFunc={}",
-             peIdx, FormatPtr(peFunc));
+        PDBG("GetEngVer: ProcessEvent 函数指针读取失败 @ VTable[0x{:X}], peFunc=0x{:X}",
+             peIdx, peFunc);
         PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
         return;
     }
@@ -3012,8 +3233,8 @@ void UEProber::CallGetEngineVersion() {
     // 验证函数指针在 .text 段范围内
     uintptr_t textStart = GetTextSegStart();
     uintptr_t textEnd = GetTextSegEnd();
-    PDBG("GetEngVer: ProcessEvent func @ {}, .text=[{}, {})",
-         FormatPtr(peFunc), FormatPtr(textStart), FormatPtr(textEnd));
+    PDBG("GetEngVer: ProcessEvent func @ 0x{:X}, .text=[0x{:X}, 0x{:X})",
+         peFunc, textStart, textEnd);
     if (textStart && textEnd && (peFunc < textStart || peFunc >= textEnd)) {
         PDBG("GetEngVer: 警告 - ProcessEvent 不在 .text 段内, 但仍尝试调用");
     }
@@ -3980,6 +4201,7 @@ void UEProber::DrawDumpPanel() {
     ImGui::Spacing();
 
     // ---- 探测偏移统计 ----
+    int confirmedProbeCount = 0;
     {
         static const char* kOffsetNames[] = {
             "UObject::ObjectFlags", "UObject::InternalIndex", "UObject::ClassPrivate", "UObject::NamePrivate", "UObject::OuterPrivate",
@@ -3994,6 +4216,7 @@ void UEProber::DrawDumpPanel() {
         for (int i = 0; i < kTotal; ++i) {
             if (HasConfirmed(kOffsetNames[i])) ++confirmed;
         }
+        confirmedProbeCount = confirmed;
         bool useProbed = (confirmed > 0);
         if (useProbed) {
             ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "探测偏移: 已启用 (%d/%d)", confirmed, kTotal);
@@ -4042,14 +4265,18 @@ void UEProber::DrawDumpPanel() {
     bool canDump = (status != EDumpStatus::Running);
     if (!canDump) ImGui::BeginDisabled();
 
-    if (ImGui::Button("开始 Dump (使用探测偏移)")) {
+    const char* dumpBtnLabel = (confirmedProbeCount > 0) ? "开始 Dump (使用探测偏移)" : "开始 Dump (使用 Profile 默认偏移)";
+    if (ImGui::Button(dumpBtnLabel)) {
         StartDump();
     }
 
     if (!canDump) ImGui::EndDisabled();
 
     ImGui::SameLine();
-    ImGui::TextWrapped("将当前探测到的偏移发送给 AndUEDumper 进行 SDK dump。");
+    if (confirmedProbeCount > 0)
+        ImGui::TextWrapped("将当前探测到的偏移发送给 AndUEDumper 进行 SDK dump。");
+    else
+        ImGui::TextColored(ImVec4(1.0f, 0.7f, 0.2f, 1.0f), "未探测到偏移, 将使用 AndUEDumper 预设偏移。");
 }
 
 void UEProber::DetectGame() {
@@ -4057,16 +4284,16 @@ void UEProber::DetectGame() {
 
     GameDetectionResult result;
     if (!DetectAndPrepareGame(result)) {
-        LogError("游戏检测失败: 没有匹配的 Profile 或初始化失败");
+        PDBG("游戏检测失败: 没有匹配的 Profile 或初始化失败");
         return;
     }
 
     m_GameDetection = result;
     m_GameDetected = true;
 
-    LogSuccess(std::format("检测到游戏: {} ({})", result.gameName, result.packageName));
-    LogInfo(std::format("UE Base: 0x{:X}, GUObjectArray: 0x{:X}, ObjectsFieldAddr: 0x{:X}",
-                         result.ueBaseAddress, result.guobjectArrayPtr, result.objectsFieldAddr));
+    PDBG("检测到游戏: {} ({})", result.gameName, result.packageName);
+    PDBG("UE Base: 0x{:X}, GUObjectArray: 0x{:X}, ObjectsFieldAddr: 0x{:X}",
+         result.ueBaseAddress, result.guobjectArrayPtr, result.objectsFieldAddr);
 
     // ---- 初始化 GObjects: 使用 profile 提供的地址, 在进程内读取 Objects 指针 ----
     auto* objArray = new TUObjectArray();
@@ -4078,14 +4305,14 @@ void UEProber::DetectGame() {
     UObject::GObjects.InitManually(objArray);
     m_GObjectsInitialized = true;
 
-    LogSuccess("GObjects 初始化完成 (来自 Profile::GetGUObjectArrayPtr)");
+    PDBG("GObjects 初始化完成 (来自 Profile::GetGUObjectArrayPtr)");
 
     // ---- 设置 FName 解析器: 使用 profile 的 GetNameByID ----
     FName::s_NameResolver = [](int32_t id) -> std::string {
         return ProfileGetNameByID(id);
     };
 
-    LogSuccess("FName 解析器已设置 (来自 Profile::GetNameByID)");
+    PDBG("FName 解析器已设置 (来自 Profile::GetNameByID)");
 }
 
 void UEProber::StartDump() {

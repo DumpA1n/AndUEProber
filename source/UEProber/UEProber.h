@@ -174,10 +174,6 @@ private:
     // 阶段状态
     EPhaseStatus m_PhaseStatus[7] = {};
 
-    // .text 段范围
-    uintptr_t m_TextStart = 0;
-    uintptr_t m_TextEnd = 0;
-
     // 所有探测结果 (按名称索引)
     std::map<std::string, OffsetResult> m_Results;
 
