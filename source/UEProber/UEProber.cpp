@@ -152,10 +152,7 @@ bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
     if (fname.ComparisonIndex < 0 || fname.ComparisonIndex > 0x2000000 || fname.Number > 0xFFFF)
         return false;
 
-    FName tempName;
-    memcpy(&tempName, &fname, sizeof(fname));
-
-    // GetRawString → GetNameByID 可能调用引擎函数做裸指针解引用,
+    // ProfileGetNameByID 内部可能做裸指针解引用,
     // 垃圾 ComparisonIndex 会导致 SIGSEGV. 用 sigsetjmp 保护.
     EnsureSafeProbeInstalled();
 
@@ -170,7 +167,7 @@ bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
     }
 
     try {
-        std::string result = tempName.GetRawString();
+        std::string result = ProfileGetNameByID(fname.ComparisonIndex);
         if (!result.empty() && result.size() < sizeof(resultBuf)) {
             resultLen = result.size();
             memcpy(resultBuf, result.c_str(), resultLen);
@@ -415,44 +412,31 @@ void UEProber::Phase1_ProbeNamePrivate(uintptr_t objAddr, const std::string& exp
 
     const int32_t maxRange = std::min(m_ProbeRange, 0x40);
     PDBG("ProbeNamePrivate: 搜索范围 [0x0, 0x{:X})", maxRange);
-    uint8_t* base = reinterpret_cast<uint8_t*>(objAddr);
 
     for (int32_t off = 0; off < maxRange; off += 4) {
-        try {
-            FName* namePtr = reinterpret_cast<FName*>(base + off);
-            int32_t cmpIdx = namePtr->ComparisonIndex;
-            if (cmpIdx < 0 || cmpIdx > 0x200000) continue;
-            std::string toString = namePtr->ToString();
-            if (toString.empty()) continue;
-            bool validStr = true;
-            for (char c : toString) {
-                if (c < 0x20 || c > 0x7E) { validStr = false; break; }
-            }
-            if (!validStr) continue;
-            std::string rawString = namePtr->GetRawString();
+        std::string name;
+        if (!TryReadFName(objAddr + off, name)) continue;
 
-            float confidence = 0.0f;
-            if (toString == expectedName)
-                confidence = 1.0f;
-            else if (!toString.empty() && toString.size() < 256)
-                confidence = 0.1f;
-            else
-                continue;
-
-            if (confidence > 0.05f) {
-                m_Phase1NamePrivateCandidates.push_back({
-                    off, 0,
-                    std::format("偏移 0x{:X} -> ToString()=\"{}\", GetRawString()=\"{}\"",
-                        off, toString, rawString),
-                    confidence
-                });
-            }
-
-            // 精确匹配则无需继续探测
-            if (confidence >= 1.0f)
-                break;
-        } catch (...) {
+        float confidence = 0.0f;
+        if (FNameEq(name, expectedName))
+            confidence = 1.0f;
+        else if (!name.empty() && name.size() < 256)
+            confidence = 0.1f;
+        else
             continue;
+
+        PDBG("ProbeNamePrivate: off=0x{:X} name=\"{}\", confidence={:.2f}", off, name, confidence);
+        if (confidence > 0.05f) {
+            m_Phase1NamePrivateCandidates.push_back({
+                off, 0,
+                std::format("偏移 0x{:X} -> Name=\"{}\"", off, name),
+                confidence
+            });
+        }
+
+        if (confidence >= 1.0f) {
+            PDBG("ProbeNamePrivate: 精确匹配, early break");
+            break;
         }
     }
 
@@ -683,7 +667,7 @@ void UEProber::Phase1_AutoProbe() {
     }
 
     // 获取 obj[0] 和 obj[1]
-    // GetByIndex(0) -> Name="CoreUObject", Class="Package"
+    // GetByIndex(0) -> Name="/Script/CoreUObject", Class="Package"
     // GetByIndex(1) -> Name="Object", Outer 指向 obj[0]
     uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
@@ -701,8 +685,8 @@ void UEProber::Phase1_AutoProbe() {
     // 探测 Index (用 obj[1] 的 Index 应为 1, 避免 0 误匹配)
     Phase1_ProbeInternalIndex(obj1, 1);
 
-    // 探测 Name (obj[0] 的 Name 应为 "CoreUObject")
-    Phase1_ProbeNamePrivate(obj0, "CoreUObject");
+    // 探测 Name (obj[0] 的 Name 应为 "/Script/CoreUObject")
+    Phase1_ProbeNamePrivate(obj0, "/Script/CoreUObject");
 
     // 如果 Name 已确定，探测 Class
     if (HasConfirmed("UObject::NamePrivate")) {
@@ -4306,13 +4290,6 @@ void UEProber::DetectGame() {
     m_GObjectsInitialized = true;
 
     PDBG("GObjects 初始化完成 (来自 Profile::GetGUObjectArrayPtr)");
-
-    // ---- 设置 FName 解析器: 使用 profile 的 GetNameByID ----
-    FName::s_NameResolver = [](int32_t id) -> std::string {
-        return ProfileGetNameByID(id);
-    };
-
-    PDBG("FName 解析器已设置 (来自 Profile::GetNameByID)");
 }
 
 void UEProber::StartDump() {
