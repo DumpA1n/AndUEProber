@@ -43,7 +43,7 @@
 #include "UE/UEGameProfiles/Auroria.hpp"
 #include "UE/UEGameProfiles/LineageW.hpp"
 #include "UE/UEGameProfiles/RLSideswipe.hpp"
-#include "GameProfiles/PUBG.hpp"
+#include "UE/UEGameProfiles/PUBG.hpp"
 #include "GameProfiles/DeltaForce.hpp"
 #include "GameProfiles/NiZhan.hpp"
 #include "GameProfiles/RocoKingdom.hpp"
