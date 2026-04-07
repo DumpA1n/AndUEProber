@@ -194,6 +194,39 @@ bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
     return true;
 }
 
+bool UEProber::TryGetFullName(uintptr_t objAddr, std::string& outFullName) {
+    int32_t nameOff  = GetConfirmedOffset("UObject::NamePrivate");
+    int32_t classOff = GetConfirmedOffset("UObject::ClassPrivate");
+    int32_t outerOff = GetConfirmedOffset("UObject::OuterPrivate");
+    if (nameOff < 0 || classOff < 0 || outerOff < 0) return false;
+    if (!objAddr || !IsValidPtr(objAddr)) return false;
+
+    // 读取 Class->Name
+    uintptr_t classPtr = 0;
+    if (!KMgrRead(objAddr + classOff, &classPtr, 8) || !IsValidPtr(classPtr)) return false;
+    std::string className;
+    if (!TryReadFName(classPtr + nameOff, className)) return false;
+
+    // 递归 Outer 链, 构建 "Outer1.Outer2." 前缀 (最多 16 层防止死循环)
+    std::string outerChain;
+    uintptr_t cur = objAddr;
+    for (int depth = 0; depth < 16; ++depth) {
+        uintptr_t outer = 0;
+        if (!KMgrRead(cur + outerOff, &outer, 8) || !outer || !IsValidPtr(outer)) break;
+        std::string outerName;
+        if (!TryReadFName(outer + nameOff, outerName)) break;
+        outerChain = outerName + "." + outerChain;
+        cur = outer;
+    }
+
+    // 读取对象自身 Name
+    std::string objName;
+    if (!TryReadFName(objAddr + nameOff, objName)) return false;
+
+    outFullName = className + " " + outerChain + objName;
+    return true;
+}
+
 bool UEProber::IsValidPtr(uintptr_t ptr) {
     return KMgrIsValidPtr(ptr);
 }
@@ -666,40 +699,58 @@ void UEProber::Phase1_AutoProbe() {
         PDBG("UObject::VTable = 0x00 (固定)");
     }
 
-    // 获取 obj[0] 和 obj[1]
-    // GetByIndex(0) -> Name="/Script/CoreUObject", Class="Package"
-    // GetByIndex(1) -> Name="Object", Outer 指向 obj[0]
+    // GetByIndex(0) -> Package /Script/CoreUObject, Outer=nullptr, Flags=RF_Public(1)
+    // GetByIndex(1) -> Class /Script/CoreUObject.Object, Class="Class", Outer=obj[0]
     uintptr_t obj0 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(0));
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(1));
 
-    if (!obj0 || !IsValidPtr(obj0)) {
-        PDBG("Phase1_AutoProbe: 无法获取 GetByIndex(0), 请检查 GObjects 地址");
+    if (!obj1 || !IsValidPtr(obj1)) {
+        PDBG("Phase1_AutoProbe: 无法获取有效的 GetByIndex(1), 请检查 GObjects 地址");
         m_PhaseStatus[1] = EPhaseStatus::Failed;
         PDBG("<<<<<<<<<< [Phase1_AutoProbe] END <<<<<<<<<<");
         return;
     }
 
     PDBG("obj[0] = 0x{:X}", obj0);
-    if (obj1) PDBG("obj[1] = 0x{:X}", obj1);
+    PDBG("obj[1] = 0x{:X}", obj1);
 
-    // 探测 Index (用 obj[1] 的 Index 应为 1, 避免 0 误匹配)
+    // 探测 Index (obj[1].InternalIndex == 1)
     Phase1_ProbeInternalIndex(obj1, 1);
 
-    // 探测 Name (obj[0] 的 Name 应为 "/Script/CoreUObject")
-    Phase1_ProbeNamePrivate(obj0, "/Script/CoreUObject");
+    // 探测 Name (obj[1].NamePrivate == "Object")
+    Phase1_ProbeNamePrivate(obj1, "Object");
 
-    // 如果 Name 已确定，探测 Class
+    // 如果 Name 已确定，探测 Class (obj[1].ClassPrivate->Name == "Class")
     if (HasConfirmed("UObject::NamePrivate")) {
-        Phase1_ProbeClassPrivate(obj0, "Package");
+        Phase1_ProbeClassPrivate(obj1, "Class");
     }
 
-    // 如果有 obj[1]，探测 Outer (obj[1].Outer 应指向 obj[0])
-    if (obj1 && IsValidPtr(obj1)) {
+    // 探测 Outer (obj[1].OuterPrivate == obj[0])
+    if (IsValidPtr(obj0)) {
         Phase1_ProbeOuterPrivate(obj1, obj0);
     }
 
-    // 探测 Flags
-    Phase1_ProbeObjectFlags(obj0);
+    // 探测 Flags (obj[0].ObjectFlags == RF_Public(1), 交叉验证 obj[0..3])
+    if (IsValidPtr(obj0)) {
+        Phase1_ProbeObjectFlags(obj0);
+    }
+
+    // 如果 Name/Class/Outer 全部确认, 用 GetFullName 验证偏移正确性
+    if (HasConfirmed("UObject::NamePrivate") &&
+        HasConfirmed("UObject::ClassPrivate") &&
+        HasConfirmed("UObject::OuterPrivate")) {
+        PDBG("--- GetFullName 验证 ---");
+        for (int32_t idx = 0; idx < 5; ++idx) {
+            uintptr_t obj = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(idx));
+            if (!IsValidPtr(obj)) continue;
+            std::string fullName;
+            if (TryGetFullName(obj, fullName)) {
+                PDBG("  obj[{}] = {}", idx, fullName);
+            } else {
+                PDBG("  obj[{}] = <GetFullName 失败>", idx);
+            }
+        }
+    }
 
     PDBG("阶段 1 自动探测完成");
     PDBG("<<<<<<<<<< [Phase1_AutoProbe] END <<<<<<<<<<");
@@ -3486,12 +3537,18 @@ void UEProber::DrawPhase1() {
         if (m_ProbeRange < 0x20) m_ProbeRange = 0x20;
         if (m_ProbeRange > 0x200) m_ProbeRange = 0x200;
 
-        // 显示 obj[0]~obj[3]
+        // 显示 obj[0]~obj[4]
         for (int i = 0; i <= 4; ++i) {
             uintptr_t obj = reinterpret_cast<uintptr_t>(UObject::GObjects->GetByIndex(i));
             if (obj && IsValidPtr(obj)) {
-                ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
-                    "  obj[%d] = %s", i, FormatPtr(obj).c_str());
+                std::string fullName;
+                if (TryGetFullName(obj, fullName)) {
+                    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
+                        "  obj[%d] = %s  [%s]", i, FormatPtr(obj).c_str(), fullName.c_str());
+                } else {
+                    ImGui::TextColored(ImVec4(0.4f, 0.8f, 1.0f, 1.0f),
+                        "  obj[%d] = %s", i, FormatPtr(obj).c_str());
+                }
             } else {
                 ImGui::TextColored(ImVec4(0.5f, 0.5f, 0.5f, 1.0f),
                     "  obj[%d] = 无效", i);

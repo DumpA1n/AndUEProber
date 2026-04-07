@@ -61,6 +61,7 @@ private:
     // ======================== 内存操作 ========================
 
     bool TryReadFName(uintptr_t address, std::string& outName);
+    bool TryGetFullName(uintptr_t objAddr, std::string& outFullName);
     bool IsValidPtr(uintptr_t ptr);
 
     // 在 GObjects 中按名称查找对象, className 非空时先按 Class->Name 过滤
