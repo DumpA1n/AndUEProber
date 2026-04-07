@@ -18,6 +18,7 @@ struct GameDetectionResult {
     uintptr_t guobjectArrayPtr = 0;  // absolute VA of FUObjectArray
     uintptr_t objectsFieldAddr = 0;  // address TO READ to get FUObjectItem** (Objects)
     uintptr_t ueBaseAddress = 0;     // UE module base address
+    uintptr_t getPlainANSIStringAddr = 0; // GetPlainANSIString function address (0 if N/A)
 };
 
 // Initialize KittyMemoryEx kMgr for self-process, iterate profiles,

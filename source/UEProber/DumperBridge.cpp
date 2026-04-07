@@ -27,7 +27,6 @@
 #include "UE/UEGameProfiles/RealBoxing2.hpp"
 #include "UE/UEGameProfiles/OdinValhalla.hpp"
 #include "UE/UEGameProfiles/Injustice2.hpp"
-#include "GameProfiles/DeltaForce.hpp"
 #include "UE/UEGameProfiles/RooftopsParkour.hpp"
 #include "UE/UEGameProfiles/BabyYellow.hpp"
 #include "UE/UEGameProfiles/TowerFantasy.hpp"
@@ -45,6 +44,7 @@
 #include "UE/UEGameProfiles/LineageW.hpp"
 #include "UE/UEGameProfiles/RLSideswipe.hpp"
 #include "UE/UEGameProfiles/PUBG.hpp"
+#include "GameProfiles/DeltaForce.hpp"
 #include "GameProfiles/NiZhan.hpp"
 #include "GameProfiles/RocoKingdom.hpp"
 
@@ -101,7 +101,6 @@ static std::vector<IGameProfileEx*>& GetExProfiles()
         new GameProfileEx<RealBoxing2Profile>(),
         new GameProfileEx<OdinValhallaProfile>(),
         new GameProfileEx<Injustice2Profile>(),
-        new GameProfileEx<DeltaForceProfile>(),
         new GameProfileEx<RooftopParkourProfile>(),
         new GameProfileEx<BabyYellowProfile>(),
         new GameProfileEx<TowerFantasyProfile>(),
@@ -119,6 +118,7 @@ static std::vector<IGameProfileEx*>& GetExProfiles()
         new GameProfileEx<LineageWProfile>(),
         new GameProfileEx<RLSideswipeProfile>(),
         new GameProfileEx<PUBGProfile>(),
+        new GameProfileEx<DeltaForceProfile>(),
         new GameProfileEx<NiZhanProfile>(),
         new GameProfileEx<RocoKingdomProfile>(),
     };
@@ -190,7 +190,7 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
          result.guobjectArrayPtr - result.ueBaseAddress);
 
     // Read Objects pointer from FUObjectArray
-    // FUObjectArray.ObjObjects default = 0x20 for UE4_25_27, but DeltaForce has custom TUObjectArray layout:
+    // FUObjectArray.ObjObjects default = 0x10 for UE4_25_27, but DeltaForce has custom TUObjectArray layout:
     //   DeltaForce: TUObjectArray.Objects at offset 0x10 within ObjObjects
     //   Standard:   TUObjectArray.Objects at offset 0x0 within ObjObjects
     // Use the profile's offsets to compute correctly
@@ -198,8 +198,11 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
     uintptr_t objObjectsAddr = result.guobjectArrayPtr + profileOffsets->FUObjectArray.ObjObjects;
     result.objectsFieldAddr = objObjectsAddr + profileOffsets->TUObjectArray.Objects;
     LOGI("Objects field addr: %p (offset: 0x%lX)",
-         (void*)result.objectsFieldAddr,
-         result.objectsFieldAddr - result.ueBaseAddress);
+         (void*)result.objectsFieldAddr, result.objectsFieldAddr - result.ueBaseAddress);
+
+    result.getPlainANSIStringAddr = g_ExProfile->PublicGetPlainANSIStringAddr();
+    if (result.getPlainANSIStringAddr)
+        LOGI("GetPlainANSIString: %p", (void*)result.getPlainANSIStringAddr);
 
     result.gameName = g_ExProfile->AsGameProfile()->GetAppName();
     result.packageName = sGamePackage;

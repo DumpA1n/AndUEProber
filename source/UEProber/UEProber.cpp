@@ -1,7 +1,6 @@
 #include "UEProber.h"
 
 #include "Core/ElfScannerManager.h"
-#include "DumperBridge.h"
 #include "UECore/CoreUObject_classes.h"
 #include "Utils/FileLogger.h"
 #include "Utils/Logger.h"
@@ -4214,10 +4213,15 @@ void UEProber::DrawDumpPanel() {
 
     // ---- 游戏已检测 ----
     ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "游戏: %s", m_GameDetection.gameName.c_str());
-    ImGui::Text("包名: %s", m_GameDetection.packageName.c_str());
-    ImGui::Text("UE Base: 0x%lX", m_GameDetection.ueBaseAddress);
-    ImGui::Text("GUObjectArrayPtr: 0x%lX", m_GameDetection.guobjectArrayPtr);
-    ImGui::Text("Objects Field Addr: 0x%lX", m_GameDetection.objectsFieldAddr);
+    ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "包名: %s", m_GameDetection.packageName.c_str());
+    auto addrLine = [](const char* label, uintptr_t addr) {
+        if (addr) ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "%s: 0x%lX", label, addr);
+        else      ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "%s: N/A", label);
+    };
+    addrLine("UE Base", m_GameDetection.ueBaseAddress);
+    addrLine("GUObjectArrayPtr",  m_GameDetection.guobjectArrayPtr);
+    addrLine("Objects Field Addr", m_GameDetection.objectsFieldAddr);
+    addrLine("GetPlainANSIString", m_GameDetection.getPlainANSIStringAddr);
     ImGui::Spacing();
 
     if (m_GObjectsInitialized) {
@@ -4244,37 +4248,39 @@ void UEProber::DrawDumpPanel() {
     // ---- 探测偏移统计 ----
     int confirmedProbeCount = 0;
     {
-        static const char* kOffsetNames[] = {
-            "UObject::ObjectFlags", "UObject::InternalIndex", "UObject::ClassPrivate", "UObject::NamePrivate", "UObject::OuterPrivate",
-            "UField::Next",
-            "UStruct::SuperStruct", "UStruct::Children", "UStruct::ChildProperties", "UStruct::PropertiesSize",
-            "UFunction::FunctionFlags", "UFunction::NumParms", "UFunction::ParmsSize", "UFunction::Func",
-            "FField::ClassPrivate", "FField::Next", "FField::NamePrivate", "FField::FlagsPrivate",
-            "FProperty::ArrayDim", "FProperty::ElementSize", "FProperty::PropertyFlags", "FProperty::Offset_Internal", "sizeof(FProperty)",
+        struct OffsetGroup { const char* className; std::initializer_list<const char*> names; };
+        static const OffsetGroup kGroups[] = {
+            {"UObject",   {"UObject::ObjectFlags","UObject::InternalIndex","UObject::ClassPrivate","UObject::NamePrivate","UObject::OuterPrivate"}},
+            {"UField",    {"UField::Next"}},
+            {"UStruct",   {"UStruct::SuperStruct","UStruct::Children","UStruct::ChildProperties","UStruct::PropertiesSize"}},
+            {"UFunction", {"UFunction::FunctionFlags","UFunction::NumParms","UFunction::ParmsSize","UFunction::Func"}},
+            {"FField",    {"FField::ClassPrivate","FField::Next","FField::NamePrivate","FField::FlagsPrivate"}},
+            {"FProperty", {"FProperty::ArrayDim","FProperty::ElementSize","FProperty::PropertyFlags","FProperty::Offset_Internal","sizeof(FProperty)"}},
         };
-        constexpr int kTotal = sizeof(kOffsetNames) / sizeof(kOffsetNames[0]);
-        int confirmed = 0;
-        for (int i = 0; i < kTotal; ++i) {
-            if (HasConfirmed(kOffsetNames[i])) ++confirmed;
-        }
+
+        int total = 0, confirmed = 0;
+        for (auto& g : kGroups)
+            for (auto* n : g.names) { ++total; if (HasConfirmed(n)) ++confirmed; }
+
         confirmedProbeCount = confirmed;
-        bool useProbed = (confirmed > 0);
-        if (useProbed) {
-            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "探测偏移: 已启用 (%d/%d)", confirmed, kTotal);
-        } else {
+        if (confirmed > 0)
+            ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "探测偏移: 已启用 (%d/%d)", confirmed, total);
+        else
             ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f), "探测偏移: 未使用 (将使用 Profile 默认偏移)");
-        }
-        // 显示未确认的偏移名称
-        if (confirmed < kTotal) {
-            ImGui::SameLine();
-            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "  未确认:");
-            ImGui::Indent();
-            for (int i = 0; i < kTotal; ++i) {
-                if (!HasConfirmed(kOffsetNames[i])) {
-                    ImGui::BulletText("%s", kOffsetNames[i]);
+
+        if (confirmed < total) {
+            ImGui::TextColored(ImVec4(0.6f, 0.6f, 0.6f, 1.0f), "未确认:");
+            for (auto& g : kGroups) {
+                std::string missing;
+                for (auto* n : g.names) {
+                    if (!HasConfirmed(n)) {
+                        if (!missing.empty()) missing += ", ";
+                        const char* m = strstr(n, "::"); missing += m ? m + 2 : n;
+                    }
                 }
+                if (!missing.empty())
+                    ImGui::BulletText("%s: %s", g.className, missing.c_str());
             }
-            ImGui::Unindent();
         }
     }
 
@@ -4338,12 +4344,16 @@ void UEProber::DetectGame() {
 
     // ---- 初始化 GObjects: 使用 profile 提供的地址, 在进程内读取 Objects 指针 ----
     auto* objArray = new TUObjectArray();
-    KMgrRead(result.objectsFieldAddr, &objArray->Objects, sizeof(void*));
-    objArray->MaxElements = 327680;
-    objArray->NumElements = 327680;
-    objArray->MaxChunks = 5;
-    objArray->NumChunks = 5;
-    UObject::GObjects.InitManually(objArray);
+    if (KMgrRead(result.objectsFieldAddr, &objArray->Objects, sizeof(void*))) {
+        objArray->MaxElements = 327680;
+        objArray->NumElements = 327680;
+        objArray->MaxChunks = 5;
+        objArray->NumChunks = 5;
+        UObject::GObjects.InitManually(objArray);
+    } else {
+        PDBG("读取 GObjects 地址失败, 无法初始化 GObjects");
+        return;
+    }
     m_GObjectsInitialized = true;
 
     PDBG("GObjects 初始化完成 (来自 Profile::GetGUObjectArrayPtr)");

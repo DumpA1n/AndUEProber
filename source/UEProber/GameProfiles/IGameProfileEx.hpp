@@ -2,6 +2,7 @@
 
 #include <cstdint>
 #include <string>
+#include <type_traits>
 
 #include "UE/UEGameProfile.hpp"
 #include "UE/UEOffsets.hpp"
@@ -16,6 +17,7 @@ public:
 
     virtual uintptr_t PublicGetGUObjectArrayPtr() const = 0;
     virtual std::string PublicGetNameByID(int32_t id) const = 0;
+    virtual uintptr_t PublicGetPlainANSIStringAddr() const = 0;
 
     virtual void SetProbedOffsets(const UE_Offsets& offsets) = 0;
     virtual bool HasProbedOffsets() const = 0;
@@ -36,9 +38,21 @@ class GameProfileEx : public TProfile, public IGameProfileEx
 public:
     GameProfileEx() = default;
 
+    // SFINAE: detect if TProfile has FindGetPlainANSIString() const
+    template<typename T, typename = void>
+    struct has_find_gpas : std::false_type {};
+    template<typename T>
+    struct has_find_gpas<T, std::void_t<decltype(std::declval<const T&>().FindGetPlainANSIString())>> : std::true_type {};
+
     // IGameProfileEx
     uintptr_t PublicGetGUObjectArrayPtr() const override { return this->GetGUObjectArrayPtr(); }
     std::string PublicGetNameByID(int32_t id) const override { return this->GetNameByID(id); }
+    uintptr_t PublicGetPlainANSIStringAddr() const override {
+        if constexpr (has_find_gpas<TProfile>::value) {
+            return this->FindGetPlainANSIString();
+        }
+        return 0;
+    }
 
     void SetProbedOffsets(const UE_Offsets& offsets) override
     {
