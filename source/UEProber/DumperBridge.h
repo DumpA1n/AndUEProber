@@ -18,7 +18,7 @@ struct GameDetectionResult {
     uintptr_t GUObjectArrayPtr = 0;  // absolute VA of FUObjectArray
     uintptr_t ObjectsFieldAddr = 0;  // address TO READ to get Objects pointer
     uintptr_t UEBaseAddress = 0;     // UE module base address
-    uintptr_t GetPlainANSIStringAddr = 0; // GetPlainANSIString function address (0 if N/A)
+    uintptr_t DecryptFNameAddr = 0;     // FName 解码入口地址：DeltaForce → DecryptFName；NiZhan/Roco/PUBG → GetPlainANSIString；0 表示不可用
     int32_t NumElementsPerChunk = 0;    // 0 = flat (FUObjectItem*), >0 = chunked (FUObjectItem**)
 };
 

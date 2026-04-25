@@ -44,9 +44,25 @@ public:
 
     uintptr_t GetGUObjectArrayPtr() const override
     {
-        return GetUnrealELF().base() + 0x1B8B5788;
-
+        // P1: GObjects.GetObjectByIndex 路径——FUObjectArray 用 0x10000 作为 NumElementsPerChunk，
+        //     先用 SDIV/MSUB 把 index 拆成 chunk_idx / within_chunk_idx，再 ADRP+ADD 取 GObjects：
+        //         MOV  W?, #0x10000        ; ?? 00 A0 52
+        //         MOV  W?, #0x10000        ; ?? 00 A0 52
+        //         SDIV W?, W?, W?          ; ?? ?? ?? 1A
+        //         MSUB W?, W?, W?, W?      ; ?? ?? ?? 1B
+        //         ADRP X?, GObjects        ; ?? ?? ?? ??   <-- decode
+        //         ADD  X?, X?, #imm12      ; ?? ?? ?? 91
+        //
+        // P2: FreeUObjectIndex 调用点——清 pendingKill 前后的固定模板：
+        //         LDRB W8, [X19, #8]       ; 68 22 40 39
+        //         CBZ  W8, ?               ; ?? ?? ?? 34
+        //         ADRP X0, GObjects        ; ?? ?? ?? ??   <-- decode
+        //         ADD  X0, X0, #imm12      ; ?? ?? ?? 91
+        //         MOV  X1, X19             ; E1 03 13 AA
+        //         STRB WZR, [X19, #8]      ; 7F 22 00 39
         std::vector<std::pair<std::string, int>> idaPatterns = {
+            {"? 00 A0 52 ? 00 A0 52 ? ? ? 1A ? ? ? 1B ? ? ? ? ? ? ? 91", 0x10},
+            {"68 22 40 39 ? ? ? 34 ? ? ? ? ? ? ? 91 E1 03 13 AA 7F 22 00 39", 0x8},
             {"91 E1 03 ? AA E0 03 08 AA E2 03 1F 2A", -7},
             {"B4 21 0C 40 B9 ? ? ? ? ? ? ? 91", 5},
             {"9F E5 00 ? 00 E3 FF ? 40 E3 ? ? A0 E1", -2},
@@ -151,19 +167,18 @@ public:
         // Anchors leverage the FName fetch call sequence:
         //   LSR Xn, X8, #6        ; len = header >> 6              (? FD 46 D3)
         //   MOV X2, Xn            ; arg3 = len                     (E2 03 ? AA)
-        //   BL  __memcpy_chk      ; copy raw entry to stack buf    (? ? ? 94)
+        //   BL  __memcpy_chk      ; copy raw entry to stack buf    (? ? ? ??)
         //   ADD X0, SP, #0xF8     ; arg1 = buf                     (E0 E3 03 91)
         //   MOV W1, Wn            ; arg2 = len                     (E1 03 ? 2A)
-        //   BL  DecryptFName      ; <-- decode this target         (? ? ? 94)
+        //   BL  DecryptFName      ; <-- decode this target         (? ? ? ??)
         //   ADD X0, SP, #0xF8                                       (E0 E3 03 91)
         //   STRB WZR, [Xn, Xm]    ; null-terminate                 (? ? ? 38)
-        // Length register varies (X22 in observed builds). Wildcard the Rm byte.
         PATTERN_MAP_TYPE map_type = isEmulator() ? PATTERN_MAP_TYPE::ANY_R : PATTERN_MAP_TYPE::ANY_X;
         std::vector<std::pair<std::string, int>> idaPatterns = {
             // P1: full LSR→memcpy→DecryptFName window (most distinctive, lowest false-positive risk)
-            {"? FD 46 D3 E2 03 ? AA ? ? ? 94 E0 E3 03 91 E1 03 ? 2A ? ? ? 94", 0x14},
+            {"? FD 46 D3 E2 03 ? AA ? ? ? ? E0 E3 03 91 E1 03 ? 2A ? ? ? ?", 0x14},
             // P2: from MOV X2 onward, no LSR anchor
-            {"E2 03 ? AA ? ? ? 94 E0 E3 03 91 E1 03 ? 2A ? ? ? 94", 0x10},
+            {"E2 03 ? AA ? ? ? ? E0 E3 03 91 E1 03 ? 2A ? ? ? ?", 0x10},
             // P3: original 5-insn window around BL DecryptFName (BL ... ADD ... MOV ... BL ... ADD ... STRB)
             {"? ? ? ? E0 E3 03 91 E1 03 ? 2A ? ? ? ? E0 E3 03 91 ? ? ? 38", 0xC},
             // P4: same as P3 but with extra downstream context (STR X0,[Xn,#8] + MOV X1,X0)

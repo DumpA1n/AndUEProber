@@ -210,9 +210,9 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
     result.NumElementsPerChunk = static_cast<int32_t>(profileOffsets->TUObjectArray.NumElementsPerChunk);
     LOGI("TUObjectArray: elementsPerChunk=%d", result.NumElementsPerChunk);
 
-    result.GetPlainANSIStringAddr = g_ExProfile->PublicGetPlainANSIStringAddr();
-    if (result.GetPlainANSIStringAddr)
-        LOGI("GetPlainANSIString: %p", (void*)result.GetPlainANSIStringAddr);
+    result.DecryptFNameAddr = g_ExProfile->PublicGetDecryptFNameAddr();
+    if (result.DecryptFNameAddr)
+        LOGI("DecryptFName: %p", (void*)result.DecryptFNameAddr);
 
     result.GameName = g_ExProfile->AsGameProfile()->GetAppName();
     result.PackageName = sGamePackage;

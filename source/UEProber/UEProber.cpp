@@ -4226,7 +4226,7 @@ void UEProber::DrawDumpPanel() {
     addrLine("UE Base", m_GameDetection.UEBaseAddress);
     addrLine("GUObjectArrayPtr",  m_GameDetection.GUObjectArrayPtr);
     addrLine("Objects Field Addr", m_GameDetection.ObjectsFieldAddr);
-    addrLine("GetPlainANSIString", m_GameDetection.GetPlainANSIStringAddr);
+    addrLine("DecryptFName", m_GameDetection.DecryptFNameAddr);
     ImGui::Spacing();
 
     if (m_GObjectsInitialized) {
