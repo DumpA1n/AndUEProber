@@ -2,6 +2,14 @@
 
 [中文](#中文) | [English](#english)
 
+---
+
+| Game | Version | GUObjectArray | DecryptFName | ProcessEventIdx |
+|------|---------|----------|--------------------|-----------------|
+| com.tencent.tmgp.dfm | ✅ | ✅ | ✅ | ✅ |
+| com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
+| com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
+
 ### Screenshots
 
 | 探测结果总览 / Detection Results | 导出结构体 / Exported Structs | Dump 结果 / Dump Result |
@@ -46,18 +54,6 @@ cmake --build build
 ./AndKittyInjector --package <包名> -lib libAndUEProber.so --memfd --hide --watch --delay 50
 ```
 
-### 已验证游戏
-
-| 游戏 | 版本 | GObjects | GetPlainANSIString | ProcessEventIdx |
-|------|------|----------|--------------------|-----------------|
-| com.tencent.tmgp.dfm | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
-
-### Todo
-
-- [x] 自动获取 GUObjectArray / GetPlainANSIString / ProcessEventIdx
-
 ---
 
 <a id="english"></a>
@@ -92,13 +88,7 @@ Inject into a target app using [AndKittyInjector v5.1.0](https://github.com/MJx0
 ./AndKittyInjector --package <package_name> -lib libAndUEProber.so --memfd --hide --watch --delay 50
 ```
 
-### Verified Games
-
-| Game | Version | GUObjectArray | GetPlainANSIString | ProcessEventIdx |
-|------|---------|----------|--------------------|-----------------|
-| com.tencent.tmgp.dfm | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
+---
 
 ### Todo
 
