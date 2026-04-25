@@ -4337,6 +4337,9 @@ void UEProber::DetectGame() {
 
     m_GameDetection = result;
     m_GameDetected = true;
+    SDK::FName::s_NameResolver = [](int32_t id) {
+        return ProfileGetNameByID(id);
+    };
 
     PDBG("检测到游戏: {} ({})", result.GameName, result.PackageName);
     PDBG("UE Base: 0x{:X}, GUObjectArray: 0x{:X}, ObjectsFieldAddr: 0x{:X}",

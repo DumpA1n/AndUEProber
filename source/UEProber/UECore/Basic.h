@@ -330,26 +330,15 @@ public:
 	{
 		return DisplayIndex;
 	}
+		static std::string GetPlainANSIString(const FName* Name)
+		{
+			if (s_NameResolver)
+				return s_NameResolver(Name->ComparisonIndex);
 
-	static std::string GetPlainANSIString(const FName* Name)
-	{
-		// If a runtime resolver is set (from profile's GetNameByID), use it
-		if (s_NameResolver) {
-			return s_NameResolver(Name->ComparisonIndex);
+			return {};
 		}
-
-		// Fallback: hardcoded DeltaForce FNamePool access
-		char buf[1024] = {0};
-		uint32_t v10 = Name->ComparisonIndex;
-        uint16_t *v16 = (uint16_t *)(*(uint64_t *)(Elf.UE4().base() + 0x1A343A00 + ((v10 >> 15) & 0x1FFF8) + 56) + 2 * (v10 & 0x3FFFFLL));
-        uint32_t len = *v16 >> 6;
-		memcpy(buf, v16 + 1, len > 1024 ? 1024 : len);
-		((void(*)(char*, uint32_t))(Elf.UE4().base() + 0xD6C40FC))(buf, len);
-
-		return std::string(buf);
-	}
-	
-	std::string GetRawString() const
+		
+		std::string GetRawString() const
 	{
 		return GetPlainANSIString(this);
 	}
