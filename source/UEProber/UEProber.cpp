@@ -3240,11 +3240,16 @@ void UEProber::CallGetEngineVersion() {
     }
     PDBG("GetEngVer: GetEngineVersion @ {}", func);
 
-    // 确定 ProcessEvent VTable 索引
-    int32_t peIdx = Offsets::ProcessEventIdx; // SDK 已知值
+    // 确定 ProcessEvent VTable 索引（仅来自运行时探测结果）
+    int32_t peIdx = 0;
     auto peIt = m_Results.find("ProcessEvent::VTableIdx");
     if (peIt != m_Results.end() && peIt->second.confirmed && peIt->second.offset > 0)
         peIdx = peIt->second.offset;
+    if (peIdx == 0) {
+        PDBG("GetEngVer: ProcessEvent::VTableIdx 未探测到，无法继续");
+        PDBG("<<<<<<<<<< [CallGetEngineVersion] END <<<<<<<<<<");
+        return;
+    }
     PDBG("GetEngVer: ProcessEventIdx = 0x{:X}", peIdx);
 
     // 从 VTable 读取 ProcessEvent 函数指针

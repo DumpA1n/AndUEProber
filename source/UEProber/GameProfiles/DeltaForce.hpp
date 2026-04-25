@@ -148,17 +148,32 @@ public:
         static uintptr_t cached = 0;
         if (cached != 0) return cached;
 
+        // Anchors leverage the FName fetch call sequence:
+        //   LSR Xn, X8, #6        ; len = header >> 6              (? FD 46 D3)
+        //   MOV X2, Xn            ; arg3 = len                     (E2 03 ? AA)
+        //   BL  __memcpy_chk      ; copy raw entry to stack buf    (? ? ? 94)
+        //   ADD X0, SP, #0xF8     ; arg1 = buf                     (E0 E3 03 91)
+        //   MOV W1, Wn            ; arg2 = len                     (E1 03 ? 2A)
+        //   BL  DecryptFName      ; <-- decode this target         (? ? ? 94)
+        //   ADD X0, SP, #0xF8                                       (E0 E3 03 91)
+        //   STRB WZR, [Xn, Xm]    ; null-terminate                 (? ? ? 38)
+        // Length register varies (X22 in observed builds). Wildcard the Rm byte.
         PATTERN_MAP_TYPE map_type = isEmulator() ? PATTERN_MAP_TYPE::ANY_R : PATTERN_MAP_TYPE::ANY_X;
         std::vector<std::pair<std::string, int>> idaPatterns = {
+            // P1: full LSR→memcpy→DecryptFName window (most distinctive, lowest false-positive risk)
+            {"? FD 46 D3 E2 03 ? AA ? ? ? 94 E0 E3 03 91 E1 03 ? 2A ? ? ? 94", 0x14},
+            // P2: from MOV X2 onward, no LSR anchor
+            {"E2 03 ? AA ? ? ? 94 E0 E3 03 91 E1 03 ? 2A ? ? ? 94", 0x10},
+            // P3: original 5-insn window around BL DecryptFName (BL ... ADD ... MOV ... BL ... ADD ... STRB)
             {"? ? ? ? E0 E3 03 91 E1 03 ? 2A ? ? ? ? E0 E3 03 91 ? ? ? 38", 0xC},
+            // P4: same as P3 but with extra downstream context (STR X0,[Xn,#8] + MOV X1,X0)
             {"E0 E3 03 91 E1 03 ? 2A ? ? ? ? E0 E3 03 91 ? ? ? 38 ? ? ? ? ? 06 00 F9 E1 03 00 AA", 0x8},
-            {"28 C7 91 52 68 1C A7 72 28 7C A8 9B 08 FD 61 D3 08 0D 08 0B 29 00 08 4B 08 00 40 39 3F 0D 00 71", 0},
         };
 
         for (const auto &it : idaPatterns)
         {
-            uintptr_t address = findIdaPattern(map_type, it.first, it.second);
-            uintptr_t target = it.second == 0 ? address : DecodeBL(address);
+            uintptr_t bl_addr = findIdaPattern(map_type, it.first, it.second);
+            uintptr_t target = DecodeBL(bl_addr);
             if (target != 0 && kPtrValidator.isPtrExecutable(target, sizeof(uint32_t)))
             {
                 cached = target;
@@ -202,60 +217,11 @@ protected:
             using DecryptFName_t = void (*)(char *, uint32_t);
             ((DecryptFName_t)decrypt)(name.data(), static_cast<uint32_t>(name.length()));
         }
-        else
-        {
-            DecryptInline(name.data(), static_cast<uint32_t>(name.length()));
-        }
 
         return name;
     }
 
 private:
-    static void DecryptInline(char *str, uint32_t len)
-    {
-        if (!str || !*str || len == 0) return;
-
-        uint32_t key = 0;
-        switch (len % 9)
-        {
-        case 0u:
-            key = ((len & 0x1F) + len);
-            break;
-        case 1u:
-            key = ((len ^ 0xDF) + len);
-            break;
-        case 2u:
-            key = ((len | 0xCF) + len);
-            break;
-        case 3u:
-            key = (33 * len);
-            break;
-        case 4u:
-            key = (len + (len >> 2));
-            break;
-        case 5u:
-            key = (3 * len + 5);
-            break;
-        case 6u:
-            key = (((4 * len) | 5) + len);
-            break;
-        case 7u:
-            key = (((len >> 4) | 7) + len);
-            break;
-        case 8u:
-            key = ((len ^ 0xC) + len);
-            break;
-        default:
-            key = ((len ^ 0x40) + len);
-            break;
-        }
-
-        for (uint32_t i = 0; i < len; i++)
-        {
-            str[i] = (key & 0x80) ^ ~str[i];
-        }
-    }
-
     static bool IsAddX0Sp(uint32_t insn)
     {
         return (insn & 0xFF0003FF) == 0x910003E0;

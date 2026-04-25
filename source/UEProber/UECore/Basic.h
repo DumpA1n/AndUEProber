@@ -17,9 +17,7 @@ using namespace UC;
 
 namespace Offsets
 {
-	constexpr int32 GObjects           = 0x1A36A768;
-	constexpr int32 GetPlainANSIString = 0x00000000; // FName::GetPlainANSIString offset (also update the FName::GetPlainANSIString function implementation)
-	constexpr int32 ProcessEventIdx    = 0x00000045;
+	constexpr int32 ProcessEventIdx = 0x00000045;
 }
 
 namespace InSDKUtils
@@ -256,20 +254,6 @@ public:
 	TUObjectArrayWrapper& operator=(TUObjectArrayWrapper&&) = delete;
 	TUObjectArrayWrapper& operator=(const TUObjectArrayWrapper&) = delete;
 
-private:
-	inline void InitGObjects()
-	{
-        auto _t = new TUObjectArray();
-		_t->Objects = KT::Read<FUObjectItem**>(Elf.UE4().base() + Offsets::GObjects);
-        _t->MaxElements = 327680;
-        _t->NumElements = 327680;
-        _t->MaxChunks = 5;
-        _t->NumChunks = 5;
-        GObjectsAddress = _t;
-
-		// GObjectsAddress = reinterpret_cast<void*>(Elf.UE4().base() + Offsets::GObjects);
-	}
-
 public:
 	inline void InitManually(void* GObjectsAddressParameter)
 	{
@@ -278,9 +262,6 @@ public:
 
 	inline class TUObjectArray* operator->()
 	{
-		if (!GObjectsAddress) [[unlikely]]
-			InitGObjects();
-
 		return reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
 	}
 
@@ -291,17 +272,11 @@ public:
 
 	inline operator const void* ()
 	{
-		if (!GObjectsAddress) [[unlikely]]
-			InitGObjects();
-
 		return GObjectsAddress;
 	}
 
 	inline class TUObjectArray* GetTypedPtr()
 	{
-		if (!GObjectsAddress) [[unlikely]]
-			InitGObjects();
-
 		return reinterpret_cast<class TUObjectArray*>(GObjectsAddress);
 	}
 };

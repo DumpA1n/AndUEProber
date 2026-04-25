@@ -146,6 +146,17 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
             return false;
         }
         g_KMgrInitialized = true;
+
+        // 启用 kPtrValidator region 缓存：否则每次 isPtrReadable 都会重开 /proc/<pid>/maps 全文解析，
+        // 在 FName 查询热路径上会被放大到几十万次 fopen，造成严重卡顿。
+        kPtrValidator.setPID(kMgr.processID());
+        kPtrValidator.setUseCache(true);
+        kPtrValidator.refreshRegionCache();
+        if (kPtrValidator.cachedRegions().empty()) {
+            LOGE("kPtrValidator: refreshRegionCache 失败，cachedRegions 为空。");
+        } else {
+            LOGI("kPtrValidator: 缓存了 %zu 个 region。", kPtrValidator.cachedRegions().size());
+        }
     }
 
     // Match game by AppID (like dump_thread)
