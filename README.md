@@ -50,7 +50,7 @@ cmake --build build
 
 | 游戏 | 版本 | GObjects | GetPlainANSIString | ProcessEventIdx |
 |------|------|----------|--------------------|-----------------|
-| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A748` | Manual | ✅ |
+| com.tencent.tmgp.dfm | ✅ | ✅ | ✅ | ✅ |
 | com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
 | com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
 
@@ -96,7 +96,7 @@ Inject into a target app using [AndKittyInjector v5.1.0](https://github.com/MJx0
 
 | Game | Version | GUObjectArray | GetPlainANSIString | ProcessEventIdx |
 |------|---------|----------|--------------------|-----------------|
-| com.tencent.tmgp.dfm | v1.201.37110.44 | `0x1A36A748` | Manual | ✅ |
+| com.tencent.tmgp.dfm | ✅ | ✅ | ✅ | ✅ |
 | com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
 | com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
 
