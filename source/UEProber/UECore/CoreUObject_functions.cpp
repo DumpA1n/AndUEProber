@@ -32,13 +32,9 @@ class UObject* UObject::FindObjectFastImpl(const std::string& Name, EClassCastFl
 		if (!Object)
 			continue;
 
-		// LOGI("FindObjectFastImpl: %s, Name: %s", Object->GetName().c_str(), Name.c_str());
-
 		if (Object->HasTypeFlag(RequiredType) && Object->GetName() == Name)
 			return Object;
 	}
-
-	LOGI("FindObjectFastImpl: %s not found", Name.c_str());
 
 	return nullptr;
 }
@@ -49,23 +45,6 @@ class UObject* UObject::FindObjectFastImpl(const std::string& Name, EClassCastFl
 
 class UObject* UObject::FindObjectImpl(const std::string& FullName, EClassCastFlags RequiredType)
 {
-	// static std::atomic_bool g_thread_stared = false;
-	// if (!g_thread_stared) {
-	// 	g_thread_stared = true;
-	// 	std::thread([=]() {
-	// 		LOGI("[GetAllObjects] Enter");
-	// 		for (int i = 0; i < GObjects->Num(); ++i) {
-	// 			UObject* Object = GObjects->GetByIndex(i);
-	// 			if (!Object)
-	// 				continue;
-	// 			std::string ObjectName = Object->GetFullName();
-	// 			LOGI("[GetAllObjects] %d, %s", Object->Name.DisplayIndex, Object->GetFullName().c_str());
-	// 			std::this_thread::sleep_for(std::chrono::milliseconds(1));
-	// 		}
-	// 		LOGI("[GetAllObjects] Done");
-	// 	}).detach();
-	// }
-
 	for (int i = 0; i < GObjects->Num(); ++i)
 	{
 		UObject* Object = GObjects->GetByIndex(i);
@@ -73,13 +52,9 @@ class UObject* UObject::FindObjectImpl(const std::string& FullName, EClassCastFl
 		if (!Object || ((uint64_t)Object & 0x7) != 0)
 			continue;
 
-		// LOGI("[%d, %p] FindObjectImpl: %s", i, Object, Object->GetFullName().c_str());
-
 		if (Object->HasTypeFlag(RequiredType) && Object->GetFullName() == FullName)
 			return Object;
 	}
-
-	LOGI("FindObjectImpl: %s not found", FullName.c_str());
 
 	return nullptr;
 }
@@ -126,8 +101,6 @@ std::string UObject::GetName() const
 bool UObject::HasTypeFlag(enum EClassCastFlags TypeFlags) const
 {
 	using T = std::underlying_type_t<EClassCastFlags>;
-	// LOGI("HasTypeFlag: %d, %d, %d", static_cast<T>(Class->CastFlags), static_cast<T>(TypeFlags), static_cast<T>(Class->CastFlags) & static_cast<T>(TypeFlags));
-	// return true;
 	return TypeFlags == EClassCastFlags::None || static_cast<T>(Class->CastFlags) & static_cast<T>(TypeFlags);
 }
 
@@ -138,8 +111,6 @@ bool UObject::HasTypeFlag(enum EClassCastFlags TypeFlags) const
 bool UObject::IsA(enum EClassCastFlags TypeFlags) const
 {
 	using T = std::underlying_type_t<EClassCastFlags>;
-	// LOGI("HasTypeFlag: %d, %d, %d", static_cast<T>(Class->CastFlags), static_cast<T>(TypeFlags), static_cast<T>(Class->CastFlags) & static_cast<T>(TypeFlags));
-	// return true;
 	return TypeFlags == EClassCastFlags::None || static_cast<T>(Class->CastFlags) & static_cast<T>(TypeFlags);
 }
 
@@ -218,21 +189,15 @@ class UFunction* UClass::GetFunction(const std::string& ClassName, const std::st
 {
 	for (const UStruct* Clss = this; Clss; Clss = Clss->Super)
 	{
-		// LOGI("UClass::GetFunction ClassName: %s, %s", Clss->GetName().c_str(), ClassName.c_str());
 		if (Clss->GetName() != ClassName)
 			continue;
 
-		// LOGI("UClass::GetFunction Children: %p, %s", Clss->Children, Clss->Children->GetName().c_str());
-
 		for (UField* Field = Clss->Children; Field; Field = Field->Next)
 		{
-			// LOGI("UClass::GetFunction FuncName: %p, %s, %s", Field, Field->GetName().c_str(), FuncName.c_str());
 			if (Field->HasTypeFlag(EClassCastFlags::Function) && Field->GetName() == FuncName)
 				return static_cast<class UFunction*>(Field);
 		}
 	}
-
-    LOGI("UClass::GetFunction: %s.%s not found", ClassName.c_str(), FuncName.c_str());
 
 	return nullptr;
 }

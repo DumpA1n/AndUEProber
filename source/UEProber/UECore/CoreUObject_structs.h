@@ -9,7 +9,6 @@
 // Package: CoreUObject
 
 #include "Basic.h"
-#include "glm/glm.hpp"
 
 namespace SDK
 {
@@ -597,9 +596,6 @@ public:
     std::string ToString() const {
         return std::format("({:f}, {:f}, {:f})", X, Y, Z);
     }
-	glm::vec3 ToGLMVec3() const {
-		return glm::vec3(X, Y, Z);
-	}
 };
 static_assert(alignof(FVector) == 0x000004, "Wrong alignment on FVector");
 static_assert(sizeof(FVector) == 0x00000C, "Wrong size on FVector");

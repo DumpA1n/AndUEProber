@@ -15,8 +15,7 @@ namespace SDK
 {
 uintptr_t InSDKUtils::GetImageBase()
 {
-	return Elf.UE4().base();
-	// return reinterpret_cast<uintptr_t>(GetModuleHandle(0));
+	return s_ImageBase;
 }
 
 class UClass* BasicFilesImpleUtils::FindClassByName(const std::string& Name)
@@ -112,7 +111,6 @@ bool FWeakObjectPtr::operator!=(const class UObject* Other) const
 {
 	return ObjectIndex != Other->Index;
 }
-
 
 }
 

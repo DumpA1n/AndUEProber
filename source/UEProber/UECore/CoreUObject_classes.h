@@ -8,9 +8,7 @@ namespace SDK {
 
 class UObject {
 public:
-	~UObject() {}
-
-	static inline class TUObjectArrayWrapper      GObjects;
+    static inline class TUObjectArrayWrapper          GObjects;
 
     void**                                            VTable;
     class UClass*                                     Class;
@@ -72,17 +70,17 @@ static_assert(offsetof(UObject, Index) == 0x000024, "Member 'UObject::Index' has
 
 class UField : public UObject {
 public:
-	class UField*                                 Next;                                              // 0x0030(0x0008)(NOT AUTO-GENERATED PROPERTY)
+    class UField*                                     Next;
 
 public:
-	static class UClass* StaticClass()
-	{
-		return StaticClassImpl<"Field">();
-	}
-	static class UField* GetDefaultObj()
-	{
-		return GetDefaultObjImpl<UField>();
-	}
+    static class UClass* StaticClass()
+    {
+        return StaticClassImpl<"Field">();
+    }
+    static class UField* GetDefaultObj()
+    {
+        return GetDefaultObjImpl<UField>();
+    }
 };
 static_assert(alignof(UField) == 0x000008, "Wrong alignment on UField");
 static_assert(sizeof(UField) == 0x000030, "Wrong size on UField");
@@ -90,28 +88,28 @@ static_assert(offsetof(UField, Next) == 0x000028, "Member 'UField::Next' has a w
 
 class UStruct : public UField {
 public:
-	uint8                                         Pad_30[0xC];                                       // 0x0030(0x000C)(Fixing Size After Last Property [ Dumper-7 ])
-	int32                                         PropertiesSize;                                    // 0x003C(0x0004)(NOT AUTO-GENERATED PROPERTY)
-	class UStruct*                                Super;                                             // 0x0040(0x0008)(NOT AUTO-GENERATED PROPERTY)
-	int32                                         MinAlignment;                                      // 0x0048(0x0004)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_4C[0x4];                                       // 0x004C(0x0004)(Fixing Size After Last Property [ Dumper-7 ])
-	class UField*                                 Children;                                          // 0x0050(0x0008)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_58[0x10];                                      // 0x0058(0x0010)(Fixing Size After Last Property [ Dumper-7 ])
-	class FField*                                 ChildProperties;                                   // 0x0068(0x0008)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_70[0x40];                                      // 0x0070(0x0040)(Fixing Struct Size After Last Property [ Dumper-7 ])
+    uint8                                             Pad_30[0xC];
+    int32                                             PropertiesSize;
+    class UStruct*                                    Super;
+    int32                                             MinAlignment;
+    uint8                                             Pad_4C[0x4];
+    class UField*                                     Children;
+    uint8                                             Pad_58[0x10];
+    class FField*                                     ChildProperties;
+    uint8                                             Pad_70[0x40];
 
 public:
-	bool IsSubclassOf(const UStruct* Base) const;
+    bool IsSubclassOf(const UStruct* Base) const;
 
 public:
-	static class UClass* StaticClass()
-	{
-		return StaticClassImpl<"Struct">();
-	}
-	static class UStruct* GetDefaultObj()
-	{
-		return GetDefaultObjImpl<UStruct>();
-	}
+    static class UClass* StaticClass()
+    {
+        return StaticClassImpl<"Struct">();
+    }
+    static class UStruct* GetDefaultObj()
+    {
+        return GetDefaultObjImpl<UStruct>();
+    }
 };
 static_assert(alignof(UStruct) == 0x000008, "Wrong alignment on UStruct");
 static_assert(sizeof(UStruct) == 0x0000B0, "Wrong size on UStruct");
@@ -121,29 +119,28 @@ static_assert(offsetof(UStruct, MinAlignment) == 0x000048, "Member 'UStruct::Min
 static_assert(offsetof(UStruct, Children) == 0x000050, "Member 'UStruct::Children' has a wrong offset!");
 static_assert(offsetof(UStruct, ChildProperties) == 0x000068, "Member 'UStruct::ChildProperties' has a wrong offset!");
 
-class UFunction : public UStruct
-{
+class UFunction : public UStruct {
 public:
-	using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result);
+    using FNativeFuncPtr = void (*)(void* Context, void* TheStack, void* Result);
 
-	uint8                                         NumParms;                                          // 0x00B0(0x0001)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_B1[0x1];                                       // 0x00B1(0x0001)(Fixing Size After Last Property [ Dumper-7 ])
-	uint16                                        ParmsSize;                                         // 0x00B2(0x0002)(NOT AUTO-GENERATED PROPERTY)
-	uint16                                        ReturnValueOffset;                                 // 0x00B4(0x0002)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_B6[0x2];                                       // 0x00B6(0x0002)(Fixing Size After Last Property [ Dumper-7 ])
-	EFunctionFlags                                FunctionFlags;                                     // 0x00B8(0x0004)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_BC[0x1C];                                      // 0x00BC(0x001C)(Fixing Size After Last Property [ Dumper-7 ])
-	FNativeFuncPtr                                Func;                                              // 0x00D8(0x0008)(NOT AUTO-GENERATED PROPERTY)
+    uint8                                             NumParms;
+    uint8                                             Pad_B1[0x1];
+    uint16                                            ParmsSize;
+    uint16                                            ReturnValueOffset;
+    uint8                                             Pad_B6[0x2];
+    EFunctionFlags                                    FunctionFlags;
+    uint8                                             Pad_BC[0x1C];
+    FNativeFuncPtr                                    Func;
 
 public:
-	static class UClass* StaticClass()
-	{
-		return StaticClassImpl<"Function">();
-	}
-	static class UFunction* GetDefaultObj()
-	{
-		return GetDefaultObjImpl<UFunction>();
-	}
+    static class UClass* StaticClass()
+    {
+        return StaticClassImpl<"Function">();
+    }
+    static class UFunction* GetDefaultObj()
+    {
+        return GetDefaultObjImpl<UFunction>();
+    }
 };
 static_assert(alignof(UFunction) == 0x000008, "Wrong alignment on UFunction");
 static_assert(sizeof(UFunction) == 0x0000E0, "Wrong size on UFunction");
@@ -156,24 +153,24 @@ static_assert(offsetof(UFunction, Func) == 0x0000D8, "Member 'UFunction::Func' h
 
 class UClass : public UStruct {
 public:
-	uint8                                         Pad_B0[0x28];                                      // 0x00B0(0x0028)(Fixing Size After Last Property [ Dumper-7 ])
-	EClassCastFlags                               CastFlags;                                         // 0x00D8(0x0008)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_E0[0x58];                                      // 0x00E0(0x0058)(Fixing Size After Last Property [ Dumper-7 ])
-	class UObject*                                DefaultObject;                                     // 0x0138(0x0008)(NOT AUTO-GENERATED PROPERTY)
-	uint8                                         Pad_140[0x140];                                    // 0x0140(0x0140)(Fixing Struct Size After Last Property [ Dumper-7 ])
+    uint8                                             Pad_B0[0x28];
+    EClassCastFlags                                   CastFlags;
+    uint8                                             Pad_E0[0x58];
+    class UObject*                                    DefaultObject;
+    uint8                                             Pad_140[0x140];
 
 public:
-	class UFunction* GetFunction(const std::string& ClassName, const std::string& FuncName) const;
+    class UFunction* GetFunction(const std::string& ClassName, const std::string& FuncName) const;
 
 public:
-	static class UClass* StaticClass()
-	{
-		return StaticClassImpl<"Class">();
-	}
-	static class UClass* GetDefaultObj()
-	{
-		return GetDefaultObjImpl<UClass>();
-	}
+    static class UClass* StaticClass()
+    {
+        return StaticClassImpl<"Class">();
+    }
+    static class UClass* GetDefaultObj()
+    {
+        return GetDefaultObjImpl<UClass>();
+    }
 };
 static_assert(alignof(UClass) == 0x000008, "Wrong alignment on UClass");
 static_assert(sizeof(UClass) == 0x000280, "Wrong size on UClass");
