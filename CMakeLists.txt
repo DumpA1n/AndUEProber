@@ -81,21 +81,26 @@ target_link_libraries(AndSwapChainHookLib android log vulkan GLESv3 EGL)
 # ============================================================
 set(ANDUEDUMPER_ROOT ${CMAKE_CURRENT_SOURCE_DIR}/external/AndUEDumper)
 
-execute_process(
-    COMMAND git apply --check ${CMAKE_CURRENT_SOURCE_DIR}/misc/UEWrappers_case_insensitive.patch
-    WORKING_DIRECTORY ${ANDUEDUMPER_ROOT}
-    RESULT_VARIABLE PATCH_RESULT
-    ERROR_QUIET
-)
-if(PATCH_RESULT EQUAL 0)
+function(apply_anduedumper_patch patch_name)
     execute_process(
-        COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/misc/UEWrappers_case_insensitive.patch
+        COMMAND git apply --check ${CMAKE_CURRENT_SOURCE_DIR}/misc/${patch_name}
         WORKING_DIRECTORY ${ANDUEDUMPER_ROOT}
+        RESULT_VARIABLE PATCH_RESULT
+        ERROR_QUIET
     )
-    message(STATUS "Applied UEWrappers_case_insensitive.patch")
-else()
-    message(STATUS "UEWrappers_case_insensitive.patch already applied or not applicable")
-endif()
+    if(PATCH_RESULT EQUAL 0)
+        execute_process(
+            COMMAND git apply ${CMAKE_CURRENT_SOURCE_DIR}/misc/${patch_name}
+            WORKING_DIRECTORY ${ANDUEDUMPER_ROOT}
+        )
+        message(STATUS "Applied ${patch_name}")
+    else()
+        message(STATUS "${patch_name} already applied or not applicable")
+    endif()
+endfunction()
+
+apply_anduedumper_patch(UEWrappers_case_insensitive.patch)
+apply_anduedumper_patch(AIOHeader_sort_packages.patch)
 
 # ============================================================
 #  AndUEDumper — compile core dumper as a static library

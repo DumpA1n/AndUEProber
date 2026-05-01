@@ -1,0 +1,1143 @@
+diff --git a/AndUEDumper/src/Dumper.cpp b/AndUEDumper/src/Dumper.cpp
+index 8c3c2a7..f686f2b 100755
+--- a/AndUEDumper/src/Dumper.cpp
++++ b/AndUEDumper/src/Dumper.cpp
+@@ -2,6 +2,11 @@
+ 
+ #include <fmt/format.h>
+ 
++#include <algorithm>
++#include <functional>
++#include <unordered_map>
++#include <unordered_set>
++
+ #include <nlohmann/json.hpp>
+ using json = nlohmann::json;
+ 
+@@ -324,103 +329,544 @@ void UEDumper::GatherUObjects(BufferFmt &logsBufferFmt, BufferFmt &objsBufferFmt
+     logsBufferFmt.append("==========================\n");
+ }
+ 
+-void UEDumper::DumpAIOHeader(BufferFmt &logsBufferFmt, BufferFmt &aioBufferFmt, UEPackagesArray &packages, const ProgressCallback &progressCallback)
++// Self-contained preamble with minimal layout-correct stubs for the predefined
++// UE types that the dumper references in member type strings (FName, FString,
++// containers, smart pointers, delegates, etc.). Sizes match what the dumper
++// itself reports in the AIOHeader (// 0xX(0xY) comments).
++//
++// Guarded by AIOHeader_BASIC_TYPES_DEFINED so callers that already provide
++// their own definitions (e.g. UECore in this project) can opt out by
++// #defining the guard before including AIOHeader.hpp.
++static const char *kAIOPreamble = R"AIOPRE(
++#ifndef AIOHeader_BASIC_TYPES_DEFINED
++#define AIOHeader_BASIC_TYPES_DEFINED
++
++// Placeholders the dumper emits when an inner type couldn't be resolved.
++// Kept incomplete on purpose — only valid through pointer/template usage.
++struct None;
++struct FNone;
++
++template <typename T>
++struct TArray
+ {
+-    int packages_saved = 0;
+-    std::string packages_unsaved{};
++    T* Data;
++    int32_t NumElements;
++    int32_t MaxElements;
++};
++
++struct FString : TArray<wchar_t> {};
++
++struct FName
++{
++    int32_t ComparisonIndex;
++    uint32_t Number;
++};
++
++struct FText
++{
++    uint8_t Pad_0[24];
++};
++
++template <typename K, typename V>
++struct TPair
++{
++    K Key;
++    V Value;
++};
++
++template <typename K, typename V>
++struct TMap
++{
++    uint8_t Pad_0[80];
++};
++
++template <typename T>
++struct TSet
++{
++    uint8_t Pad_0[80];
++};
++
++struct FWeakObjectPtr
++{
++    int32_t ObjectIndex;
++    int32_t ObjectSerialNumber;
++};
++
++template <typename T>
++struct TWeakObjectPtr : FWeakObjectPtr {};
++
++struct FUniqueObjectGuid
++{
++    uint32_t A, B, C, D;
++};
+ 
++template <typename T>
++struct TLazyObjectPtr
++{
++    FWeakObjectPtr WeakPtr;
++    int32_t TagAtLastTest;
++    FUniqueObjectGuid ObjectID;
++};
++
++// FSoftObjectPath is emitted by the dump itself (CoreUObject.SoftObjectPath)
++// — its layout depends on FName size, which varies per game. We opaque-ify
++// FSoftObjectPtr here so it doesn't need a complete FSoftObjectPath at
++// preamble-emission time. Size pinned at 40 to match TSoftObjectPtr<T>
++// observed in dumps.
++struct FSoftObjectPtr
++{
++    uint8_t Pad_0[40];
++};
++
++template <typename T>
++struct TSoftObjectPtr : FSoftObjectPtr {};
++
++template <typename T>
++struct TSoftClassPtr : FSoftObjectPtr {};
++
++template <typename T>
++struct TSubclassOf
++{
++    void* ClassPtr;
++};
++
++struct FScriptInterface
++{
++    void* ObjectPointer;
++    void* InterfacePointer;
++};
++
++template <typename T>
++struct TScriptInterface : FScriptInterface {};
++
++struct FFieldClass
++{
++    uint8_t Pad_0[40];
++};
++
++struct FProperty
++{
++    uint8_t Pad_0[136];
++};
++
++struct FFieldPath
++{
++    void* ResolvedField;
++    TWeakObjectPtr<void> ResolvedOwner;
++    TArray<FName> Path;
++};
++
++template <typename T>
++struct TFieldPath : FFieldPath {};
++
++struct FScriptDelegate
++{
++    FWeakObjectPtr Object;
++    FName FunctionName;
++};
++
++struct FDelegate
++{
++    FScriptDelegate BoundFunction;
++};
++
++struct FMulticastInlineDelegate
++{
++    TArray<FScriptDelegate> InvocationList;
++};
++
++struct FMulticastDelegate
++{
++    TArray<FScriptDelegate> InvocationList;
++};
++
++struct FMulticastSparseDelegate
++{
++    void* SparseInvocationList;
++    uint8_t Pad_8[8];
++};
++
++#endif // AIOHeader_BASIC_TYPES_DEFINED
++)AIOPRE";
++
++// Topological sort using DFS — produces a "deps first" ordering. For nodes
++// with cycles, we emit them in the order DFS encountered them (this keeps
++// behavior deterministic; callers that need full cycle resolution must
++// supplement with forward declarations).
++template <typename Node, typename DepsFn>
++static std::vector<Node> TopoSort(const std::vector<Node> &nodes, DepsFn getDeps)
++{
++    enum class State : uint8_t { Unvisited, Visiting, Visited };
++    std::unordered_map<Node, State> state;
++    state.reserve(nodes.size());
++    for (const auto &n : nodes) state.emplace(n, State::Unvisited);
++
++    std::vector<Node> out;
++    out.reserve(nodes.size());
++
++    std::function<void(const Node &)> dfs = [&](const Node &n)
++    {
++        auto it = state.find(n);
++        if (it == state.end()) return;            // not in our universe
++        if (it->second != State::Unvisited) return; // visited or in progress (cycle)
++        it->second = State::Visiting;
++        for (const auto &dep : getDeps(n))
++        {
++            dfs(dep);
++        }
++        it->second = State::Visited;
++        out.push_back(n);
++    };
++
++    for (const auto &n : nodes) dfs(n);
++    return out;
++}
++
++void UEDumper::DumpAIOHeader(BufferFmt &logsBufferFmt, BufferFmt &aioBufferFmt, UEPackagesArray &packages, const ProgressCallback &progressCallback)
++{
+     int classes_saved = 0;
+     int structs_saved = 0;
+     int enums_saved = 0;
+ 
+     static bool processInternal_once = false;
+ 
+-    aioBufferFmt.append("#pragma once\n\n#include <cstdio>\n#include <string>\n#include <cstdint>\n\n\n");
+-
+     SimpleProgressBar dumpProgress(int(packages.size()));
+     if (progressCallback)
+         progressCallback(dumpProgress);
+ 
+     auto excludedObjects = _profile->GetExcludedObjects();
+ 
+-    for (UE_UPackage package : packages)
++    // ---- Phase 1: process every package and collect type metadata ------------
++
++    std::vector<UE_UPackage> processed;
++    processed.reserve(packages.size());
++
++    auto isExcluded = [&excludedObjects](const std::string &fullName)
+     {
+-        package.Process();
++        return !excludedObjects.empty() && kVECTOR_CONTAINS(excludedObjects, fullName);
++    };
++
++    for (auto &raw : packages)
++    {
++        UE_UPackage pkg(raw);
++        pkg.Process();
+ 
+         dumpProgress++;
+         if (progressCallback)
+             progressCallback(dumpProgress);
+ 
+-        if (package.Classes.size() || package.Structures.size() || package.Enums.size())
++        if (excludedObjects.size())
+         {
+-            aioBufferFmt.append("// Package: {}\n// Enums: {}\n// Structs: {}\n// Classes: {}\n\n",
+-                                package.GetObject().GetName(), package.Enums.size(), package.Structures.size(), package.Classes.size());
++            pkg.Enums.erase(
++                std::remove_if(pkg.Enums.begin(), pkg.Enums.end(),
++                               [&](const UE_UPackage::Enum &it){ return isExcluded(it.FullName); }),
++                pkg.Enums.end());
++            pkg.Structures.erase(
++                std::remove_if(pkg.Structures.begin(), pkg.Structures.end(),
++                               [&](const UE_UPackage::Struct &it){ return isExcluded(it.FullName); }),
++                pkg.Structures.end());
++            pkg.Classes.erase(
++                std::remove_if(pkg.Classes.begin(), pkg.Classes.end(),
++                               [&](const UE_UPackage::Struct &it){ return isExcluded(it.FullName); }),
++                pkg.Classes.end());
++        }
+ 
+-            if (package.Enums.size())
+-            {
+-                auto pkgEnums = package.Enums;
++        processed.push_back(std::move(pkg));
++    }
+ 
+-                if (excludedObjects.size())
+-                {
+-                    pkgEnums.erase(
+-                        std::remove_if(pkgEnums.begin(), pkgEnums.end(),
+-                                       [&excludedObjects](const UE_UPackage::Enum &it)
+-                    { return kVECTOR_CONTAINS(excludedObjects, it.FullName); }),
+-                        pkgEnums.end());
+-                }
++    // ---- Phase 1.5: drop preamble-provided names + collapse duplicates -----
++    //
++    // The preamble defines FName/FString/FText, FSoftObjectPath, all wrapper
++    // templates (TArray/TMap/...), and a handful of basic FProperty/FField
++    // helpers. Real UE dumps re-emit some of these as ScriptStructs, so we
++    // skip them here to avoid double definitions.
++    //
++    // Real dumps also produce duplicate names from objects whose FName came
++    // back as "None" (UNone × N) or from games that genuinely contain two
++    // unrelated classes with the same short name. We keep the first
++    // occurrence and drop the rest — references via member type strings
++    // resolve to the surviving one.
++    {
++        static const std::unordered_set<std::string> kPreambleProvided = {
++            "FName", "FString", "FText",
++            "FWeakObjectPtr", "FUniqueObjectGuid",
++            // Note: FSoftObjectPath is NOT skipped — its layout depends on
++            // the per-game FName size, so we let the dump emit the real one.
++            "FSoftObjectPtr",
++            "FScriptInterface", "FFieldPath", "FFieldClass", "FProperty",
++            "FScriptDelegate", "FDelegate",
++            "FMulticastInlineDelegate", "FMulticastDelegate",
++            "FMulticastSparseDelegate",
++            "TArray", "TMap", "TSet", "TPair",
++            "TWeakObjectPtr", "TLazyObjectPtr",
++            "TSoftObjectPtr", "TSoftClassPtr",
++            "TSubclassOf", "TScriptInterface", "TFieldPath",
++            "None", "FNone",
++        };
++
++        std::unordered_set<std::string> seenNames = kPreambleProvided;
++
++        auto dropDups = [&seenNames](auto &vec)
++        {
++            using ItemT = typename std::remove_reference_t<decltype(vec)>::value_type;
++            vec.erase(
++                std::remove_if(vec.begin(), vec.end(),
++                               [&seenNames](const ItemT &it)
++                               {
++                                   if (seenNames.count(it.CppNameOnly)) return true;
++                                   seenNames.insert(it.CppNameOnly);
++                                   return false;
++                               }),
++                vec.end());
++        };
++
++        for (auto &p : processed)
++        {
++            dropDups(p.Enums);
++            dropDups(p.Structures);
++            dropDups(p.Classes);
++        }
++    }
+ 
+-                UE_UPackage::AppendEnumsToBuffer(pkgEnums, &aioBufferFmt);
++    // Drop packages that ended up with nothing to emit
++    std::string packages_unsaved;
++    {
++        std::vector<UE_UPackage> kept;
++        kept.reserve(processed.size());
++        for (auto &p : processed)
++        {
++            if (!p.Classes.empty() || !p.Structures.empty() || !p.Enums.empty())
++            {
++                kept.push_back(std::move(p));
+             }
+-
+-            if (package.Structures.size())
++            else
+             {
+-                auto pkgStructs = package.Structures;
++                packages_unsaved += "\t";
++                packages_unsaved += p.PackageName + ",\n";
++            }
++        }
++        processed = std::move(kept);
++    }
+ 
+-                if (excludedObjects.size())
+-                {
+-                    pkgStructs.erase(
+-                        std::remove_if(pkgStructs.begin(), pkgStructs.end(),
+-                                       [&excludedObjects](const UE_UPackage::Struct &it)
+-                    { return kVECTOR_CONTAINS(excludedObjects, it.FullName); }),
+-                        pkgStructs.end());
+-                }
++    if (processed.empty())
++    {
++        aioBufferFmt.append("#pragma once\n\n#include <cstdint>\n\n");
++        aioBufferFmt.append("{}\n", kAIOPreamble);
++        logsBufferFmt.append("Saved packages: 0\nSaved classes: 0\nSaved structs: 0\nSaved enums: 0\n");
++        if (!packages_unsaved.empty())
++        {
++            packages_unsaved.erase(packages_unsaved.size() - 2);
++            logsBufferFmt.append("Unsaved packages: [\n{}\n]\n", packages_unsaved);
++        }
++        logsBufferFmt.append("==========================\n");
++        return;
++    }
+ 
+-                UE_UPackage::AppendStructsToBuffer(pkgStructs, &aioBufferFmt);
+-            }
++    // ---- Phase 2: build name -> package map for cross-package linking --------
++
++    std::unordered_map<std::string, size_t> nameToPkgIdx;
++    nameToPkgIdx.reserve(processed.size() * 64);
++
++    auto registerType = [&](const std::string &name, size_t pkgIdx)
++    {
++        if (name.empty()) return;
++        nameToPkgIdx.emplace(name, pkgIdx);
++    };
++
++    for (size_t i = 0; i < processed.size(); ++i)
++    {
++        for (const auto &s : processed[i].Structures) registerType(s.CppNameOnly, i);
++        for (const auto &c : processed[i].Classes)    registerType(c.CppNameOnly, i);
++        for (const auto &e : processed[i].Enums)      registerType(e.CppNameOnly, i);
++    }
++
++    // ---- Phase 3: build inter-package dependency graph -----------------------
++
++    // Only "full" deps drive package ordering; pure forward-decl deps are
++    // satisfied by the global forward-decl block emitted up front.
++    std::vector<std::unordered_set<size_t>> pkgDeps(processed.size());
++
++    auto recordDeps = [&](size_t pkgIdx, const UE_UPackage::Struct &s)
++    {
++        for (const auto &dep : s.FullDeps)
++        {
++            auto it = nameToPkgIdx.find(dep);
++            if (it == nameToPkgIdx.end()) continue;
++            if (it->second == pkgIdx) continue;
++            pkgDeps[pkgIdx].insert(it->second);
++        }
++    };
++
++    for (size_t i = 0; i < processed.size(); ++i)
++    {
++        for (const auto &s : processed[i].Structures) recordDeps(i, s);
++        for (const auto &c : processed[i].Classes)    recordDeps(i, c);
++    }
++
++    // ---- Phase 4: topological sort packages ----------------------------------
++
++    std::vector<size_t> pkgOrder;
++    pkgOrder.reserve(processed.size());
++    {
++        std::vector<size_t> indices(processed.size());
++        for (size_t i = 0; i < processed.size(); ++i) indices[i] = i;
+ 
+-            if (package.Classes.size())
++        pkgOrder = TopoSort<size_t>(indices, [&](size_t i) -> const std::unordered_set<size_t> &
++        {
++            return pkgDeps[i];
++        });
++    }
++
++    // ---- Phase 5: emit AIOHeader ---------------------------------------------
++
++    aioBufferFmt.append("#pragma once\n\n#include <cstdint>\n\n");
++    aioBufferFmt.append("{}\n", kAIOPreamble);
++
++    // 5a. Forward declarations of every dumped enum, struct and class. Pointer
++    //     and template-wrapped references between packages are resolved via
++    //     these forward decls, so cyclic class graphs compile cleanly.
++    aioBufferFmt.append("// === Forward declarations ===\n\n");
++    for (const auto &p : processed)
++    {
++        for (const auto &e : p.Enums)
++            aioBufferFmt.append("enum class {} : {};\n", e.CppNameOnly, e.UnderlyingType);
++    }
++    aioBufferFmt.append("\n");
++    for (const auto &p : processed)
++    {
++        for (const auto &s : p.Structures) aioBufferFmt.append("struct {};\n", s.CppNameOnly);
++        for (const auto &c : p.Classes)    aioBufferFmt.append("struct {};\n", c.CppNameOnly);
++    }
++    aioBufferFmt.append("\n");
++
++    // 5a'. Phantom forward declarations: any name that appears in some
++    //      member's type string but isn't defined by any dumped struct/
++    //      class/enum AND isn't supplied by the preamble. Comes from
++    //      partially-resolved property types (e.g. `TFieldPath<FBoolProperty>`,
++    //      bare `ObjectPtrProperty` returns, `EBlah` enum references where
++    //      the enum object wasn't reachable). We classify by UE prefix.
++    {
++        static const std::unordered_set<std::string> kPreambleNames = {
++            "FName", "FString", "FText",
++            "FWeakObjectPtr", "FUniqueObjectGuid", "FSoftObjectPtr",
++            "FScriptInterface", "FFieldPath", "FFieldClass", "FProperty",
++            "FScriptDelegate", "FDelegate",
++            "FMulticastInlineDelegate", "FMulticastDelegate", "FMulticastSparseDelegate",
++            "TArray", "TMap", "TSet", "TPair",
++            "TWeakObjectPtr", "TLazyObjectPtr",
++            "TSoftObjectPtr", "TSoftClassPtr",
++            "TSubclassOf", "TScriptInterface", "TFieldPath",
++            "None", "FNone",
++        };
++        std::set<std::string> phantomEnums;
++        std::set<std::string> phantomStructs;
++        auto considerName = [&](const std::string &name)
++        {
++            if (name.empty()) return;
++            if (kPreambleNames.count(name)) return;
++            if (nameToPkgIdx.count(name)) return;
++            if (name.size() < 2 || !std::isupper(static_cast<unsigned char>(name[0])))
++                return;
++            const char prefix = name[0];
++            if (prefix == 'E')
++                phantomEnums.insert(name);
++            else if (prefix == 'F' || prefix == 'U' || prefix == 'A' || prefix == 'I')
++                phantomStructs.insert(name);
++            else
++                phantomStructs.insert(name);
++        };
++        for (const auto &p : processed)
++        {
++            auto walk = [&](const UE_UPackage::Struct &s)
+             {
+-                auto pkgClasses = package.Classes;
++                for (const auto &n : s.FullDeps)    considerName(n);
++                for (const auto &n : s.ForwardDeps) considerName(n);
++            };
++            for (const auto &s : p.Structures) walk(s);
++            for (const auto &c : p.Classes)    walk(c);
++        }
++        if (!phantomEnums.empty() || !phantomStructs.empty())
++        {
++            aioBufferFmt.append("// === Phantom forward declarations ===\n");
++            aioBufferFmt.append("// Type names referenced in member / function signatures but not\n");
++            aioBufferFmt.append("// defined as a dumped struct/enum (typically partially-resolved\n");
++            aioBufferFmt.append("// property kinds). Forward decls keep pointer / template /\n");
++            aioBufferFmt.append("// signature usages compilable.\n");
++            for (const auto &n : phantomEnums)
++                aioBufferFmt.append("enum class {} : uint8_t;\n", n);
++            for (const auto &n : phantomStructs)
++                aioBufferFmt.append("struct {};\n", n);
++            aioBufferFmt.append("\n");
++        }
++    }
+ 
+-                if (excludedObjects.size())
+-                {
+-                    pkgClasses.erase(
+-                        std::remove_if(pkgClasses.begin(), pkgClasses.end(),
+-                                       [&excludedObjects](const UE_UPackage::Struct &it)
+-                    { return kVECTOR_CONTAINS(excludedObjects, it.FullName); }),
+-                        pkgClasses.end());
+-                }
++    // 5b. Per-package output, packages in topological order, structs/classes
++    //     within each package sorted by their intra-package full-type deps.
++    auto sortByDeps = [&](size_t pkgIdx, std::vector<UE_UPackage::Struct> &items)
++    {
++        std::unordered_map<std::string, size_t> nameToLocal;
++        nameToLocal.reserve(items.size());
++        for (size_t i = 0; i < items.size(); ++i)
++            nameToLocal.emplace(items[i].CppNameOnly, i);
++
++        std::vector<size_t> indices(items.size());
++        for (size_t i = 0; i < items.size(); ++i) indices[i] = i;
+ 
+-                UE_UPackage::AppendStructsToBuffer(package.Classes, &aioBufferFmt);
++        std::vector<std::vector<size_t>> deps(items.size());
++        for (size_t i = 0; i < items.size(); ++i)
++        {
++            for (const auto &dep : items[i].FullDeps)
++            {
++                // Same-package value-type deps must be defined first
++                auto it = nameToLocal.find(dep);
++                if (it != nameToLocal.end()) deps[i].push_back(it->second);
+             }
+         }
+-        else
++        (void)pkgIdx;
++
++        auto sorted = TopoSort<size_t>(indices, [&](size_t i) -> const std::vector<size_t> &
++        {
++            return deps[i];
++        });
++
++        std::vector<UE_UPackage::Struct> reordered;
++        reordered.reserve(items.size());
++        for (size_t i : sorted) reordered.push_back(std::move(items[i]));
++        items = std::move(reordered);
++    };
++
++    int packages_saved = 0;
++    for (size_t pkgIdx : pkgOrder)
++    {
++        auto &pkg = processed[pkgIdx];
++
++        aioBufferFmt.append("// Package: {}\n// Enums: {}\n// Structs: {}\n// Classes: {}\n\n",
++                            pkg.PackageName, pkg.Enums.size(), pkg.Structures.size(), pkg.Classes.size());
++
++        if (!pkg.Enums.empty())
++            UE_UPackage::AppendEnumsToBuffer(pkg.Enums, &aioBufferFmt);
++
++        if (!pkg.Structures.empty())
++        {
++            sortByDeps(pkgIdx, pkg.Structures);
++            UE_UPackage::AppendStructsToBuffer(pkg.Structures, &aioBufferFmt);
++        }
++
++        if (!pkg.Classes.empty())
+         {
+-            packages_unsaved += "\t";
+-            packages_unsaved += (package.GetObject().GetName() + ",\n");
+-            continue;
++            sortByDeps(pkgIdx, pkg.Classes);
++            UE_UPackage::AppendStructsToBuffer(pkg.Classes, &aioBufferFmt);
+         }
+ 
+         packages_saved++;
+-        classes_saved += package.Classes.size();
+-        structs_saved += package.Structures.size();
+-        enums_saved += package.Enums.size();
++        classes_saved += pkg.Classes.size();
++        structs_saved += pkg.Structures.size();
++        enums_saved += pkg.Enums.size();
+ 
+-        for (const auto &cls : package.Classes)
++        for (const auto &cls : pkg.Classes)
+         {
+             for (const auto &func : cls.Functions)
+             {
+-                // UObject::ProcessInternal for blueprint functions
+                 if (!processInternal_once && (func.EFlags & FUNC_BlueprintEvent) && func.Func)
+                 {
+                     dumper_jf_ns::jsonFunctions.push_back({"UObject", "ProcessInternal", func.Func});
+@@ -436,7 +882,7 @@ void UEDumper::DumpAIOHeader(BufferFmt &logsBufferFmt, BufferFmt &aioBufferFmt,
+             }
+         }
+ 
+-        for (const auto &st : package.Structures)
++        for (const auto &st : pkg.Structures)
+         {
+             for (const auto &func : st.Functions)
+             {
+@@ -452,7 +898,7 @@ void UEDumper::DumpAIOHeader(BufferFmt &logsBufferFmt, BufferFmt &aioBufferFmt,
+ 
+     logsBufferFmt.append("Saved packages: {}\nSaved classes: {}\nSaved structs: {}\nSaved enums: {}\n", packages_saved, classes_saved, structs_saved, enums_saved);
+ 
+-    if (packages_unsaved.size())
++    if (!packages_unsaved.empty())
+     {
+         packages_unsaved.erase(packages_unsaved.size() - 2);
+         logsBufferFmt.append("Unsaved packages: [\n{}\n]\n", packages_unsaved);
+diff --git a/AndUEDumper/src/UE/UEWrappers.cpp b/AndUEDumper/src/UE/UEWrappers.cpp
+index 5a2f5af..815360a 100755
+--- a/AndUEDumper/src/UE/UEWrappers.cpp
++++ b/AndUEDumper/src/UE/UEWrappers.cpp
+@@ -817,7 +817,11 @@ std::string UE_UByteProperty::GetTypeStr() const
+ {
+     auto e = GetEnum();
+     if (e)
+-        return "enum class " + e.GetName();
++    {
++        auto name = e.GetName();
++        if (!name.empty() && name != "None" && name != "ENone")
++            return name;
++    }
+     return "uint8_t";
+ }
+ 
+@@ -963,9 +967,13 @@ UE_UEnum UE_UEnumProperty::GetEnum() const
+ 
+ std::string UE_UEnumProperty::GetTypeStr() const
+ {
+-    if (GetEnum())
+-        return "enum class " + GetEnum().GetName();
+-
++    auto e = GetEnum();
++    if (e)
++    {
++        auto name = e.GetName();
++        if (!name.empty() && name != "None" && name != "ENone")
++            return name;
++    }
+     return GetUnderlayingProperty().GetType().second;
+ }
+ 
+@@ -1425,7 +1433,11 @@ std::string UE_FByteProperty::GetTypeStr() const
+ {
+     auto e = GetEnum();
+     if (e)
+-        return "enum class " + e.GetName();
++    {
++        auto name = e.GetName();
++        if (!name.empty() && name != "None" && name != "ENone")
++            return name;
++    }
+     return "uint8_t";
+ }
+ 
+@@ -1508,9 +1520,13 @@ UE_UEnum UE_FEnumProperty::GetEnum() const
+ 
+ std::string UE_FEnumProperty::GetTypeStr() const
+ {
+-    if (GetEnum())
+-        return "enum class " + GetEnum().GetName();
+-
++    auto e = GetEnum();
++    if (e)
++    {
++        auto name = e.GetName();
++        if (!name.empty() && name != "None" && name != "ENone")
++            return name;
++    }
+     return GetUnderlayingProperty().GetType().second;
+ }
+ 
+diff --git a/AndUEDumper/src/UPackageGenerator.cpp b/AndUEDumper/src/UPackageGenerator.cpp
+index b3eaa78..45fd228 100644
+--- a/AndUEDumper/src/UPackageGenerator.cpp
++++ b/AndUEDumper/src/UPackageGenerator.cpp
+@@ -1,5 +1,8 @@
+ #include "UPackageGenerator.hpp"
+ 
++#include <cctype>
++#include <unordered_set>
++
+ #include "UE/UEMemory.hpp"
+ using namespace UEMemory;
+ 
+@@ -41,6 +44,140 @@ void UE_UPackage::FillPadding(const UE_UStruct &object, std::vector<Member> &mem
+     }
+ }
+ 
++// Replace characters that aren't valid in C++ identifiers with '_'. Real
++// dumps contain UE class names like `UFoo~Bar` and `UBaz-Qux` (auto-named
++// blueprint subclasses). Structural punctuation that legitimately appears
++// in our type strings — '<>', ',', '*', '&', ':', '[]', whitespace — is
++// preserved so templates and bit-field markers stay parseable.
++static std::string SanitizeForCpp(const std::string &in)
++{
++    std::string out;
++    out.reserve(in.size());
++    for (char c : in)
++    {
++        const unsigned char uc = static_cast<unsigned char>(c);
++        const bool keep = std::isalnum(uc) || c == '_'
++                       || c == ' ' || c == '\t'
++                       || c == '<' || c == '>' || c == ','
++                       || c == '*' || c == '&'
++                       || c == ':'
++                       || c == '[' || c == ']';
++        out += keep ? c : '_';
++    }
++    return out;
++}
++
++// Stricter sanitizer for pure-identifier positions: struct / enum / member /
++// function names that come from an FName and may contain spaces or any
++// other non-identifier byte. Anything outside [A-Za-z0-9_] becomes '_'.
++static std::string SanitizeIdentifier(const std::string &in)
++{
++    std::string out;
++    out.reserve(in.size());
++    for (char c : in)
++    {
++        const unsigned char uc = static_cast<unsigned char>(c);
++        out += (std::isalnum(uc) || c == '_') ? c : '_';
++    }
++    return out;
++}
++
++// Identifiers that come from primitive C++ types or the AIOHeader preamble
++// (predefined containers, smart pointers, basic UE types). Members of this
++// set never become package-level dependencies.
++static const std::unordered_set<std::string> &kBuiltinIdents()
++{
++    static const std::unordered_set<std::string> s = {
++        // C++ primitives / qualifiers
++        "void", "bool", "char", "short", "int", "long", "float", "double",
++        "signed", "unsigned",
++        "int8_t", "int16_t", "int32_t", "int64_t",
++        "uint8_t", "uint16_t", "uint32_t", "uint64_t",
++        "size_t", "ptrdiff_t", "intptr_t", "uintptr_t",
++        // C++ keywords that may appear via "struct"/"enum class"/"const" prefixes
++        "struct", "enum", "class", "const", "volatile",
++        // Basic UE types provided by the AIOHeader preamble
++        "FName", "FString", "FText",
++        "FScriptDelegate", "FDelegate", "FMulticastDelegate",
++        "FMulticastInlineDelegate", "FMulticastSparseDelegate",
++        "FWeakObjectPtr", "FUniqueObjectGuid", "FFieldClass", "FProperty",
++        "FScriptInterface", "FFieldPath",
++        // Predefined container / wrapper templates
++        "TArray", "TMap", "TSet", "TPair",
++        "TWeakObjectPtr", "TLazyObjectPtr",
++        "TSoftObjectPtr", "TSoftClassPtr",
++        "TSubclassOf", "TScriptInterface", "TFieldPath",
++        // Sentinel emitted by the dumper for malformed/unknown children —
++        // forward-declared in the AIOHeader preamble so containers compile.
++        "None", "FNone",
++    };
++    return s;
++}
++
++// Templates whose stored data is a pointer/handle to T — therefore a forward
++// declaration of T is sufficient for the surrounding struct to be sized.
++static bool IsForwardDeclWrapper(const std::string &ident)
++{
++    static const std::unordered_set<std::string> wrappers = {
++        "TArray", "TMap", "TSet", "TPair",
++        "TWeakObjectPtr", "TLazyObjectPtr",
++        "TSoftObjectPtr", "TSoftClassPtr",
++        "TSubclassOf", "TScriptInterface", "TFieldPath",
++    };
++    return wrappers.count(ident) != 0;
++}
++
++void UE_UPackage::ExtractTypeDeps(const std::string &typeStr,
++                                  std::set<std::string> &fullDeps,
++                                  std::set<std::string> &fwdDeps)
++{
++    const auto &builtins = kBuiltinIdents();
++
++    int templateDepth = 0;
++    size_t i = 0;
++    const size_t n = typeStr.size();
++
++    while (i < n)
++    {
++        char c = typeStr[i];
++        if (c == '<') { templateDepth++; i++; continue; }
++        if (c == '>') { templateDepth--; i++; continue; }
++
++        if (std::isalpha(static_cast<unsigned char>(c)) || c == '_')
++        {
++            size_t start = i;
++            while (i < n && (std::isalnum(static_cast<unsigned char>(typeStr[i])) || typeStr[i] == '_'))
++                i++;
++            std::string ident = typeStr.substr(start, i - start);
++
++            // Skip whitespace looking for the next significant char
++            size_t j = i;
++            while (j < n && std::isspace(static_cast<unsigned char>(typeStr[j])))
++                j++;
++            const bool isPointer = (j < n && typeStr[j] == '*');
++
++            if (builtins.count(ident))
++                continue;
++
++            // Wrapper template names themselves don't add dependencies — we
++            // walk into their template arguments via the regular loop.
++            if (IsForwardDeclWrapper(ident))
++                continue;
++
++            // Inside <>: stored as pointer/handle by the wrapper, so a
++            // forward decl is enough. Outside <> with explicit '*' too.
++            if (templateDepth > 0 || isPointer)
++                fwdDeps.insert(std::move(ident));
++            else
++                fullDeps.insert(std::move(ident));
++        }
++        else
++        {
++            i++;
++        }
++    }
++}
++
+ void UE_UPackage::GenerateFunction(const UE_UFunction &fn, Function *out)
+ {
+     out->Name = fn.GetName();
+@@ -58,24 +195,26 @@ void UE_UPackage::GenerateFunction(const UE_UFunction &fn, Function *out)
+         // if property has 'ReturnParm' flag
+         if (flags & CPF_ReturnParm)
+         {
+-            out->CppName = prop->GetType().second + " " + fn.GetName();
++            out->CppName = SanitizeForCpp(prop->GetType().second) + " " + SanitizeIdentifier(fn.GetName());
+         }
+         // if property has 'Parm' flag
+         else if (flags & CPF_Parm)
+         {
++            const std::string typeStr = SanitizeForCpp(prop->GetType().second);
++            const std::string nameStr = SanitizeIdentifier(prop->GetName());
+             if (prop->GetArrayDim() > 1)
+             {
+-                out->Params += fmt::format("{}* {}, ", prop->GetType().second, prop->GetName());
++                out->Params += fmt::format("{}* {}, ", typeStr, nameStr);
+             }
+             else
+             {
+                 if (flags & CPF_OutParm)
+                 {
+-                    out->Params += fmt::format("{}& {}, ", prop->GetType().second, prop->GetName());
++                    out->Params += fmt::format("{}& {}, ", typeStr, nameStr);
+                 }
+                 else
+                 {
+-                    out->Params += fmt::format("{} {}, ", prop->GetType().second, prop->GetName());
++                    out->Params += fmt::format("{} {}, ", typeStr, nameStr);
+                 }
+             }
+         }
+@@ -98,7 +237,7 @@ void UE_UPackage::GenerateFunction(const UE_UFunction &fn, Function *out)
+ 
+     if (out->CppName.size() == 0)
+     {
+-        out->CppName = "void " + fn.GetName();
++        out->CppName = "void " + SanitizeIdentifier(fn.GetName());
+     }
+ }
+ 
+@@ -108,8 +247,9 @@ void UE_UPackage::GenerateStruct(const UE_UStruct &object, std::vector<Struct> &
+     s.Name = object.GetName();
+     s.FullName = object.GetFullName();
+ 
++    s.CppNameOnly = SanitizeIdentifier(object.GetCppName());
+     s.CppName = "struct ";
+-    s.CppName += object.GetCppName();
++    s.CppName += s.CppNameOnly;
+ 
+     s.Inherited = 0;
+     s.Size = object.GetSize();
+@@ -123,9 +263,12 @@ void UE_UPackage::GenerateStruct(const UE_UStruct &object, std::vector<Struct> &
+     auto super = object.GetSuper();
+     if (super)
+     {
++        s.SuperCppName = SanitizeIdentifier(super.GetCppName());
+         s.CppName += " : ";
+-        s.CppName += super.GetCppName();
++        s.CppName += s.SuperCppName;
+         s.Inherited = super.GetSize();
++        // Inheriting requires the complete super type
++        s.FullDeps.insert(s.SuperCppName);
+     }
+ 
+     uint32_t offset = s.Inherited;
+@@ -141,10 +284,33 @@ void UE_UPackage::GenerateStruct(const UE_UStruct &object, std::vector<Struct> &
+         }  // this shouldn't be zero
+ 
+         auto type = prop->GetType();
+-        m->Type = type.second;
+-        m->Name = prop->GetName();
++        m->Type = SanitizeForCpp(type.second);
++        m->Name = SanitizeIdentifier(prop->GetName());
+         m->Offset = prop->GetOffset();
+ 
++        // Unknown property types come back with a placeholder name (often
++        // "None"/"ENone") whose definition would never compile. Replace
++        // the type with an opaque byte buffer matching the dumped size —
++        // readers still get correct offsets, just no field-typed access.
++        if (type.first == UEPropertyType::Unknown
++            || m->Type.empty()
++            || m->Type == "None"
++            || m->Type == "ENone")
++        {
++            if (m->Size <= 1)
++            {
++                m->Type = "uint8_t";
++            }
++            else
++            {
++                m->Type = "uint8_t";
++                m->Name += fmt::format("[0x{:X}]", m->Size);
++            }
++        }
++
++        // Track which other dumped types this member references
++        ExtractTypeDeps(m->Type, s.FullDeps, s.ForwardDeps);
++
+         if (m->Offset > offset)
+         {
+             UE_UPackage::FillPadding(object, s.Members, offset, bitOffset, m->Offset);
+@@ -164,21 +330,31 @@ void UE_UPackage::GenerateStruct(const UE_UStruct &object, std::vector<Struct> &
+                 mask >>= 1;
+                 ones++;
+             }
+-            if (zeros > bitOffset)
++            if (ones == 0)
+             {
+-                UE_UPackage::GenerateBitPadding(s.Members, offset, bitOffset, zeros - bitOffset);
+-                bitOffset = zeros;
++                // Mask was zero (or unrecognised). C++ rejects a named
++                // zero-width bit-field, so fall back to a full byte.
++                offset += m->Size;
++                m->extra = fmt::format("Mask(0x{:X})", boolProp->GetFieldMask());
+             }
+-            m->Name += fmt::format(" : {}", ones);
+-            bitOffset += ones;
+-
+-            if (bitOffset == 8)
++            else
+             {
+-                offset++;
+-                bitOffset = 0;
+-            }
++                if (zeros > bitOffset)
++                {
++                    UE_UPackage::GenerateBitPadding(s.Members, offset, bitOffset, zeros - bitOffset);
++                    bitOffset = zeros;
++                }
++                m->Name += fmt::format(" : {}", ones);
++                bitOffset += ones;
+ 
+-            m->extra = fmt::format("Mask(0x{:X})", boolProp->GetFieldMask());
++                if (bitOffset == 8)
++                {
++                    offset++;
++                    bitOffset = 0;
++                }
++
++                m->extra = fmt::format("Mask(0x{:X})", boolProp->GetFieldMask());
++            }
+         }
+         else
+         {
+@@ -206,6 +382,12 @@ void UE_UPackage::GenerateStruct(const UE_UStruct &object, std::vector<Struct> &
+             auto fn = child.Cast<UE_UFunction>();
+             Function f;
+             GenerateFunction(fn, &f);
++            // Function param/return types reference other types but only
++            // through value/reference parameters in declarations — these
++            // can use forward declarations because the function body lives
++            // outside this header.
++            ExtractTypeDeps(f.CppName, s.ForwardDeps, s.ForwardDeps);
++            ExtractTypeDeps(f.Params, s.ForwardDeps, s.ForwardDeps);
+             s.Functions.push_back(f);
+         }
+         else if (child.IsA<UE_UProperty>())
+@@ -223,6 +405,11 @@ void UE_UPackage::GenerateStruct(const UE_UStruct &object, std::vector<Struct> &
+         UE_UPackage::FillPadding(object, s.Members, offset, bitOffset, s.Size);
+     }
+ 
++    // Self-references in templated members (e.g., TArray<FFoo>) must not
++    // make the struct depend on itself.
++    s.FullDeps.erase(s.CppNameOnly);
++    s.ForwardDeps.erase(s.CppNameOnly);
++
+     arr.push_back(s);
+ }
+ 
+@@ -237,6 +424,7 @@ void UE_UPackage::GenerateEnum(const UE_UEnum &object, std::vector<Enum> &arr)
+     auto names = object.GetNames();
+     uint64_t max = 0;
+ 
++    std::unordered_set<std::string> seenEnumNames;
+     for (int32_t i = 0; i < names.Num(); i++)
+     {
+         auto pair = names.GetData() + i * pairSize;
+@@ -250,7 +438,14 @@ void UE_UPackage::GenerateEnum(const UE_UEnum &object, std::vector<Enum> &arr)
+         if (value > max)
+             max = value;
+ 
+-        e.Members.emplace_back(str, value);
++        std::string sanitized = SanitizeIdentifier(str);
++        // UE reflection occasionally exposes duplicate enumerator names within
++        // the same enum (different underlying values). C++ would reject the
++        // redefinition, so we drop later occurrences.
++        if (!seenEnumNames.insert(sanitized).second)
++            continue;
++
++        e.Members.emplace_back(std::move(sanitized), value);
+     }
+ 
+     // enum values should be in ascending order
+@@ -276,18 +471,17 @@ void UE_UPackage::GenerateEnum(const UE_UEnum &object, std::vector<Enum> &arr)
+         }
+     }
+ 
+-    const char *type = nullptr;
+-
+     if (max > GetMaxOfType<uint32_t>())
+-        type = " : uint64_t";
++        e.UnderlyingType = "uint64_t";
+     else if (max > GetMaxOfType<uint16_t>())
+-        type = " : uint32_t";
++        e.UnderlyingType = "uint32_t";
+     else if (max > GetMaxOfType<uint8_t>())
+-        type = " : uint16_t";
++        e.UnderlyingType = "uint16_t";
+     else
+-        type = " : uint8_t";
++        e.UnderlyingType = "uint8_t";
+ 
+-    e.CppName = "enum class " + object.GetName() + type;
++    e.CppNameOnly = SanitizeIdentifier(object.GetName());
++    e.CppName = "enum class " + e.CppNameOnly + " : " + e.UnderlyingType;
+ 
+     if (e.Members.size())
+     {
+@@ -350,6 +544,7 @@ void UE_UPackage::AppendEnumsToBuffer(std::vector<Enum> &arr, BufferFmt *pBufFmt
+ 
+ void UE_UPackage::Process()
+ {
++    PackageName = GetObject().GetName();
+     auto &objects = Package->second;
+     for (auto &object : objects)
+     {
+diff --git a/AndUEDumper/src/UPackageGenerator.hpp b/AndUEDumper/src/UPackageGenerator.hpp
+index 8939543..a694751 100644
+--- a/AndUEDumper/src/UPackageGenerator.hpp
++++ b/AndUEDumper/src/UPackageGenerator.hpp
+@@ -1,6 +1,7 @@
+ #pragma once
+ 
+ #include <cstdint>
++#include <set>
+ #include <string>
+ #include <vector>
+ 
+@@ -36,16 +37,26 @@ public:
+     {
+         std::string Name;
+         std::string FullName;
+-        std::string CppName;
++        std::string CppName;        // "struct FFoo : FBar" or "struct UBaz"
++        std::string CppNameOnly;    // just "FFoo" / "UBaz"
++        std::string SuperCppName;   // just "FBar" or empty
+         uint32_t Inherited = 0;
+         uint32_t Size = 0;
+         std::vector<Member> Members;
+         std::vector<Function> Functions;
++        // Names of other dumped types this struct needs as a complete type
++        // (inheritance, value-type members). Populated during Process().
++        std::set<std::string> FullDeps;
++        // Names of other dumped types referenced via pointer/template
++        // wrappers — only forward declarations are required to compile.
++        std::set<std::string> ForwardDeps;
+     };
+     struct Enum
+     {
+         std::string FullName;
+-        std::string CppName;
++        std::string CppName;       // "enum class EFoo : uint8_t"
++        std::string CppNameOnly;   // just "EFoo"
++        std::string UnderlyingType;// "uint8_t" / "uint16_t" ...
+         std::vector<std::pair<std::string, uint64_t>> Members;
+     };
+ 
+@@ -53,6 +64,7 @@ private:
+     std::pair<uint8_t *const, std::vector<UE_UObject>> *Package;
+ 
+ public:
++    std::string PackageName;                      // package object name
+     std::vector<Struct> Classes;
+     std::vector<Struct> Structures;
+     std::vector<Enum> Enums;
+@@ -70,6 +82,15 @@ public:
+     UE_UPackage(std::pair<uint8_t *const, std::vector<UE_UObject>> &package) : Package(&package) {};
+     inline UE_UObject GetObject() const { return UE_UObject(Package->first); }
+     void Process();
++
++    // Parse a C++ type string (as produced by the dumper) and split the
++    // referenced dumped-type names into "full" deps (need a complete type)
++    // and "forward" deps (a forward declaration is enough). Builtins,
++    // primitives and predefined wrapper templates are filtered out.
++    static void ExtractTypeDeps(const std::string &typeStr,
++                                std::set<std::string> &fullDeps,
++                                std::set<std::string> &fwdDeps);
++
+     static void AppendStructsToBuffer(std::vector<Struct> &arr, class BufferFmt *bufFmt);
+     static void AppendEnumsToBuffer(std::vector<Enum> &arr, class BufferFmt *bufFmt);
+ };
