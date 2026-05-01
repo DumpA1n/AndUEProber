@@ -3020,12 +3020,77 @@ void UEProber::Phase5_ProbeFPropertySize() {
     PDBG("ProbePropSize: 候选数={}", m_Phase5FPropSizeCandidates.size());
     if (!m_Phase5FPropSizeCandidates.empty() && m_Phase5FPropSizeCandidates[0].confidence >= 0.7f) {
         auto& best = m_Phase5FPropSizeCandidates[0];
+        int32_t finalOff = best.offset;
+        std::string finalDesc = best.description;
+
+        // ---------- 修正: 用 IsValidRV 锚定 FBoolProperty 派生段位置 ----------
+        //
+        // 原始策略找的是"派生类里第一个已知指针的位置", 等于 sizeof(FProperty) 的前提是
+        // 派生类紧接 FProperty 第一个字段就是已知指针 (FStruct.Struct / FObject.PropertyClass).
+        // 但某些游戏 (如 DeltaForce 1.201+) 在派生段开头插自定义字段, 此时上面找到的偏移
+        // 是 sizeof(FProperty) + leading_metadata_size, 不等于真 sizeof.
+        //
+        // 用 IsValidRV (IsValid 函数 ReturnValue, 是原生 bool FBoolProperty) 做交叉锚点:
+        //   UE 4.25+ 源码 FBoolProperty::SetBoolSize(bIsNativeBool=true) 设
+        //   FieldSize=1, ByteOffset=0, ByteMask=1, FieldMask=0xFF
+        //   → IsValidRV 派生段开头 4 字节必为 [01 00 01 FF] (跨版本通用)
+        //
+        // 在 [best.offset - 16, best.offset + 4] 窗口内搜这 4 字节模式. 找到位置 P:
+        //   - P 即 FieldSize 字节地址
+        //   - 真 sizeof(FProperty) = P 向下 8 字节对齐 (派生类有 leading 字节, 但 sizeof 必须 8 对齐)
+        // 多重命中: 取离 best.offset 最近的那个 (避免假阳性远端)
+        if (m_FFIsValidReturn && best.offset >= 16) {
+            constexpr int32_t kBack    = 16;
+            constexpr int32_t kForward = 4;
+            constexpr int32_t kSpan    = kBack + kForward + 4;  // 4 = 模式长度
+            uint8_t buf[kSpan] = {};
+            int32_t base = best.offset - kBack;
+            if (KMgrRead(m_FFIsValidReturn + base, buf, kSpan)) {
+                // 找所有 01 00 01 FF 命中, 选离 best.offset 最近的
+                int32_t bestPatternOff = -1;
+                int32_t bestDist = INT32_MAX;
+                for (int32_t i = 0; i + 4 <= kSpan; ++i) {
+                    if (buf[i] == 0x01 && buf[i+1] == 0x00 &&
+                        buf[i+2] == 0x01 && buf[i+3] == 0xFF) {
+                        int32_t patternOff = base + i;
+                        int32_t dist = std::abs(patternOff - best.offset);
+                        if (dist < bestDist) {
+                            bestDist = dist;
+                            bestPatternOff = patternOff;
+                        }
+                    }
+                }
+                if (bestPatternOff >= 0) {
+                    int32_t alignedSize = bestPatternOff & ~0x7;  // 向下 8 字节对齐
+                    if (alignedSize != best.offset) {
+                        PDBG("ProbePropSize: 修正! IsValidRV 命中 [01 00 01 FF] @ +0x{:X} (FieldSize 位置), sizeof = 0x{:X} (向下 8 对齐)",
+                             bestPatternOff, alignedSize);
+                        finalOff = alignedSize;
+                        finalDesc += std::format(", FBool native bool pattern @ +0x{:X} → sizeof corrected to 0x{:X}",
+                                                  bestPatternOff, alignedSize);
+                        best.offset = alignedSize;
+                        best.rawValue = (uint64_t)alignedSize;
+                        best.description = finalDesc;
+                    } else {
+                        PDBG("ProbePropSize: IsValidRV 模式 @ +0x{:X} 与候选一致, 无需修正", bestPatternOff);
+                    }
+                } else {
+                    PDBG("ProbePropSize: IsValidRV 在 [+0x{:X}..+0x{:X}) 未找到 [01 00 01 FF] 模式, 不修正",
+                         base, base + kSpan);
+                }
+            } else {
+                PDBG("ProbePropSize: 读 IsValidRV+0x{:X} {} 字节失败, 跳过修正", base, kSpan);
+            }
+        } else {
+            PDBG("ProbePropSize: 缺 IsValidRV 锚点或候选 <16, 跳过 leading-metadata 修正");
+        }
+
         auto& r = GetResult("sizeof(FProperty)");
-        r.offset = best.offset; r.size = 0; r.typeName = "size";
-        r.evidence = best.description; r.autoDetected = true;
+        r.offset = finalOff; r.size = 0; r.typeName = "size";
+        r.evidence = finalDesc; r.autoDetected = true;
         if (best.confidence >= 1.0f) r.confirmed = true;
         PDBG("ProbePropSize: 选定 offset=0x{:X}, conf={:.2f}, confirmed={}",
-             best.offset, best.confidence, r.confirmed);
+             finalOff, best.confidence, r.confirmed);
     } else {
         PDBG("ProbePropSize: 无满足阈值的候选 (最佳 conf={:.2f})",
              m_Phase5FPropSizeCandidates.empty() ? 0.0f : m_Phase5FPropSizeCandidates[0].confidence);
