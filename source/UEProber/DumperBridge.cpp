@@ -311,7 +311,7 @@ void StartDumpWithProbedOffsets(
     std::thread([&dumpStatus, &dumpError, &dumpOutDir]() {
         std::string sGamePackage = getprogname();
 
-        std::string sOutDirectory = KittyUtils::getExternalStorage();
+        std::string sOutDirectory = KittyUtils::Android::getExternalStorage();
         sOutDirectory += "/Android/data/";
         sOutDirectory += sGamePackage;
         sOutDirectory += "/files";
