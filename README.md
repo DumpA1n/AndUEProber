@@ -57,6 +57,7 @@ cmake --build build
 - [x] Fix FName::ToString on UE 4.18
 - [ ] Fix com.tencent.tmgp.pubgmhd ProcessEventIndex
 - [ ] UE6
+- [ ] Memory leak on FName::ToString
 
 ## Credits
 
