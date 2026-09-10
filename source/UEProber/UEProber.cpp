@@ -16,7 +16,7 @@
 #include "Utils/ElfScanner/ElfScannerManager.h"
 #include "Utils/Logger.h"
 
-// 探测器调试日志开关
+// Probe diagnostic logging switch.
 #define PROBER_DEBUG 1
 
 #if PROBER_DEBUG
@@ -25,7 +25,7 @@
 #define PDBG(fmt, ...) do {} while(0)
 #endif
 
-// UE4 FName 是 case-insensitive 的, 所有从 FName 读取的字符串比较都应忽略大小写
+// Use case-insensitive comparisons for names resolved through FName.
 static bool FNameEq(const std::string& a, const std::string& b) {
     if (a.size() != b.size()) return false;
     for (size_t i = 0; i < a.size(); ++i) {
@@ -37,10 +37,10 @@ static bool FNameEq(const std::string& a, const std::string& b) {
 }
 
 // ============================================================
-//  Safe Probe — sigsetjmp/siglongjmp 捕获 GetNameByID 内部的 SIGSEGV/SIGBUS
-//  NiZhan 等 Profile 通过函数指针调用引擎内 GetPlainANSIString,
-//  垃圾 ComparisonIndex 会导致引擎函数内部裸指针解引用崩溃.
-//  try/catch 无法捕获信号, 必须用信号处理.
+// Signal-based probe recovery uses sigsetjmp/siglongjmp for SIGSEGV/SIGBUS.
+// Some profiles call engine name-resolution functions through pointers.
+// An invalid ComparisonIndex can cause a direct dereference inside the engine.
+// C++ exceptions do not catch these signals; this recovery is not general C++ fault safety.
 // ============================================================
 static thread_local sigjmp_buf t_safeJmpBuf;
 static thread_local volatile sig_atomic_t t_inSafeProbe = 0;
@@ -54,7 +54,7 @@ static void SafeProbeHandler(int sig, siginfo_t* info, void* ctx) {
         t_inSafeProbe = 0;
         siglongjmp(t_safeJmpBuf, 1);
     }
-    // 非探测上下文, 转发给 CrashHandler
+    // Forward signals outside a probe to the registered crash handler.
     const struct sigaction& prev = (sig == SIGSEGV) ? s_prevSEGV : s_prevBUS;
     if (prev.sa_flags & SA_SIGINFO) {
         prev.sa_sigaction(sig, info, ctx);
@@ -78,7 +78,7 @@ static void EnsureSafeProbeInstalled() {
 }
 
 // ============================================================
-//  EFunctionFlags 位定义 (UE 4.24)
+// EFunctionFlags values used by the probe.
 // ============================================================
 namespace EFuncFlags {
     constexpr uint32_t FUNC_Final           = 0x00000001;
@@ -94,7 +94,7 @@ namespace EFuncFlags {
     constexpr uint32_t FUNC_BlueprintPure   = 0x10000000;
 }
 
-// EClassCastFlags 常用值 (参照 Basic.h EClassCastFlags 枚举)
+// EClassCastFlags values corresponding to the profile's Basic.h definitions.
 namespace ECastFlags {
     constexpr uint64_t CASTCLASS_UField          = 0x0000000000000001;
     constexpr uint64_t CASTCLASS_UEnum           = 0x0000000000000004;
@@ -105,13 +105,13 @@ namespace ECastFlags {
     constexpr uint64_t CASTCLASS_UFunction       = 0x0000000000080000;
     constexpr uint64_t CASTCLASS_UPackage        = 0x0000000400000000;
 
-    // "Class" 元类的 CastFlags = UField|UStruct|UClass = 0x29
+    // Expected Class cast flags: UField | UStruct | UClass = 0x29.
     constexpr uint64_t KNOWN_CLASS_FLAGS    = CASTCLASS_UField | CASTCLASS_UStruct | CASTCLASS_UClass; // 0x29
-    // "Package" UClass 的 CastFlags = 0x0000000400000000
+    // Expected Package cast flags: 0x0000000400000000.
     constexpr uint64_t KNOWN_PACKAGE_FLAGS  = CASTCLASS_UPackage;
 }
 
-// CPF 属性标志
+// CPF property flags.
 namespace ECPFFlags {
     constexpr uint64_t CPF_Parm        = 0x0000000000000080;
     constexpr uint64_t CPF_OutParm     = 0x0000000000000100;
@@ -120,7 +120,7 @@ namespace ECPFFlags {
 }
 
 // ============================================================
-//  构造
+// Construction.
 // ============================================================
 
 UEProber::UEProber() {
@@ -131,7 +131,7 @@ UEProber::UEProber() {
 }
 
 // ============================================================
-//  内存操作
+// Memory access.
 // ============================================================
 
 bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
@@ -161,17 +161,17 @@ bool UEProber::TryReadFName(uintptr_t address, std::string& outName) {
             return false;
     }
 
-    // ProfileGetNameByID 内部可能做裸指针解引用,
-    // 垃圾 ComparisonIndex 会导致 SIGSEGV. 用 sigsetjmp 保护.
+    // ProfileGetNameByID can dereference native pointers internally.
+    // An invalid ComparisonIndex can signal; recovery uses sigsetjmp.
     EnsureSafeProbeInstalled();
 
-    // 用 C buffer 避免 siglongjmp 跳过 std::string 析构
+    // Use a C buffer locally; this does not make longjmp across called C++ frames safe.
     char resultBuf[1024] = {0};
     size_t resultLen = 0;
 
     t_inSafeProbe = 1;
     if (sigsetjmp(t_safeJmpBuf, 1) != 0) {
-        // 捕获到 SIGSEGV/SIGBUS
+        // Recovered from SIGSEGV/SIGBUS.
         return false;
     }
 
@@ -210,13 +210,13 @@ bool UEProber::TryGetFullName(uintptr_t objAddr, std::string& outFullName) {
     if (nameOff < 0 || classOff < 0 || outerOff < 0) return false;
     if (!objAddr || !IsValidPtr(objAddr)) return false;
 
-    // 读取 Class->Name
+    // Read Class->Name.
     uintptr_t classPtr = 0;
     if (!KMgrRead(objAddr + classOff, &classPtr, 8) || !IsValidPtr(classPtr)) return false;
     std::string className;
     if (!TryReadFName(classPtr + nameOff, className)) return false;
 
-    // 递归 Outer 链, 构建 "Outer1.Outer2." 前缀 (最多 16 层防止死循环)
+    // Build the Outer prefix with a maximum depth of 16.
     std::string outerChain;
     uintptr_t cur = objAddr;
     for (int depth = 0; depth < 16; ++depth) {
@@ -228,7 +228,7 @@ bool UEProber::TryGetFullName(uintptr_t objAddr, std::string& outFullName) {
         cur = outer;
     }
 
-    // 读取对象自身 Name
+    // Read the object's own name.
     std::string objName;
     if (!TryReadFName(objAddr + nameOff, objName)) return false;
 
@@ -287,7 +287,7 @@ void UEProber::DetectReflectionModel() {
         if (!TryReadFName(cls + nameOff, clsName) || !clsName.ends_with("Property")) continue;
         std::string objName;
         TryReadFName(obj + nameOff, objName);
-        if (objName.rfind("Default__", 0) == 0) continue;  // property UClass 的 CDO, 两模型都有
+        if (objName.rfind("Default__", 0) == 0) continue;  // Property UClass CDOs occur in both reflection models.
         foundInstance = true;
         PDBG("DetectReflectionModel: 命中属性实例 [{}] class=\"{}\" name=\"{}\"", i, clsName, objName);
         break;
@@ -302,7 +302,7 @@ int32_t UEProber::GetStructSize(const std::string& structName) {
     int32_t sizeOff = GetConfirmedOffset("UStruct::PropertiesSize");
     if (sizeOff < 0) return 0;
 
-    // 优先使用缓存地址
+    // Prefer the cached address.
     uintptr_t addr = 0;
     if (structName == "UObject") {
         addr = m_ClassObject;
@@ -312,9 +312,9 @@ int32_t UEProber::GetStructSize(const std::string& structName) {
     else if (structName == "UField")      addr = m_ClassField;
     else if (structName == "UFunction")   addr = m_ClassFunction;
 
-    // 未缓存: 在 GObjects 中查找对应 UClass/UScriptStruct
+    // Otherwise search GObjects for the matching UClass or UScriptStruct.
     if (!addr) {
-        // 去掉 "U"/"A"/"F" 前缀, GObjects 中 Name 不带前缀
+        // Remove the U/A/F type prefix before matching an object name.
         std::string plainName = structName;
         if (!plainName.empty() && (plainName[0] == 'U' || plainName[0] == 'A' || plainName[0] == 'F'))
             plainName = plainName.substr(1);
@@ -335,7 +335,7 @@ int32_t UEProber::GetStructSize(uintptr_t structAddr) {
 }
 
 // ============================================================
-//  工具函数
+// Helpers.
 // ============================================================
 
 uintptr_t UEProber::GetTextSegStart() {
@@ -385,7 +385,7 @@ bool UEProber::HasConfirmed(const std::string& name) {
 }
 
 // ============================================================
-//  日志
+// Logging.
 // ============================================================
 
 void UEProber::Log(const std::string& text, ImVec4 color) {
@@ -411,7 +411,7 @@ void UEProber::LogError(const std::string& text) {
 }
 
 // ============================================================
-//  阶段 1: UObject 基础成员探测
+// Phase 1: UObject fields.
 // ============================================================
 
 void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedIndex) {
@@ -424,7 +424,7 @@ void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedInde
         if (!KMgrRead(objAddr + off, &val, 4)) continue;
         if ((int32_t)val == expectedIndex) {
             float confidence = 0.5f;
-            // 交叉验证: 检查其他对象
+            // Cross-check other objects.
             int crossMatch = 0;
             for (int idx = 0; idx <= 3; ++idx) {
                 if (idx == expectedIndex) { crossMatch++; continue; }
@@ -445,7 +445,7 @@ void UEProber::Phase1_ProbeInternalIndex(uintptr_t objAddr, int32_t expectedInde
                 confidence
             });
 
-            // 全部交叉验证通过则无需继续
+            // Stop after all cross-checks match.
             if (confidence >= 1.0f) {
                 PDBG("ProbeInternalIndex: 置信度 100%, early break");
                 break;
@@ -571,7 +571,7 @@ void UEProber::Phase1_ProbeClassPrivate(uintptr_t objAddr, const std::string& ex
                 });
             }
 
-            // 精确匹配则无需继续探测
+            // Stop after an exact match.
             if (confidence >= 1.0f) {
                 PDBG("ProbeClassPrivate: 精确匹配, early break");
                 break;
@@ -616,7 +616,7 @@ void UEProber::Phase1_ProbeOuterPrivate(uintptr_t obj2Addr, uintptr_t obj1Addr) 
                 std::format("偏移 0x{:X} -> 0x{:X} == obj[1] 地址", off, ptr),
                 1.0f
             });
-            // 精确匹配则无需继续探测
+            // Stop after an exact match.
             PDBG("ProbeOuterPrivate: 精确匹配, early break");
             break;
         } else if (IsValidPtr(ptr)) {
@@ -659,7 +659,7 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
     m_Phase1ObjectFlagsCandidates.clear();
     PDBG("ProbeObjectFlags: objAddr=0x{:X}", objAddr);
 
-    // 排除已确定的偏移
+    // Exclude established offsets.
     std::set<int32_t> usedOffsets;
     for (auto& [name, result] : m_Results) {
         if (result.confirmed && result.offset >= 0) {
@@ -674,10 +674,10 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
         uint32_t val = 0;
         if (!KMgrRead(objAddr + off, &val, 4)) continue;
 
-        // obj[0] 的 Flags 已知为 1 (RF_Public)
+        // The anchor heuristic expects obj[0] flags to equal RF_Public (1).
         if (val != 1) continue;
 
-        // 交叉验证多个对象: 其它对象的 Flags 也应非零且在合理范围内
+        // Cross-check that other object flags are nonzero and within the expected mask.
         int validCount = 0;
         for (int idx = 0; idx <= 3; ++idx) {
             uintptr_t otherObj = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(idx));
@@ -696,7 +696,7 @@ void UEProber::Phase1_ProbeObjectFlags(uintptr_t objAddr) {
             confidence
         });
 
-        // 全部交叉验证通过则无需继续
+        // Stop after all cross-checks match.
         if (confidence >= 1.0f) {
             PDBG("ProbeObjectFlags: 置信度 100%, early break");
             break;
@@ -731,7 +731,7 @@ void UEProber::Phase1_AutoProbe() {
     m_PhaseStatus[1] = EPhaseStatus::InProgress;
     PDBG("===== 阶段 1: UObject 基础成员自动探测 =====");
 
-    // VTable 始终在偏移 0
+    // This layout assumes the vtable pointer is at offset zero.
     {
         auto& r = GetResult("UObject::VTable");
         r.offset = 0; r.size = 8; r.typeName = "void**";
@@ -755,28 +755,28 @@ void UEProber::Phase1_AutoProbe() {
     PDBG("obj[0] = 0x{:X}", obj0);
     PDBG("obj[1] = 0x{:X}", obj1);
 
-    // 探测 Index (obj[1].InternalIndex == 1)
+    // Probe obj[1].InternalIndex against 1.
     Phase1_ProbeInternalIndex(obj1, 1);
 
-    // 探测 Name (obj[1].NamePrivate == "Object")
+    // Probe obj[1].NamePrivate against Object.
     Phase1_ProbeNamePrivate(obj1, "Object");
 
-    // 如果 Name 已确定，探测 Class (obj[1].ClassPrivate->Name == "Class")
+    // Once Name is available, probe obj[1].ClassPrivate against Class.
     if (HasConfirmed("UObject::NamePrivate")) {
         Phase1_ProbeClassPrivate(obj1, "Class");
     }
 
-    // 探测 Outer (obj[1].OuterPrivate == obj[0])
+    // Probe obj[1].OuterPrivate against obj[0].
     if (IsValidPtr(obj0)) {
         Phase1_ProbeOuterPrivate(obj1, obj0);
     }
 
-    // 探测 Flags (obj[0].ObjectFlags == RF_Public(1), 交叉验证 obj[0..3])
+    // Probe obj[0] flags against RF_Public and cross-check adjacent objects.
     if (IsValidPtr(obj0)) {
         Phase1_ProbeObjectFlags(obj0);
     }
 
-    // 如果 Name/Class/Outer 全部确认, 用 GetFullName 验证偏移正确性
+    // Cross-check the full name after Name, Class and Outer are confirmed.
     if (HasConfirmed("UObject::NamePrivate") &&
         HasConfirmed("UObject::ClassPrivate") &&
         HasConfirmed("UObject::OuterPrivate")) {
@@ -798,7 +798,7 @@ void UEProber::Phase1_AutoProbe() {
 }
 
 // ============================================================
-//  阶段 2: UField / UStruct 探测
+// Phase 2: UField and UStruct.
 // ============================================================
 
 void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
@@ -808,13 +808,13 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
     PDBG("ProbeSuper: classAddr=0x{:X}, namePrivateOffset=0x{:X}", classAddr, namePrivateOffset);
     if (namePrivateOffset < 0) { PDBG("ProbeSuper: namePrivateOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeSuper] END <<<<<<<<<<"); return; }
 
-    // classAddr 是 GetByIndex(0) 的 Class ("Package" UClass)
-    // 其 Super 应指向 obj[1] (UObject 基类, Name="Object")
+    // classAddr is the Class pointer of object-array entry zero, expected to be Package.
+    // The anchor expects its Super to point to the Object UClass at entry one.
     uintptr_t obj1 = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(1));
     PDBG("ProbeSuper: obj[1]=0x{:X}", obj1);
 
-    // Super 是 UStruct 成员, 搜索范围: sizeof(UObject) ~ sizeof(UStruct)
-    // MinAlignment/Size 已优先探测, Size 必然已确认
+    // Search the assumed UStruct region between UObject and UStruct sizes.
+    // The search depends on the previously resolved size results.
     int32_t sizeofUObject = GetStructSize("UObject");
     int32_t sizeofUStruct = GetStructSize("UStruct");
     int32_t searchStart = sizeofUObject;
@@ -836,16 +836,16 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
         if (ptr == obj1 || FNameEq(name, "Object")) {
             PDBG("ProbeSuper: off=0x{:X} 匹配 obj1/Object, ptr=0x{:X} name=\"{}\", 开始验证链",
                  off, ptr, name);
-            // 直接匹配 obj[1] 地址或名称
-            // 验证链: Object 的 Class -> "Class" UClass, 读 "Class".Super -> 应为 "Struct"
+            // Match the entry-one address or expected name.
+            // Cross-check that the Class metaclass has Struct as its Super.
             int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
             if (classPrivateOffset >= 0) {
                 uintptr_t objClass = 0;
                 if (KMgrRead(ptr + classPrivateOffset, &objClass, 8) && IsValidPtr(objClass)) {
-                    // objClass 应是 "Object" UClass, 其 Class 应是 "Class" UClass
+                    // objClass is expected to be Object, whose Class is the Class metaclass.
                     uintptr_t classClassAddr = 0;
                     if (KMgrRead(objClass + classPrivateOffset, &classClassAddr, 8) && IsValidPtr(classClassAddr)) {
-                        // 验证 Class->Super == Struct
+                        // Verify Class->Super resolves to Struct.
                         uintptr_t classSuperPtr = 0;
                         if (KMgrRead(classClassAddr + off, &classSuperPtr, 8) && IsValidPtr(classSuperPtr)) {
                             std::string superName;
@@ -902,20 +902,20 @@ void UEProber::Phase2_ProbeSuperStruct(uintptr_t classAddr) {
         PDBG("ProbeSuper: 选定 offset=0x{:X}, confidence={:.2f}, confirmed={}",
              best.offset, best.confidence, r.confirmed);
 
-        // 通过继承链缓存各 UClass 地址
-        // obj[1] 本身就是 UObject 基类 (Name="Object", Class.Name="Class")
+        // Cache UClass addresses along the inheritance chain.
+        // Object-array entry one is expected to be the Object UClass.
         m_ClassObject = obj1;
         int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
         if (classPrivateOffset >= 0) {
-            // obj[1].Class = "Class" UClass (元类)
+            // Its Class pointer is expected to identify the Class metaclass.
             uintptr_t classUClass = 0;
             if (KMgrRead(obj1 + classPrivateOffset, &classUClass, 8) && IsValidPtr(classUClass)) {
                 m_ClassClass = classUClass;
-                // Class->Super 应为 Struct
+                // Class->Super is expected to identify Struct.
                 uintptr_t structAddr = 0;
                 if (KMgrRead(classUClass + best.offset, &structAddr, 8) && IsValidPtr(structAddr))
                     m_ClassStruct = structAddr;
-                // Struct->Super 应为 Field
+                // Struct->Super is expected to identify Field.
                 if (m_ClassStruct) {
                     uintptr_t fieldAddr = 0;
                     if (KMgrRead(m_ClassStruct + best.offset, &fieldAddr, 8) && IsValidPtr(fieldAddr))
@@ -961,8 +961,8 @@ int32_t UEProber::Phase2_ProbeUObjectSize() {
         return 0;
     }
 
-    // 双层扫: offC = 类里指向 Children头 的指针偏移; offN = 该头里的 Next 偏移(== sizeof(UObject)).
-    // 取兄弟链最长者. 链校验用 "同 ClassPrivate"(同类 UFunction), 不解名字, 快.
+    // Scan candidate Children offsets and candidate Next offsets to infer the UObject boundary.
+    // Prefer the longest sibling chain with matching ClassPrivate, avoiding name calls.
     int bestChain = 0; int32_t bestNext = 0, bestHead = 0;
     for (int32_t offC = lo; offC <= hi; offC += 8) {
         uintptr_t head = 0;
@@ -1007,9 +1007,9 @@ void UEProber::Phase2_ProbePropertiesSize(uintptr_t objectUClass, int32_t sizeof
         return;
     }
 
-    // PropertiesSize 在 "Object" UClass 上的值 == sizeof(UObject)(精确, 非启发式). 它是 UStruct
-    // 成员, 必在 [sizeof(UObject), +0x40) 内. 交叉验证: 同偏移在 "Struct" UClass 上应给出 > sizeof
-    // (UObject) 的合理结构体大小, 排除偶然等于 sizeof 的别的 int 字段.
+    // The Object UClass PropertiesSize candidate is matched against the inferred UObject size.
+    // Search the assumed UStruct range and cross-check the Struct UClass size
+    // to reject unrelated integers with the same value.
     uintptr_t structClass = m_ClassStruct ? m_ClassStruct : FindObjectInGObjects("Struct", "Class");
     for (int32_t off = sizeofUObject; off <= sizeofUObject + 0x40; off += 4) {
         int32_t v = 0;
@@ -1028,7 +1028,7 @@ void UEProber::Phase2_ProbePropertiesSize(uintptr_t objectUClass, int32_t sizeof
         r.evidence = std::format("偏移 0x{:X}: Object 值==sizeof(UObject)=0x{:X}, Struct 值=0x{:X}", off, sizeofUObject, vStruct);
         PDBG("ProbePropertiesSize: 选定 offset=0x{:X} (Object=0x{:X}, Struct=0x{:X})", off, sizeofUObject, vStruct);
 
-        // MinAlignment 是 UStruct 里紧跟 PropertiesSize 的 int32, 全版本相邻, 直接派生.
+        // Derive MinAlignment from the assumed int32 field adjacent to PropertiesSize; custom layouts may differ.
         auto& rm = GetResult("UStruct::MinAlignment");
         rm.offset = off + 4; rm.size = 4; rm.typeName = "int32"; rm.autoDetected = true; rm.confirmed = true;
         rm.evidence = std::format("派生: PropertiesSize(0x{:X})+4", off);
@@ -1048,8 +1048,8 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
     PDBG("ProbeChildren: classAddr=0x{:X}, namePrivateOffset=0x{:X}", classAddr, namePrivateOffset);
     if (namePrivateOffset < 0) { PDBG("ProbeChildren: namePrivateOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeChildren] END <<<<<<<<<<"); return; }
 
-    // Children 是 UStruct 成员, 搜索范围: sizeof(UObject) ~ sizeof(UStruct)
-    // MinAlignment/Size 已优先探测, Size 必然已确认
+    // Search the assumed UStruct region for Children.
+    // The search depends on the previously resolved size results.
     int32_t searchStart = GetStructSize("UObject");
     int32_t searchEnd = GetStructSize("UStruct");
     if (searchEnd <= searchStart) searchEnd = searchStart * 3;
@@ -1067,7 +1067,7 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
         scannedCount++;
         validPtrCount++;
 
-        // 验证 ptr 指向的内存可读
+        // Check target readability.
         uint64_t testRead = 0;
         if (!KMgrRead(ptr, &testRead, 8)) continue;
 
@@ -1077,7 +1077,7 @@ void UEProber::Phase2_ProbeChildren(uintptr_t classAddr) {
             if (FNameEq(name, "ExecuteUbergraph"))
                 confidence = 1.0f;
             else {
-                // 检查 Class->Name 是否为 "Function"
+                // Check whether Class->Name is Function.
                 int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
                 if (classPrivateOffset >= 0) {
                     uintptr_t childClass = 0;
@@ -1132,8 +1132,8 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
          classAddr, childrenOffset);
     if (childrenOffset < 0) { PDBG("ProbeChildProperties: childrenOffset < 0, 中止"); PDBG("<<<<<<<<<< [ProbeChildProperties] END <<<<<<<<<<"); return; }
 
-    // 从 Children ("ExecuteUbergraph") 函数中探测 ChildProperties,
-    // 其 ChildProperties 的第一个 FField Name 应为 "EntryPoint"
+    // Probe ChildProperties using the ExecuteUbergraph anchor;
+    // its first field is expected to be named EntryPoint.
     uintptr_t childrenAddr = 0;
     if (!KMgrRead(classAddr + childrenOffset, &childrenAddr, 8) || !IsValidPtr(childrenAddr)) {
         PDBG("ProbeChildProperties: 无法读取 Children 地址, KMgrRead(classAddr+0x{:X}) 失败或 childrenAddr=0x{:X} 无效",
@@ -1144,26 +1144,26 @@ void UEProber::Phase2_ProbeChildProperties(uintptr_t classAddr) {
 
     PDBG("ProbeChildProperties: childrenAddr(ExecuteUbergraph)=0x{:X}", childrenAddr);
 
-    // ChildProperties 是 UStruct 成员, 搜索范围: sizeof(UObject) ~ sizeof(UStruct)
+    // Search the assumed UStruct region for ChildProperties.
     int32_t searchStart = GetStructSize("UObject");
     int32_t searchEnd = GetStructSize("UStruct");
     if (searchEnd <= searchStart) searchEnd = searchStart * 3;
     PDBG("ProbeChildProperties: 搜索范围 [0x{:X}, 0x{:X})", searchStart, searchEnd);
 
     for (int32_t off = searchStart; off < searchEnd; off += 8) {
-        // 跳过已知的 Children 偏移
+        // Skip the known Children offset.
         if (off == childrenOffset) continue;
 
         uintptr_t ptr = 0;
         if (!KMgrRead(childrenAddr + off, &ptr, 8)) continue;
         if (!IsValidPtr(ptr)) continue;
 
-        // 验证 ptr 指向的内存可读
+        // Check target readability.
         uint64_t testRead = 0;
         if (!KMgrRead(ptr, &testRead, 8)) continue;
 
-        // ChildProperties 指向 FField, 不是 UObject
-        // 在 FField 的不同偏移处尝试读 FName
+        // ChildProperties points to FField, not UObject.
+        // Try FName candidates at different FField offsets.
         float bestConf = 0.0f;
         std::string bestDesc;
         for (int namePrivateOff = 0x18; namePrivateOff <= 0x30; namePrivateOff += 4) {
@@ -1235,7 +1235,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
     }
     PDBG("ProbeUFieldNext: KismetSystemLibrary @ 0x{:X}", kismetClass);
 
-    // 读取 UClass 的 Children -> 第一个 UFunction
+    // Read the first UFunction from UClass::Children.
     uintptr_t firstFunc = 0;
     if (!KMgrRead(kismetClass + childrenOffset, &firstFunc, 8) || !IsValidPtr(firstFunc)) {
         PDBG("ProbeUFieldNext: KMgrRead(kismetClass+0x{:X}) 失败或 firstFunc=0x{:X} 无效",
@@ -1253,7 +1253,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
     PDBG("ProbeUFieldNext: Children 第一个函数 \"{}\" @ 0x{:X}",
          firstFuncName, firstFunc);
 
-    // UField::Next 是 UField 成员, 搜索范围: sizeof(UObject) ~ sizeof(UField)
+    // Search the inferred UField region for Next.
     int32_t nextSearchStart = GetStructSize("UObject");
     int32_t nextSearchEnd = GetStructSize("UField");
     PDBG("ProbeUFieldNext: 搜索范围 [0x{:X}, 0x{:X})", nextSearchStart, nextSearchEnd);
@@ -1266,7 +1266,7 @@ void UEProber::Phase2_ProbeUFieldNext(uintptr_t /*unused*/) {
         std::string nextName;
         if (!TryReadFName(nextPtr + namePrivateOffset, nextName) || nextName.empty()) continue;
 
-        // 找到了! 沿链遍历计算链长
+        // Count the matching sibling chain.
         int chainLen = 2;
         uintptr_t cur = nextPtr;
         std::string lastFuncName = nextName;
@@ -1333,7 +1333,7 @@ void UEProber::Phase2_AutoProbe() {
     int32_t classPrivateOffset = GetConfirmedOffset("UObject::ClassPrivate");
     PDBG("namePrivateOffset=0x{:X}, classPrivateOffset=0x{:X}", namePrivateOffset, classPrivateOffset);
 
-    // 判别反射模型 (UProperty<=4.24 vs FField4.25+)
+    // Distinguish UObject-derived properties from the FField reflection model.
     DetectReflectionModel();
 
     uintptr_t obj0 = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(0));
@@ -1344,7 +1344,7 @@ void UEProber::Phase2_AutoProbe() {
     PDBG("obj[1] = {}", obj1);
     if (!obj1) { PDBG("Phase2 中止: obj[1] 为空"); return; }
 
-    // === Step 1: sizeof(UObject) 经 UField::Next 结构性确立 → 据此精确探 PropertiesSize ===
+    // Infer UObject size from UField::Next, then probe PropertiesSize.
     PDBG("---------- [Step 1/5] sizeof(UObject) & PropertiesSize ----------");
     int32_t sizeofViaNext = Phase2_ProbeUObjectSize();
     if (sizeofViaNext > 0) {
@@ -1355,7 +1355,7 @@ void UEProber::Phase2_AutoProbe() {
         PDBG("sizeof(UObject) via UField::Next 失败, Size 探测跳过");
     }
 
-    // 读取 sizeof(UObject) — 用于后续探测的搜索范围
+    // Read the inferred UObject size to bound later searches.
     int32_t sizeofUObject = GetStructSize("UObject");
     PDBG("GetStructSize(UObject) = 0x{:X}", sizeofUObject);
     if (sizeofUObject <= 0) {
@@ -1394,7 +1394,7 @@ void UEProber::Phase2_AutoProbe() {
     Phase2_ProbeChildren(obj1);
     PDBG("Children 探测结果: confirmed={}", HasConfirmed("UStruct::Children"));
 
-    // === ChildProperties (仅 FField 模型) ===
+    // Probe ChildProperties only for the FField model.
     PDBG("---------- [Step 4/5] ChildProperties ----------");
     if (m_ReflectionModel == EReflectionModel::UProperty) {
         PDBG("UProperty(<=4.24) 模型: 无 ChildProperties, 跳过探测 (属性走 UStruct::Children)");
@@ -1424,7 +1424,7 @@ void UEProber::Phase2_AutoProbe() {
 }
 
 // ============================================================
-//  阶段 3: UClass 成员
+// Phase 3: UClass fields.
 // ============================================================
 
 void UEProber::Phase3_ProbeCastFlags() {
@@ -1443,9 +1443,9 @@ void UEProber::Phase3_ProbeCastFlags() {
         return;
     }
 
-    // 确保 m_ClassClass 已初始化
+    // Ensure m_ClassClass is available.
     if (!m_ClassClass) {
-        // obj[1] (UObject 基类) -> Class = "Class" 元类
+        // The Object UClass's Class pointer identifies the Class metaclass.
         uintptr_t obj1 = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(1));
         if (!obj1) {
             PDBG("ProbeCastFlags: obj[1] 无效, 中止");
@@ -1462,7 +1462,7 @@ void UEProber::Phase3_ProbeCastFlags() {
         m_ClassClass = obj1Class;
         PDBG("ProbeCastFlags: m_ClassClass=0x{:X}", m_ClassClass);
     }
-    // 确保 m_ClassStruct 已初始化
+    // Ensure m_ClassStruct is available.
     if (!m_ClassStruct && superStructOffset >= 0) {
         uintptr_t structAddr = 0;
         KMgrRead(m_ClassClass + superStructOffset, &structAddr, 8);
@@ -1470,7 +1470,7 @@ void UEProber::Phase3_ProbeCastFlags() {
         PDBG("ProbeCastFlags: m_ClassStruct=0x{:X}", m_ClassStruct);
     }
 
-    // 获取 "Package" UClass: obj[0] 的 Class
+    // Get the Package UClass from object-array entry zero.
     uintptr_t packageClass = 0;
     {
         uintptr_t obj0 = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(0));
@@ -1480,8 +1480,8 @@ void UEProber::Phase3_ProbeCastFlags() {
         }
     }
 
-    // 已知精确值: "Class" 元类 CastFlags = 0x29, "Package" UClass CastFlags = 0x0000000400000000
-    // CastFlags 是 UClass 成员, 搜索范围: sizeof(UStruct) ~ sizeof(UClass)
+    // Anchor expectations: Class cast flags 0x29 and Package cast flags 0x0000000400000000.
+    // Search between inferred UStruct and UClass sizes for CastFlags.
     int32_t sizeofUStruct = GetStructSize("UStruct");
     int32_t sizeofUClass = GetStructSize("UClass");
     int32_t searchStart = sizeofUStruct;
@@ -1501,7 +1501,7 @@ void UEProber::Phase3_ProbeCastFlags() {
         float confidence = 0.0f;
         std::string desc;
 
-        // "Class" 元类 CastFlags 应精确等于 0x29
+        // Require the Class anchor value to equal 0x29.
         if (valClass == ECastFlags::KNOWN_CLASS_FLAGS) {
             confidence += 0.5f;
             desc += std::format("Class=0x{:X} (精确匹配 0x29); ", valClass);
@@ -1510,13 +1510,13 @@ void UEProber::Phase3_ProbeCastFlags() {
             desc += std::format("Class=0x{:X} (含 CASTCLASS_UClass); ", valClass);
         }
 
-        // "Struct" 应包含 CASTCLASS_UStruct 但不含 CASTCLASS_UClass
+        // Require Struct flags to include CASTCLASS_UStruct and exclude CASTCLASS_UClass.
         if (readStruct && (valStruct & ECastFlags::CASTCLASS_UStruct) && !(valStruct & ECastFlags::CASTCLASS_UClass)) {
             confidence += 0.2f;
             desc += std::format("Struct=0x{:X}; ", valStruct);
         }
 
-        // "Package" UClass CastFlags 应精确等于 0x0000000400000000
+        // Require the Package anchor value to equal 0x0000000400000000.
         if (readPackage && valPackage == ECastFlags::KNOWN_PACKAGE_FLAGS) {
             confidence += 0.3f;
             desc += std::format("Package=0x{:X} (精确匹配); ", valPackage);
@@ -1561,7 +1561,7 @@ void UEProber::Phase3_ProbeClassDefaultObject(uintptr_t classAddr) {
     m_Phase2ClassDefaultObjCandidates.clear();
     PDBG("ProbeClassDefaultObject: classAddr=0x{:X}", classAddr);
 
-    // 先在 GObjects 中找到 "Default__Object" 的地址, 然后直接做指针值比较
+    // Resolve Default__Object first, then compare pointer candidates directly.
     uintptr_t defaultObj = FindObjectInGObjects("Default__Object");
     if (!defaultObj) {
         PDBG("ProbeClassDefaultObject: 未在 GObjects 中找到 Default__Object, 中止");
@@ -1570,7 +1570,7 @@ void UEProber::Phase3_ProbeClassDefaultObject(uintptr_t classAddr) {
     }
     PDBG("ProbeClassDefaultObject: Default__Object=0x{:X}", defaultObj);
 
-    // DefaultObject 是 UClass 成员, 搜索范围: sizeof(UStruct) ~ sizeof(UClass)
+    // Search between inferred UStruct and UClass sizes for DefaultObject.
     int32_t searchStart = GetStructSize("UStruct");
     int32_t searchEnd = GetStructSize("UClass");
     PDBG("ProbeClassDefaultObject: 搜索范围 [0x{:X}, 0x{:X})", searchStart, searchEnd);
@@ -1642,11 +1642,11 @@ void UEProber::Phase3_AutoProbe() {
 }
 
 // ============================================================
-//  阶段 4: UFunction 探测
-//  锚点: ReceiveBeginPlay, ReceiveTick, IsValid, PrintString, K2_GetActorLocation
+// Phase 4: UFunction fields.
+// Anchors: ReceiveBeginPlay, ReceiveTick, IsValid, PrintString and K2_GetActorLocation.
 // ============================================================
 
-// ---- 辅助: 沿 Children→Next 链查找指定名称的 UFunction ----
+// Find a named UFunction along Children->Next.
 uintptr_t UEProber::WalkChildrenChain(
     uintptr_t classAddr, const std::string& funcName,
     int32_t childrenOff, int32_t nextOff, int32_t namePrivateOff)
@@ -1680,7 +1680,7 @@ void UEProber::Phase4_CollectAnchors() {
         return;
     }
 
-    // --- Actor Children 链: ReceiveBeginPlay, ReceiveTick, K2_GetActorLocation ---
+    // Find ReceiveBeginPlay, ReceiveTick and K2_GetActorLocation in Actor children.
     uintptr_t actorClass = FindObjectInGObjects("Actor", "Class");
     if (!actorClass) {
         PDBG("CollectAnchors: 未找到 Actor UClass");
@@ -1694,7 +1694,7 @@ void UEProber::Phase4_CollectAnchors() {
             m_FuncK2_GetActorLocation = WalkChildrenChain(actorClass, "K2_GetActorLocation", childrenOff, nextOff, namePrivateOff);
     }
 
-    // --- KismetSystemLibrary Children 链: IsValid, PrintString ---
+    // Find IsValid and PrintString in KismetSystemLibrary children.
     uintptr_t kismetClass = FindObjectInGObjects("KismetSystemLibrary", "Class");
     if (!kismetClass) {
         PDBG("CollectAnchors: 未找到 KismetSystemLibrary UClass");
@@ -1706,7 +1706,7 @@ void UEProber::Phase4_CollectAnchors() {
             m_FuncPrintString = WalkChildrenChain(kismetClass, "PrintString", childrenOff, nextOff, namePrivateOff);
     }
 
-    // 打印收集结果
+    // Log collected anchors.
     auto logAnchor = [&](const char* name, uintptr_t addr) {
         if (addr) PDBG("CollectAnchors: 锚点 \"{}\" @ 0x{:X}", name, addr);
         else      PDBG("CollectAnchors: 锚点 \"{}\" 未找到", name);
@@ -1745,7 +1745,7 @@ void UEProber::Phase4_ProbeFunctionFlags() {
         return;
     }
 
-    // 期望标志位
+    // Expected flag masks.
     const uint32_t isValidExpected  = EFuncFlags::FUNC_Native | EFuncFlags::FUNC_Final | EFuncFlags::FUNC_BlueprintPure;
     const uint32_t printStrExpected = EFuncFlags::FUNC_Native | EFuncFlags::FUNC_Final | EFuncFlags::FUNC_HasDefaults;
     const uint32_t bpEventExpected  = EFuncFlags::FUNC_Event  | EFuncFlags::FUNC_BlueprintEvent;
@@ -1756,19 +1756,19 @@ void UEProber::Phase4_ProbeFunctionFlags() {
         if (!KMgrRead(m_FuncPrintString + off, &valPrintStr, 4)) continue;
         if (!KMgrRead(m_FuncReceiveBeginPlay + off, &valBeginPlay, 4)) continue;
 
-        // IsValid: 必含 Native|Final|BlueprintPure
+        // IsValid requires Native, Final and BlueprintPure.
         if ((valIsValid & isValidExpected) != isValidExpected) continue;
-        // PrintString: 必含 Native|Final|HasDefaults, 不含 BlueprintPure
+        // PrintString requires Native, Final and HasDefaults but excludes BlueprintPure.
         if ((valPrintStr & printStrExpected) != printStrExpected) continue;
         if (valPrintStr & EFuncFlags::FUNC_BlueprintPure) continue;
-        // ReceiveBeginPlay: 必含 Event|BlueprintEvent, 不含 Native
+        // ReceiveBeginPlay requires Event and BlueprintEvent but excludes Native.
         if ((valBeginPlay & bpEventExpected) != bpEventExpected) continue;
         if (valBeginPlay & EFuncFlags::FUNC_Native) continue;
 
         float confidence = 0.8f;
         std::string desc = std::format("IsValid=0x{:X}, PrintString=0x{:X}, BeginPlay=0x{:X}", valIsValid, valPrintStr, valBeginPlay);
 
-        // ReceiveTick 交叉验证: 应与 ReceiveBeginPlay 相同的事件标志
+        // Cross-check ReceiveTick against the same event flag pattern.
         if (m_FuncReceiveTick) {
             uint32_t valTick = 0;
             if (KMgrRead(m_FuncReceiveTick + off, &valTick, 4) &&
@@ -1780,7 +1780,7 @@ void UEProber::Phase4_ProbeFunctionFlags() {
                 PDBG("ProbeFunctionFlags: off=0x{:X} ReceiveTick 交叉验证未通过 (val=0x{:X})", off, valTick);
             }
         }
-        // K2_GetActorLocation 交叉验证: 应含 Native|Final|BlueprintPure
+        // Cross-check K2_GetActorLocation for Native, Final and BlueprintPure.
         if (m_FuncK2_GetActorLocation) {
             uint32_t valLoc = 0;
             if (KMgrRead(m_FuncK2_GetActorLocation + off, &valLoc, 4) &&
@@ -1824,7 +1824,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
     m_Phase4ParmsSizeCandidates.clear();
     PDBG("ProbeNumParmsAndParmsSize: 开始探测 UFunction::NumParms 和 ParmsSize");
 
-    // 至少需要 3 个不同 NumParms 值的锚点
+    // Require at least three anchors with different NumParms values.
     if (!m_FuncReceiveBeginPlay || !m_FuncIsValid) {
         PDBG("ProbeNumParmsAndParmsSize: 缺少 ReceiveBeginPlay/IsValid 锚点, 中止");
         PDBG("<<<<<<<<<< [ProbeNumParmsAndParmsSize] END <<<<<<<<<<");
@@ -1854,7 +1854,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
     // === NumParms (uint8) ===
     // PrintString=6, IsValid=2, ReceiveTick=1, ReceiveBeginPlay=0
     for (int32_t off = searchStart; off < searchEnd; off += 1) {
-        if (off >= funcFlagsOff && off < funcFlagsOff + 4) continue; // 跳过 FunctionFlags 本身
+        if (off >= funcFlagsOff && off < funcFlagsOff + 4) continue; // Skip FunctionFlags itself.
         uint8_t valBP = 0, valIsValid = 0;
         if (!KMgrRead(m_FuncReceiveBeginPlay + off, &valBP, 1)) continue;
         if (!KMgrRead(m_FuncIsValid + off, &valIsValid, 1)) continue;
@@ -1896,7 +1896,7 @@ void UEProber::Phase4_ProbeNumParmsAndParmsSize() {
     // === ParmsSize (uint16) ===
     // IsValid=9, ReceiveTick=4, ReceiveBeginPlay=0
     for (int32_t off = searchStart; off < searchEnd; off += 2) {
-        if (off >= funcFlagsOff && off < funcFlagsOff + 4) continue; // 跳过 FunctionFlags 本身
+        if (off >= funcFlagsOff && off < funcFlagsOff + 4) continue; // Skip FunctionFlags itself.
         uint16_t valBP = 0, valIsValid = 0;
         if (!KMgrRead(m_FuncReceiveBeginPlay + off, &valBP, 2)) continue;
         if (!KMgrRead(m_FuncIsValid + off, &valIsValid, 2)) continue;
@@ -1968,7 +1968,7 @@ void UEProber::Phase4_ProbeReturnValueOffset() {
     m_Phase4ReturnValueOffCandidates.clear();
     PDBG("ProbeReturnValueOffset: 开始探测 UFunction::ReturnValueOffset");
 
-    // 需要三种不同值: K2_GetActorLocation=0, IsValid=8, PrintString=0xFFFF
+    // Expected return offsets: K2_GetActorLocation=0, IsValid=8, PrintString=0xFFFF.
     if (!m_FuncK2_GetActorLocation || !m_FuncIsValid || !m_FuncPrintString) {
         PDBG("ProbeReturnValueOffset: 缺少 K2_GetActorLocation/IsValid/PrintString 锚点, 中止");
         PDBG("<<<<<<<<<< [ProbeReturnValueOffset] END <<<<<<<<<<");
@@ -2016,7 +2016,7 @@ void UEProber::Phase4_ProbeReturnValueOffset() {
         float confidence = 0.9f;
         std::string desc = std::format("GetLoc=0, IsValid=8, PrintString=0xFFFF");
 
-        // 交叉验证: ReceiveBeginPlay 和 ReceiveTick 应为 0xFFFF
+        // Cross-check ReceiveBeginPlay and ReceiveTick against 0xFFFF.
         if (m_FuncReceiveBeginPlay) {
             uint16_t valBP = 0;
             if (KMgrRead(m_FuncReceiveBeginPlay + off, &valBP, 2) && valBP == 0xFFFF) {
@@ -2094,16 +2094,16 @@ void UEProber::Phase4_ProbeFunc() {
         return;
     }
 
-    // Native 锚点: IsValid, PrintString, K2_GetActorLocation
+    // Native anchors: IsValid, PrintString and K2_GetActorLocation.
     std::vector<uintptr_t> nativeFuncs = {m_FuncIsValid, m_FuncPrintString};
     if (m_FuncK2_GetActorLocation) nativeFuncs.push_back(m_FuncK2_GetActorLocation);
 
-    // 蓝图锚点: ReceiveBeginPlay, ReceiveTick
+    // Blueprint anchors: ReceiveBeginPlay and ReceiveTick.
     std::vector<uintptr_t> bpFuncs = {m_FuncReceiveBeginPlay};
     if (m_FuncReceiveTick) bpFuncs.push_back(m_FuncReceiveTick);
 
     for (int32_t off = sizeofUStruct; off < sizeofUFunction; off += 8) {
-        // 检查 Native 函数: 值应落在 .text 段且互不相同
+        // Require distinct native pointers within the current range heuristic; that range is not a verified executable segment.
         int nativeInText = 0;
         std::set<uintptr_t> nativeValues;
         for (auto fnAddr : nativeFuncs) {
@@ -2115,7 +2115,7 @@ void UEProber::Phase4_ProbeFunc() {
         }
         bool nativeAllDiff = (nativeValues.size() == nativeFuncs.size());
 
-        // 检查 BP 函数: 值应完全相同
+        // Require matching Blueprint function pointers.
         std::set<uintptr_t> bpValues;
         for (auto fnAddr : bpFuncs) {
             uintptr_t ptr = 0;
@@ -2132,7 +2132,7 @@ void UEProber::Phase4_ProbeFunc() {
         else if (nativeInText >= 2) confidence += 0.3f;
 
         if (bpAllSame) confidence += 0.5f;
-        else if (bpValues.size() == 1) confidence += 0.3f; // 只有 1 个 BP 样本
+        else if (bpValues.size() == 1) confidence += 0.3f; // Only one Blueprint sample is available.
 
         if (confidence < 0.5f) continue;
 
@@ -2181,7 +2181,7 @@ void UEProber::Phase4_AutoProbe() {
         return;
     }
 
-    // === 收集 5 个锚点函数 ===
+    // Collect the five function anchors.
     PDBG("---------- [Step 1/3] CollectAnchors ----------");
     Phase4_CollectAnchors();
 
@@ -2199,7 +2199,7 @@ void UEProber::Phase4_AutoProbe() {
         return;
     }
 
-    // === 按依赖顺序探测 ===
+    // Probe in dependency order.
     PDBG("---------- [Step 2/3] FunctionFlags ----------");
     Phase4_ProbeFunctionFlags();
     PDBG("FunctionFlags 探测结果: confirmed={}", HasConfirmed("UFunction::FunctionFlags"));
@@ -2220,7 +2220,7 @@ void UEProber::Phase4_AutoProbe() {
 }
 
 // ============================================================
-//  阶段 5: FField / FProperty
+// Phase 5: FField and FProperty.
 // ============================================================
 
 void UEProber::Phase5_CollectAnchors() {
@@ -2251,12 +2251,12 @@ void UEProber::Phase5_CollectAnchors() {
     }
     PDBG("CollectAnchors: m_FFDeltaSeconds={}", m_FFDeltaSeconds);
 
-    // IsValid -> 首参 (ObjectProperty) -> Next -> ReturnValue (BoolProperty)
+    // IsValid first parameter -> Next -> ReturnValue.
     PDBG("CollectAnchors: m_FuncIsValid={}", m_FuncIsValid);
     if (m_FuncIsValid) {
         KMgrRead(m_FuncIsValid + childPropsOff, &m_FFIsValidParam0, 8);
         if (!IsValidPtr(m_FFIsValidParam0)) m_FFIsValidParam0 = 0;
-        // IsValid ReturnValue 在 Next 探测后获取
+        // Resolve IsValid ReturnValue after probing Next.
     }
     PDBG("CollectAnchors: m_FFIsValidParam0={}", m_FFIsValidParam0);
 
@@ -2268,7 +2268,7 @@ void UEProber::Phase5_CollectAnchors() {
     }
     PDBG("CollectAnchors: m_FFK2LocReturn={}", m_FFK2LocReturn);
 
-    // 预验证: ReceiveBeginPlay 的 ChildProperties 应为 nullptr (NumParms=0)
+    // Expect ReceiveBeginPlay ChildProperties to be null for its zero-parameter anchor.
     PDBG("CollectAnchors: m_FuncReceiveBeginPlay={}", m_FuncReceiveBeginPlay);
     if (m_FuncReceiveBeginPlay) {
         uintptr_t bpChildProps = 0;
@@ -2310,7 +2310,7 @@ void UEProber::Phase5_ProbeFFieldNamePrivate() {
         float confidence = 0.7f;
         std::string desc = std::format("EntryPoint Name=\"{}\"", name1);
 
-        // 交叉验证: DeltaSeconds
+        // Cross-check DeltaSeconds.
         if (m_FFDeltaSeconds) {
             std::string name2;
             if (TryReadFName(m_FFDeltaSeconds + off, name2) && FNameEq(name2, "DeltaSeconds")) {
@@ -2319,7 +2319,7 @@ void UEProber::Phase5_ProbeFFieldNamePrivate() {
                 PDBG("ProbeFFieldNamePrivate: off=0x{:X} DeltaSeconds 交叉验证通过, conf={:.2f}", off, confidence);
             } else {
                 PDBG("ProbeFFieldNamePrivate: off=0x{:X} DeltaSeconds 交叉验证失败 name2=\"{}\", 跳过", off, name2);
-                continue; // 两个锚点必须同时命中
+                continue; // Require both anchors to match.
             }
         }
 
@@ -2370,7 +2370,7 @@ void UEProber::Phase5_ProbeFFieldOwner() {
     PDBG("ProbeFFieldOwner: namePrivateOff=0x{:X}", namePrivateOff);
 
     for (int32_t off = 0x00; off < 0x30; off += 8) {
-        if (off == namePrivateOff) continue; // 排除已确认的 Name 偏移
+        if (off == namePrivateOff) continue; // Exclude the confirmed Name offset.
 
         uintptr_t ptr1 = 0;
         if (!KMgrRead(m_FFEntryPoint + off, &ptr1, 8)) continue;
@@ -2383,7 +2383,7 @@ void UEProber::Phase5_ProbeFFieldOwner() {
         float confidence = 0.7f;
         std::string desc = std::format("EntryPoint Owner -> ExecuteUbergraph");
 
-        // 交叉验证: DeltaSeconds 的 Owner 应指向 ReceiveTick
+        // Cross-check that DeltaSeconds owner identifies ReceiveTick.
         if (m_FFDeltaSeconds && m_FuncReceiveTick) {
             uintptr_t ptr2 = 0;
             if (KMgrRead(m_FFDeltaSeconds + off, &ptr2, 8) && ptr2 == m_FuncReceiveTick) {
@@ -2392,7 +2392,7 @@ void UEProber::Phase5_ProbeFFieldOwner() {
             }
         }
 
-        // 检查 bIsUObject 标志 (紧随指针之后的 8 字节最低位)
+        // Check the assumed bIsUObject flag after the owner pointer.
         uint64_t bIsUObj = 0;
         if (KMgrRead(m_FFEntryPoint + off + 8, &bIsUObj, 8) && (bIsUObj & 1)) {
             confidence += 0.1f;
@@ -2447,7 +2447,7 @@ void UEProber::Phase5_ProbeFFieldNext() {
     for (int32_t off = 0x08; off < 0x30; off += 8) {
         if (off == namePrivateOff || off == ownerOff || (ownerOff >= 0 && off == ownerOff + 8)) continue;
 
-        // EntryPoint (NumParms=1): Next 应为 nullptr
+        // Expect EntryPoint Next to be null for the one-parameter anchor.
         uintptr_t ptr1 = 0;
         KMgrRead(m_FFEntryPoint + off, &ptr1, 8);
         if (ptr1 != 0) {
@@ -2455,7 +2455,7 @@ void UEProber::Phase5_ProbeFFieldNext() {
             continue;
         }
 
-        // IsValid 首参 (NumParms=2): Next 应为有效指针 -> "ReturnValue"
+        // Expect IsValid's first parameter Next to identify ReturnValue.
         uintptr_t ptr2 = 0;
         if (!KMgrRead(m_FFIsValidParam0 + off, &ptr2, 8) || !IsValidPtr(ptr2)) {
             PDBG("ProbeFFieldNext: off=0x{:X} IsValidP0.Next=0x{:X} 无效, 跳过", off, ptr2);
@@ -2469,10 +2469,10 @@ void UEProber::Phase5_ProbeFFieldNext() {
         }
         PDBG("ProbeFFieldNext: off=0x{:X} 命中! EntryPoint.Next=nullptr, IsValidP0.Next->\"ReturnValue\"", off);
 
-        // 验证链长: IsValid 应恰好 2 个 (首参 + ReturnValue)
+        // Expect exactly two fields in the IsValid anchor chain.
         uintptr_t nextNext = 0;
         KMgrRead(ptr2 + off, &nextNext, 8);
-        bool chainLen2 = (nextNext == 0); // ReturnValue 的 Next 应为 nullptr
+        bool chainLen2 = (nextNext == 0); // Expect ReturnValue Next to be null.
 
         float confidence = 0.8f;
         std::string desc = std::format("EntryPoint.Next=nullptr, IsValid.Next->\"ReturnValue\"");
@@ -2480,7 +2480,7 @@ void UEProber::Phase5_ProbeFFieldNext() {
         if (chainLen2) {
             confidence += 0.2f;
             desc += ", 链长=2";
-            // 保存 IsValid ReturnValue 地址
+            // Save the IsValid ReturnValue address.
             m_FFIsValidReturn = ptr2;
         }
 
@@ -2531,9 +2531,9 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
 
     for (int32_t off = 0x08; off < 0x30; off += 8) {
         if (off == namePrivateOff || off == ownerOff || off == nextOff) continue;
-        if (ownerOff >= 0 && off == ownerOff + 8) continue; // 跳过 bIsUObject 所在位置
+        if (ownerOff >= 0 && off == ownerOff + 8) continue; // Skip the assumed bIsUObject location.
 
-        // EntryPoint 的 ClassPrivate -> FFieldClass, FFieldClass->Name(偏移0) 应为 "IntProperty"
+        // Expect EntryPoint ClassPrivate to identify FFieldClass with IntProperty at its name offset zero.
         uintptr_t ptr1 = 0;
         if (!KMgrRead(m_FFEntryPoint + off, &ptr1, 8) || !IsValidPtr(ptr1)) continue;
 
@@ -2548,7 +2548,7 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
         float confidence = 0.7f;
         std::string desc = std::format("EntryPoint ClassPrivate -> \"IntProperty\"");
 
-        // 交叉验证: DeltaSeconds 应为 "FloatProperty"
+        // Cross-check DeltaSeconds against FloatProperty.
         if (m_FFDeltaSeconds) {
             uintptr_t ptr2 = 0;
             if (KMgrRead(m_FFDeltaSeconds + off, &ptr2, 8) && IsValidPtr(ptr2)) {
@@ -2560,7 +2560,7 @@ void UEProber::Phase5_ProbeFFieldClassPrivate() {
             }
         }
 
-        // 补充验证: IsValid ReturnValue 应为 "BoolProperty"
+        // Cross-check IsValid ReturnValue against BoolProperty.
         if (m_FFIsValidReturn) {
             uintptr_t ptr3 = 0;
             if (KMgrRead(m_FFIsValidReturn + off, &ptr3, 8) && IsValidPtr(ptr3)) {
@@ -2613,11 +2613,11 @@ void UEProber::Phase5_ProbeFFieldFlagsPrivate() {
     PDBG("ProbeFFieldFlagsPrivate: namePrivateOff=0x{:X}, ownerOff=0x{:X}, nextOff=0x{:X}, classPrivateOff=0x{:X}",
          namePrivateOff, ownerOff, nextOff, classPrivateOff);
 
-    // EObjectFlags 有效位掩码 (RF_Public ~ RF_AllocatedInSharedPage 等)
+    // Accepted EObjectFlags bit mask.
     constexpr uint32_t kValidFlagsMask = 0x3FFFFFFF;
 
-    // 在 FField 的 0x08~0x40 范围按 4 字节对齐搜索 int32
-    // 排除 VTable(8字节) 和所有已确认的 FField 成员偏移
+    // Search int32 candidates at four-byte alignment in FField offsets 0x08–0x40.
+    // Exclude the vtable pointer and confirmed FField member ranges.
     for (int32_t off = 0x08; off < 0x40; off += 4) {
         if (namePrivateOff >= 0 && off >= namePrivateOff && off < namePrivateOff + 8) continue;
         if (ownerOff >= 0 && off >= ownerOff && off < ownerOff + 16) continue;
@@ -2627,14 +2627,14 @@ void UEProber::Phase5_ProbeFFieldFlagsPrivate() {
         int32_t val1 = -1;
         if (!KMgrRead(m_FFEntryPoint + off, &val1, 4)) continue;
 
-        // ObjFlags 是位域标志, 值可能非零但应仅含有效标志位, 且不应太大
+        // Flags may be nonzero but must remain within the accepted mask and magnitude.
         uint32_t uval1 = (uint32_t)val1;
         if ((uval1 & ~kValidFlagsMask) != 0 || uval1 > 0xFFFF) continue;
 
         float confidence = 0.4f;
         std::string desc = std::format("EntryPoint=0x{:X}", uval1);
 
-        // 交叉验证: 所有函数参数的 FProperty 应具有相同的 ObjFlags
+        // Cross-check equal ObjFlags across the function-parameter anchors.
         if (m_FFDeltaSeconds) {
             int32_t val2 = -1;
             KMgrRead(m_FFDeltaSeconds + off, &val2, 4);
@@ -2688,7 +2688,7 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
         return;
     }
 
-    // 至少需要 EntryPoint(4) 和 IsValid首参(8) 两个不同 ElementSize 的锚点
+    // Require distinct element-size anchors: EntryPoint=4 and IsValid first parameter=8.
     if (!m_FFEntryPoint || !m_FFIsValidParam0) {
         PDBG("ProbeAD+ES: 缺少锚点 EntryPoint=0x{:X} IsValidP0=0x{:X}, 中止",
              m_FFEntryPoint, m_FFIsValidParam0);
@@ -2696,7 +2696,7 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
         return;
     }
 
-    // 如果 ObjFlags 已确认, 从 ObjFlags+4 开始; 否则从 namePrivateOff+0x08 开始
+    // Start after ObjFlags when confirmed, otherwise after the inferred Name field.
     int32_t objFlagsOff = GetConfirmedOffset("FField::FlagsPrivate");
     int32_t searchStart = (objFlagsOff >= 0) ? (objFlagsOff + 4) : (namePrivateOff + 0x08);
     int32_t searchEnd = searchStart + 0x50;
@@ -2704,7 +2704,7 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
          namePrivateOff, objFlagsOff, searchStart, searchEnd);
 
     for (int32_t off = searchStart; off < searchEnd; off += 4) {
-        // ArrayDim: 所有锚点均应为 1
+        // Expect ArrayDim to equal one in all anchors.
         int32_t ad1 = 0, ad2 = 0;
         bool r1 = KMgrRead(m_FFEntryPoint + off, &ad1, 4);
         bool r2 = KMgrRead(m_FFIsValidParam0 + off, &ad2, 4);
@@ -2713,12 +2713,12 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
             continue;
         }
 
-        // ElementSize 紧邻其后 (+4)
+        // Assume ElementSize follows ArrayDim at +4.
         int32_t es1 = 0, es2 = 0;
         if (!KMgrRead(m_FFEntryPoint + off + 4, &es1, 4)) continue;
         if (!KMgrRead(m_FFIsValidParam0 + off + 4, &es2, 4)) continue;
 
-        // EntryPoint(IntProperty) = 4, IsValid首参(ObjectProperty) = 8
+        // Expected element sizes: IntProperty=4 and ObjectProperty=8.
         if (es1 != 4 || es2 != 8) {
             PDBG("ProbeAD+ES: off=0x{:X} AD匹配但 ES不匹配: es1={} es2={}", off, es1, es2);
             continue;
@@ -2728,7 +2728,7 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
         float confidence = 0.7f;
         std::string desc = std::format("EntryPoint: AD=1,ES=4; IsValid: AD=1,ES=8");
 
-        // 交叉验证: DeltaSeconds (FloatProperty) = 4
+        // Cross-check DeltaSeconds element size against 4.
         if (m_FFDeltaSeconds) {
             int32_t ad3 = 0, es3 = 0;
             if (KMgrRead(m_FFDeltaSeconds + off, &ad3, 4) && ad3 == 1 &&
@@ -2738,7 +2738,7 @@ void UEProber::Phase5_ProbeFPropertyArrayDimAndElementSize() {
             }
         }
 
-        // 交叉验证: IsValid ReturnValue (BoolProperty) = 1
+        // Cross-check IsValid ReturnValue element size against 1.
         if (m_FFIsValidReturn) {
             int32_t ad4 = 0, es4 = 0;
             if (KMgrRead(m_FFIsValidReturn + off, &ad4, 4) && ad4 == 1 &&
@@ -2803,8 +2803,8 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
         return;
     }
 
-    // 搜索范围: ElementSize 之后按 8 字节对齐
-    int32_t searchStart = (elemSizeOff + 4 + 7) & ~7; // 对齐到 8
+    // Search at eight-byte alignment after ElementSize.
+    int32_t searchStart = (elemSizeOff + 4 + 7) & ~7; // Align to eight bytes.
     int32_t searchEnd = searchStart + 0x30;
     PDBG("ProbePropFlags: elemSizeOff=0x{:X}, 搜索范围 [0x{:X}, 0x{:X})",
          elemSizeOff, searchStart, searchEnd);
@@ -2814,12 +2814,12 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
         if (!KMgrRead(m_FFEntryPoint + off, &flags1, 8)) continue;
         if (!KMgrRead(m_FFIsValidParam0 + off, &flags2, 8)) continue;
 
-        // 所有锚点必含 CPF_Parm
+        // Require CPF_Parm in every anchor.
         if (!(flags1 & ECPFFlags::CPF_Parm) || !(flags2 & ECPFFlags::CPF_Parm)) {
             PDBG("ProbePropFlags: off=0x{:X} flags1=0x{:X} flags2=0x{:X} 缺少CPF_Parm", off, flags1, flags2);
             continue;
         }
-        // EntryPoint 不含 CPF_ReturnParm
+        // Exclude CPF_ReturnParm for EntryPoint.
         if (flags1 & ECPFFlags::CPF_ReturnParm) {
             PDBG("ProbePropFlags: off=0x{:X} EntryPoint含CPF_ReturnParm, 跳过", off);
             continue;
@@ -2829,7 +2829,7 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
         float confidence = 0.6f;
         std::string desc = std::format("EntryPoint=0x{:X}, IsValid首参=0x{:X}", flags1, flags2);
 
-        // IsValid ReturnValue 应含 CPF_ReturnParm | CPF_OutParm
+        // Require CPF_ReturnParm and CPF_OutParm for IsValid ReturnValue.
         if (m_FFIsValidReturn) {
             uint64_t flags3 = 0;
             if (KMgrRead(m_FFIsValidReturn + off, &flags3, 8) &&
@@ -2839,7 +2839,7 @@ void UEProber::Phase5_ProbeFPropertyFlags() {
             }
         }
 
-        // K2_GetActorLocation ReturnValue 应含 CPF_ReturnParm
+        // Require CPF_ReturnParm for K2_GetActorLocation ReturnValue.
         if (m_FFK2LocReturn) {
             uint64_t flags4 = 0;
             if (KMgrRead(m_FFK2LocReturn + off, &flags4, 8) &&
@@ -2891,7 +2891,7 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
         return;
     }
 
-    // 搜索范围: PropertyFlags 之后按 4 字节对齐
+    // Search at four-byte alignment after PropertyFlags.
     int32_t searchStart = propFlagsOff + 8;
     int32_t searchEnd = searchStart + 0x20;
     PDBG("ProbeOffInt: propFlagsOff=0x{:X}, 搜索范围 [0x{:X}, 0x{:X})",
@@ -2902,7 +2902,7 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
         if (!KMgrRead(m_FFEntryPoint + off, &val1, 4)) continue;
         if (!KMgrRead(m_FFIsValidParam0 + off, &val2, 4)) continue;
 
-        // EntryPoint = 0, IsValid首参 = 0 (均为首参, 偏移 0)
+        // Expect both first-parameter offsets to equal zero.
         if (val1 != 0 || val2 != 0) {
             PDBG("ProbeOffInt: off=0x{:X} val1={} val2={} 不为0, 跳过", off, val1, val2);
             continue;
@@ -2912,7 +2912,7 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
         float confidence = 0.6f;
         std::string desc = "EntryPoint=0, IsValid首参=0";
 
-        // IsValid ReturnValue = 8 (在 ObjectProperty(size=8) 之后)
+        // Expect IsValid ReturnValue at offset 8 after its ObjectProperty parameter.
         if (m_FFIsValidReturn) {
             int32_t val3 = 0;
             if (KMgrRead(m_FFIsValidReturn + off, &val3, 4) && val3 == 8) {
@@ -2921,7 +2921,7 @@ void UEProber::Phase5_ProbeFPropertyOffsetInternal() {
             }
         }
 
-        // DeltaSeconds = 0 (首参)
+        // Expect DeltaSeconds at offset zero.
         if (m_FFDeltaSeconds) {
             int32_t val4 = 0;
             if (KMgrRead(m_FFDeltaSeconds + off, &val4, 4) && val4 == 0) {
@@ -2979,7 +2979,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
         return;
     }
 
-    // 查找 "Vector" ScriptStruct 和 "Object" UClass 用于验证
+    // Resolve Vector ScriptStruct and Object UClass as validation anchors.
     uintptr_t vectorStruct = FindObjectInGObjects("Vector", "ScriptStruct");
     uintptr_t objectClass = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(1));
     PDBG("ProbePropSize: offsetInternalOff=0x{:X}, vectorStruct=0x{:X}, objectClass=0x{:X}",
@@ -2991,7 +2991,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
         return;
     }
 
-    // 搜索范围: Offset_Internal 之后按 8 字节对齐, 到足够大的范围
+    // Search aligned pointers after Offset_Internal within the configured bound.
     int32_t searchStart = (offsetInternalOff + 4 + 7) & ~7;
     int32_t searchEnd = searchStart + 0x40;
     PDBG("ProbePropSize: 搜索范围 [0x{:X}, 0x{:X})", searchStart, searchEnd);
@@ -3011,8 +3011,8 @@ void UEProber::Phase5_ProbeFPropertySize() {
             desc += "K2Loc->Vector";
         }
 
-        // IsValid 首参 (FObjectPropertyBase): PropertyClass -> "Object" UClass
-        // 两个独立子类在同一偏移命中各自的特征指针, 这是非常强的证据
+        // Expect FObjectPropertyBase::PropertyClass to identify Object.
+        // Cross-check independent subclass pointers at the candidate offset.
         if (m_FFIsValidParam0 && objectClass) {
             uintptr_t ptr2 = 0;
             if (!KMgrRead(m_FFIsValidParam0 + off, &ptr2, 8)) continue;
@@ -3057,30 +3057,30 @@ void UEProber::Phase5_ProbeFPropertySize() {
         int32_t finalOff = best.offset;
         std::string finalDesc = best.description;
 
-        // ---------- 修正: 用 IsValidRV 锚定 FBoolProperty 派生段位置 ----------
+        // Use IsValid ReturnValue to constrain the FBoolProperty tail location.
         //
-        // 原始策略找的是"派生类里第一个已知指针的位置", 等于 sizeof(FProperty) 的前提是
-        // 派生类紧接 FProperty 第一个字段就是已知指针 (FStruct.Struct / FObject.PropertyClass).
-        // 但某些游戏 (如 DeltaForce 1.201+) 在派生段开头插自定义字段, 此时上面找到的偏移
-        // 是 sizeof(FProperty) + leading_metadata_size, 不等于真 sizeof.
+        // A known subclass pointer marks the base size only when
+        // that pointer is the subclass's first field after the base.
+        // Custom layouts can place metadata before the pointer, making its offset
+        // larger than sizeof(FProperty).
         //
-        // 用 IsValidRV (IsValid 函数 ReturnValue, 是原生 bool FBoolProperty) 做交叉锚点:
-        //   UE 4.25+ 源码 FBoolProperty::SetBoolSize(bIsNativeBool=true) 设
+        // Cross-check with the native-bool IsValid ReturnValue anchor.
+        // The heuristic expects the native-bool field bytes
         //   FieldSize=1, ByteOffset=0, ByteMask=1, FieldMask=0xFF
-        //   → IsValidRV 派生段开头 4 字节必为 [01 00 01 FF] (跨版本通用)
+        // 01 00 01 FF; custom layouts require independent validation.
         //
-        // 在 [best.offset - 16, best.offset + 4] 窗口内搜这 4 字节模式. 找到位置 P:
-        //   - P 即 FieldSize 字节地址
-        //   - 真 sizeof(FProperty) = P 向下 8 字节对齐 (派生类有 leading 字节, 但 sizeof 必须 8 对齐)
-        // 多重命中: 取离 best.offset 最近的那个 (避免假阳性远端)
+        // Search from best.offset - 16 to best.offset + 4 for that pattern.
+        // The pattern begins at the inferred FieldSize byte.
+        // Infer a base boundary by rounding down to eight-byte alignment.
+        // Prefer the match nearest best.offset when multiple candidates exist.
         if (m_FFIsValidReturn && best.offset >= 16) {
             constexpr int32_t kBack    = 16;
             constexpr int32_t kForward = 4;
-            constexpr int32_t kSpan    = kBack + kForward + 4;  // 4 = 模式长度
+            constexpr int32_t kSpan    = kBack + kForward + 4;  // Four-byte pattern length.
             uint8_t buf[kSpan] = {};
             int32_t base = best.offset - kBack;
             if (KMgrRead(m_FFIsValidReturn + base, buf, kSpan)) {
-                // 找所有 01 00 01 FF 命中, 选离 best.offset 最近的
+                // Find 01 00 01 FF and select the nearest match.
                 int32_t bestPatternOff = -1;
                 int32_t bestDist = INT32_MAX;
                 for (int32_t i = 0; i + 4 <= kSpan; ++i) {
@@ -3095,7 +3095,7 @@ void UEProber::Phase5_ProbeFPropertySize() {
                     }
                 }
                 if (bestPatternOff >= 0) {
-                    int32_t alignedSize = bestPatternOff & ~0x7;  // 向下 8 字节对齐
+                    int32_t alignedSize = bestPatternOff & ~0x7;  // Round down to eight-byte alignment.
                     if (alignedSize != best.offset) {
                         PDBG("ProbePropSize: 修正! IsValidRV 命中 [01 00 01 FF] @ +0x{:X} (FieldSize 位置), sizeof = 0x{:X} (向下 8 对齐)",
                              bestPatternOff, alignedSize);
@@ -3574,7 +3574,7 @@ void UEProber::Phase5_AutoProbe() {
 }
 
 // ============================================================
-//  阶段 6: ProcessEvent VTable 索引
+// Phase 6: ProcessEvent virtual index.
 // ============================================================
 
 void UEProber::Phase6_ScanProcessEvent() {
@@ -3718,7 +3718,7 @@ void UEProber::Phase6_ProbeUEnumNames() {
 }
 
 // ============================================================
-//  验证工具: 调用 GetEngineVersion
+// Engine-version invocation helper.
 // ============================================================
 
 void UEProber::CallGetEngineVersion() {
@@ -3737,7 +3737,7 @@ void UEProber::CallGetEngineVersion() {
         return;
     }
 
-    // 查找 KismetSystemLibrary UClass
+    // Find KismetSystemLibrary UClass.
     uintptr_t kismetClass = FindObjectInGObjects("KismetSystemLibrary", "Class");
     if (!kismetClass) {
         PDBG("GetEngVer: KismetSystemLibrary UClass 未找到");
@@ -3746,7 +3746,7 @@ void UEProber::CallGetEngineVersion() {
     }
     PDBG("GetEngVer: KismetSystemLibrary @ {}", kismetClass);
 
-    // 读取 CDO (Class Default Object)
+    // Read the class default object.
     uintptr_t cdo = 0;
     if (!KMgrRead(kismetClass + classDefaultObjOff, &cdo, 8) || !IsValidPtr(cdo)) {
         PDBG("GetEngVer: CDO 读取失败 @ offset 0x{:X}", classDefaultObjOff);
@@ -3755,7 +3755,7 @@ void UEProber::CallGetEngineVersion() {
     }
     PDBG("GetEngVer: CDO @ {}", cdo);
 
-    // 沿 Children→Next 链查找 GetEngineVersion UFunction
+    // Find GetEngineVersion along Children->Next.
     uintptr_t func = WalkChildrenChain(kismetClass, "GetEngineVersion", childrenOff, nextOff, namePrivateOff);
     if (!func) {
         PDBG("GetEngVer: GetEngineVersion UFunction 未找到");
@@ -3764,7 +3764,7 @@ void UEProber::CallGetEngineVersion() {
     }
     PDBG("GetEngVer: GetEngineVersion @ {}", func);
 
-    // 确定 ProcessEvent VTable 索引（仅来自运行时探测结果）
+    // Use the ProcessEvent virtual index stored in probe results.
     int32_t peIdx = 0;
     auto peIt = m_Results.find("ProcessEvent::VTableIdx");
     if (peIt != m_Results.end() && peIt->second.confirmed && peIt->second.offset > 0)
@@ -3776,7 +3776,7 @@ void UEProber::CallGetEngineVersion() {
     }
     PDBG("GetEngVer: ProcessEventIdx = 0x{:X}", peIdx);
 
-    // 从 VTable 读取 ProcessEvent 函数指针
+    // Read the ProcessEvent pointer from the vtable.
     uintptr_t vtable = 0;
     if (!KMgrRead(cdo, &vtable, 8) || !IsValidPtr(vtable)) {
         PDBG("GetEngVer: VTable 读取失败");
@@ -3793,7 +3793,7 @@ void UEProber::CallGetEngineVersion() {
         return;
     }
 
-    // 验证函数指针在 .text 段范围内
+    // Compare against the current range heuristic; an out-of-range warning does not prevent invocation.
     uintptr_t textStart = GetTextSegStart();
     uintptr_t textEnd = GetTextSegEnd();
     PDBG("GetEngVer: ProcessEvent func @ 0x{:X}, .text=[0x{:X}, 0x{:X})",
@@ -3802,7 +3802,7 @@ void UEProber::CallGetEngineVersion() {
         PDBG("GetEngVer: 警告 - ProcessEvent 不在 .text 段内, 但仍尝试调用");
     }
 
-    // 调用 ProcessEvent(CDO, GetEngineVersion, &parms)
+    // Invoke ProcessEvent(CDO, GetEngineVersion, &parms) without a verified game-thread executor.
     using ProcessEventFn = void(*)(const void*, void*, void*);
     auto pe = reinterpret_cast<ProcessEventFn>(peFunc);
 
@@ -3834,7 +3834,7 @@ void UEProber::CallGetEngineVersion() {
 }
 
 // ============================================================
-//  ImGui 绘制 — 主入口
+// Main ImGui entry.
 // ============================================================
 
 void UEProber::Draw(bool* p_open) {
@@ -3848,7 +3848,7 @@ void UEProber::Draw(bool* p_open) {
         return;
     }
 
-    // 菜单栏
+    // Menu bar.
     if (ImGui::BeginMenuBar()) {
         if (ImGui::BeginMenu("探测选项")) {
             if (ImGui::MenuItem("全部自动探测", nullptr, false, m_GameDetected)) {
@@ -3889,7 +3889,7 @@ void UEProber::Draw(bool* p_open) {
 }
 
 // ============================================================
-//  阶段选择器
+// Phase selector.
 // ============================================================
 
 void UEProber::DrawPhaseSelector() {
@@ -3925,7 +3925,7 @@ void UEProber::DrawPhaseSelector() {
 }
 
 // ============================================================
-//  绘制候选项表格 (通用)
+// Shared candidate table.
 // ============================================================
 
 void UEProber::DrawCandidateTable(const std::string& label,
@@ -3988,7 +3988,7 @@ void UEProber::DrawCandidateTable(const std::string& label,
                     target.offset = c.offset;
                     target.evidence = c.description;
                     target.confirmed = true;
-                    target.autoDetected = false; // 手动确认
+                    target.autoDetected = false; // Manual confirmation.
                     LogSuccess(std::format("{} 手动确认: 偏移 0x{:X}", target.name, c.offset));
                 }
             }
@@ -3998,7 +3998,7 @@ void UEProber::DrawCandidateTable(const std::string& label,
         ImGui::EndTable();
     }
 
-    // 手动输入
+    // Manual input.
     ImGui::PushID(label.c_str());
     static char manualInput[16] = {};
     ImGui::PushItemWidth(80);
@@ -4020,7 +4020,7 @@ void UEProber::DrawCandidateTable(const std::string& label,
 }
 
 // ============================================================
-//  内存 Dump 绘制
+// Memory dump view.
 // ============================================================
 
 void UEProber::DrawMemoryDump(uintptr_t address, int32_t size, const std::string& label) {
@@ -4065,7 +4065,7 @@ void UEProber::DrawMemoryDump(uintptr_t address, int32_t size, const std::string
 }
 
 // ============================================================
-//  阶段 1 绘制
+// Phase 1 view.
 // ============================================================
 
 void UEProber::DrawPhase1() {
@@ -4073,7 +4073,7 @@ void UEProber::DrawPhase1() {
     ImGui::TextWrapped("探测 VTable, Index, Name, Class, Outer, Flags 六个成员的偏移。");
     ImGui::Spacing();
 
-    // 前置配置
+    // Prerequisite configuration.
     if (ImGui::TreeNodeEx("前置配置", ImGuiTreeNodeFlags_DefaultOpen)) {
         ImGui::PushItemWidth(80);
         ImGui::InputInt("探测范围", &m_ProbeRange, 0x10, 0x40);
@@ -4081,7 +4081,7 @@ void UEProber::DrawPhase1() {
         if (m_ProbeRange < 0x20) m_ProbeRange = 0x20;
         if (m_ProbeRange > 0x200) m_ProbeRange = 0x200;
 
-        // 显示 obj[0]~obj[4]
+        // Display object-array entries zero through four.
         for (int i = 0; i <= 4; ++i) {
             uintptr_t obj = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(i));
             if (obj && IsValidPtr(obj)) {
@@ -4107,7 +4107,7 @@ void UEProber::DrawPhase1() {
     }
     ImGui::Spacing();
 
-    // 各字段候选结果
+    // Field candidates.
     if (ImGui::TreeNodeEx("UObject::VTable", ImGuiTreeNodeFlags_DefaultOpen)) {
         auto& r = GetResult("UObject::VTable");
         ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "偏移 0x00 (固定)");
@@ -4139,7 +4139,7 @@ void UEProber::DrawPhase1() {
         ImGui::TreePop();
     }
 
-    // 内存 dump
+    // Memory dump.
     if (ImGui::TreeNode("内存查看")) {
         uintptr_t obj0 = reinterpret_cast<uintptr_t>(BridgeGetObjectByIndex(0));
         if (obj0 && IsValidPtr(obj0))
@@ -4152,7 +4152,7 @@ void UEProber::DrawPhase1() {
 }
 
 // ============================================================
-//  阶段 2 绘制
+// Phase 2 view.
 // ============================================================
 
 void UEProber::DrawPhase2() {
@@ -4199,14 +4199,14 @@ void UEProber::DrawPhase2() {
         ImGui::TreePop();
     }
 
-    // 缓存的 UClass 地址
+    // Cached UClass addresses.
     if (ImGui::TreeNode("关键地址缓存")) {
         ImGui::Text("ClassClass:    %s", FormatPtr(m_ClassClass).c_str());
         ImGui::Text("ClassStruct:   %s", FormatPtr(m_ClassStruct).c_str());
         ImGui::Text("ClassField:    %s", FormatPtr(m_ClassField).c_str());
         ImGui::Text("ClassObject:   %s", FormatPtr(m_ClassObject).c_str());
 
-        // 结构大小
+        // Structure sizes.
         auto showSize = [&](const char* label, uintptr_t addr) {
             if (!addr) return;
             int32_t sz = GetStructSize(addr);
@@ -4222,7 +4222,7 @@ void UEProber::DrawPhase2() {
 }
 
 // ============================================================
-//  阶段 3 绘制
+// Phase 3 view.
 // ============================================================
 
 void UEProber::DrawPhase3() {
@@ -4247,7 +4247,7 @@ void UEProber::DrawPhase3() {
 }
 
 // ============================================================
-//  阶段 4 绘制
+// Phase 4 view.
 // ============================================================
 
 void UEProber::DrawPhase4() {
@@ -4255,7 +4255,7 @@ void UEProber::DrawPhase4() {
     ImGui::TextWrapped("探测 FunctionFlags, NumParms, ParmsSize, ReturnValueOffset, Func");
     ImGui::Spacing();
 
-    // 显示缓存的锚点函数地址
+    // Cached function-anchor addresses.
     if (m_FuncReceiveBeginPlay)
         ImGui::Text("ReceiveBeginPlay:    %s", FormatPtr(m_FuncReceiveBeginPlay).c_str());
     if (m_FuncReceiveTick)
@@ -4298,7 +4298,7 @@ void UEProber::DrawPhase4() {
         ImGui::TreePop();
     }
 
-    // 内存 dump
+    // Memory dump.
     if (ImGui::TreeNode("UFunction 内存查看")) {
         if (m_FuncReceiveBeginPlay)
             DrawMemoryDump(m_FuncReceiveBeginPlay, 0xF0, "ReceiveBeginPlay");
@@ -4315,7 +4315,7 @@ void UEProber::DrawPhase4() {
 }
 
 // ============================================================
-//  阶段 5 绘制
+// Phase 5 view.
 // ============================================================
 
 void UEProber::DrawPhase5() {
@@ -4380,7 +4380,7 @@ void UEProber::DrawPhase5() {
 }
 
 // ============================================================
-//  阶段 6 绘制
+// Phase 6 view.
 // ============================================================
 
 void UEProber::DrawPhase6() {
@@ -4400,14 +4400,14 @@ void UEProber::DrawPhase6() {
 }
 
 // ============================================================
-//  结果总览
+// Result overview.
 // ============================================================
 
 void UEProber::DrawResultsSummary() {
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "探测结果总览");
     ImGui::Spacing();
 
-    // 按类别分组
+    // Group by category.
     struct Category {
         const char* name;
         std::vector<std::string> fields;
@@ -4489,7 +4489,7 @@ void UEProber::DrawResultsSummary() {
         ImGui::EndTable();
     }
 
-    // 日志区域
+    // Log region.
     ImGui::Spacing();
     ImGui::Separator();
     if (ImGui::TreeNode("探测日志")) {
@@ -4504,14 +4504,14 @@ void UEProber::DrawResultsSummary() {
 }
 
 // ============================================================
-//  导出面板
+// Export panel.
 // ============================================================
 
 void UEProber::DrawExportPanel() {
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "导出探测结果");
     ImGui::Spacing();
 
-    // 自动获取引擎版本
+    // Query engine version automatically from this UI path.
     if (m_EngineVersion.empty()) {
         int32_t namePrivateOff       = GetConfirmedOffset("UObject::NamePrivate");
         int32_t classPrivateOff      = GetConfirmedOffset("UObject::ClassPrivate");
@@ -4525,20 +4525,20 @@ void UEProber::DrawExportPanel() {
     ImGui::Text("C++ 结构体定义 (SDK 格式):");
     ImGui::Separator();
 
-    // ---- 字段定义 ----
+    // Field definitions.
     struct FieldInfo {
-        std::string resultKey;   // m_Results 中的 key
-        std::string memberName;  // C++ 成员名
-        std::string typeName;    // C++ 类型
-        int32_t     size;        // 字段占用字节数
+        std::string resultKey;   // Key in m_Results.
+        std::string memberName;  // C++ member name.
+        std::string typeName;    // C++ type.
+        int32_t     size;        // Field width in bytes.
     };
 
-    // ---- 类定义 ----
+    // Class definitions.
     struct ClassDef {
         std::string className;
-        std::string parentClass;     // 空 = 无父类
-        std::string sizeStructName;  // GetStructSize 参数, 空 = 用 sizeResultKey
-        std::string sizeResultKey;   // 从 m_Results 获取 (如 "sizeof(FProperty)")
+        std::string parentClass;     // Empty means no base class.
+        std::string sizeStructName;  // GetStructSize argument; empty selects sizeResultKey.
+        std::string sizeResultKey;   // Result key such as sizeof(FProperty).
         std::vector<FieldInfo> fields;
     };
 
@@ -4588,7 +4588,7 @@ void UEProber::DrawExportPanel() {
         }},
     };
 
-    // ---- 生成代码 ----
+    // Code generation.
     std::string code;
     std::string verLabel = m_EngineVersion.empty() ? "Unknown" : m_EngineVersion;
     code += "// ============================================================\n";
@@ -4597,12 +4597,12 @@ void UEProber::DrawExportPanel() {
     code += std::format("//  Engine Version: \"{}\"\n", verLabel);
     code += "// ============================================================\n\n";
 
-    // 记录每个类的实际内容结尾 (最后一个字段 offset+size),
-    // 用于非 POD 基类的尾部填充复用 (Itanium ABI)
+    // Track each class's last field end (offset + size)
+    // for non-POD base tail-padding reuse under the assumed Itanium ABI.
     std::map<std::string, int32_t> classContentEnd;
 
     for (auto& cls : classes) {
-        // 收集已确认偏移的字段, 按偏移排序
+        // Sort confirmed fields by offset.
         struct ResolvedField {
             std::string memberName;
             std::string typeName;
@@ -4612,7 +4612,7 @@ void UEProber::DrawExportPanel() {
         std::vector<ResolvedField> resolved;
 
         for (auto& f : cls.fields) {
-            // VTable 固定在 0, 不在 m_Results 中
+            // The vtable is assumed at zero and is not stored in m_Results.
             if (f.resultKey == "FField::VTable") {
                 resolved.push_back({f.memberName, f.typeName, 0, f.size});
                 continue;
@@ -4628,24 +4628,24 @@ void UEProber::DrawExportPanel() {
         std::sort(resolved.begin(), resolved.end(),
             [](const auto& a, const auto& b) { return a.offset < b.offset; });
 
-        // 计算本类实际内容结尾
+        // Compute the class content end.
         int32_t contentEnd = 0;
         for (auto& f : resolved)
             contentEnd = std::max(contentEnd, f.offset + f.size);
         classContentEnd[cls.className] = contentEnd;
 
-        // 获取 sizeof
+        // Read the structure size.
         int32_t structSize = 0;
         if (!cls.sizeStructName.empty())
             structSize = GetStructSize(cls.sizeStructName);
         if (structSize <= 0 && !cls.sizeResultKey.empty()) {
             auto it = m_Results.find(cls.sizeResultKey);
             if (it != m_Results.end() && it->second.offset > 0)
-                structSize = it->second.offset; // sizeof(FProperty) 存的是偏移值即大小
+                structSize = it->second.offset; // The sizeof(FProperty) result stores the size in its offset field.
         }
 
-        // 获取父类大小 (子类成员起始偏移)
-        // 对于含 VTable 的非 POD 基类, 使用 contentEnd 以启用尾部填充复用
+        // Read the base size to place derived members.
+        // Use contentEnd for tail-padding reuse in non-POD bases with vtables.
         int32_t parentSize = 0;
         if (!cls.parentClass.empty()) {
             auto ceIt = classContentEnd.find(cls.parentClass);
@@ -4655,28 +4655,28 @@ void UEProber::DrawExportPanel() {
                 parentSize = GetStructSize(cls.parentClass);
         }
 
-        // 判断是否为含 VTable 的根类 (需要非平凡析构函数使其 non-POD)
+        // Identify a root with a vtable that needs a nontrivial destructor.
         bool isNonPodRoot = cls.parentClass.empty() &&
             std::any_of(resolved.begin(), resolved.end(),
                 [](const ResolvedField& f) { return f.memberName == "VTable"; });
 
-        // ---- 生成 class 定义 ----
+        // Emit the class definition.
         if (cls.parentClass.empty())
             code += std::format("class {} {{\npublic:\n", cls.className);
         else
             code += std::format("class {} : public {} {{\npublic:\n", cls.className, cls.parentClass);
 
-        // 非 POD 根类添加析构函数, 使 Itanium ABI 允许派生类复用尾部填充
+        // Emit a destructor for the non-POD root to permit the assumed ABI's tail-padding reuse.
         if (isNonPodRoot)
             code += std::format("    ~{}() {{}}\n\n", cls.className);
 
-        int32_t cursor = parentSize; // 当前写入位置
+        int32_t cursor = parentSize; // Current output offset.
         int padIdx = 0;
 
         for (auto& f : resolved) {
-            if (f.offset < cursor) continue; // 跟父类重叠, 跳过
+            if (f.offset < cursor) continue; // Skip fields overlapping the base.
 
-            // 插入填充
+            // Emit padding.
             if (f.offset > cursor) {
                 int32_t gap = f.offset - cursor;
                 code += std::format("    {:50s}Pad_{:02X}[0x{:X}];\n",
@@ -4684,12 +4684,12 @@ void UEProber::DrawExportPanel() {
                 ++padIdx;
             }
 
-            // 写入字段
+            // Emit the field.
             code += std::format("    {:50s}{};\n", f.typeName, f.memberName);
             cursor = f.offset + f.size;
         }
 
-        // 尾部填充
+        // Tail padding.
         if (structSize > 0 && cursor < structSize) {
             int32_t gap = structSize - cursor;
             code += std::format("    {:50s}Pad_{:02X}[0x{:X}];\n",
@@ -4731,22 +4731,22 @@ void UEProber::DrawExportPanel() {
 }
 
 // ============================================================
-//  偏移量表格绘制 (通用辅助)
+// Shared offset table helper.
 // ============================================================
 
 void UEProber::DrawOffsetTable(const std::string& category) {
-    // 此函数预留给更详细的分类表格
+    // Reserved for a detailed category table.
 }
 
 // ============================================================
-//  Dump 面板 (AndUEDumper 集成)
+// AndUEDumper integration panel.
 // ============================================================
 
 void UEProber::DrawDumpPanel() {
     ImGui::TextColored(ImVec4(1.0f, 0.8f, 0.2f, 1.0f), "AndUEDumper 集成 Dump");
     ImGui::Spacing();
 
-    // ---- 阶段 A: 游戏检测 ----
+    // Target-profile detection.
     if (!m_GameDetected) {
         ImGui::TextWrapped("点击下方按钮自动检测当前运行的游戏，获取 GObjects 和 FName 解析器。");
         ImGui::Spacing();
@@ -4756,7 +4756,7 @@ void UEProber::DrawDumpPanel() {
         return;
     }
 
-    // ---- 游戏已检测 ----
+    // Detected profile.
     ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "游戏: %s", m_GameDetection.GameName.c_str());
     ImGui::TextColored(ImVec4(0.2f, 1.0f, 0.4f, 1.0f), "包名: %s", m_GameDetection.PackageName.c_str());
     auto addrLine = [](const char* label, uintptr_t addr) {
@@ -4790,7 +4790,7 @@ void UEProber::DrawDumpPanel() {
     ImGui::Separator();
     ImGui::Spacing();
 
-    // ---- 探测偏移统计 ----
+    // Probe result counts.
     int confirmedProbeCount = 0;
     {
         struct OffsetGroup { const char* className; std::initializer_list<const char*> names; };
@@ -4831,7 +4831,7 @@ void UEProber::DrawDumpPanel() {
 
     ImGui::Spacing();
 
-    // ---- 阶段 B: Dump (需要探测完成) ----
+    // Dump controls using available probe results.
     EDumpStatus status = m_DumpStatus.load();
     switch (status) {
         case EDumpStatus::Idle:
@@ -4926,7 +4926,7 @@ void UEProber::StartDump() {
         return;
     }
 
-    // 从探测结果中收集 ProbedOffsets
+    // Collect ProbedOffsets from the result map.
     ProbedOffsets offsets{};
 
     // UObject

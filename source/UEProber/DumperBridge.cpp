@@ -1,4 +1,4 @@
-// DumperBridge.cpp — compiled in AndUEDumperLib context (KittyMemoryEx headers only).
+// DumperBridge.cpp is compiled into AndUEProber with the pinned Dumper and memory headers.
 // Provides game detection + dump entry point for UEProber.
 
 #include "DumperBridge.h"
@@ -16,7 +16,7 @@
 
 #include "GameProfiles/IGameProfileEx.hpp"
 
-// All game profiles from AndUEDumper
+// Profile definitions from the pinned AndUEDumper snapshot.
 #include "UE/UEGameProfiles/BlackClover.hpp"
 #include "UE/UEGameProfiles/Dislyte.hpp"
 #include "UE/UEGameProfiles/Farlight.hpp"
@@ -78,7 +78,7 @@ bool KMgrIsValidPtr(uintptr_t address)
 {
     if (!address || address < 0x10000000)
         return false;
-    // 高位只允许全 0 或 Android tagged pointer 前缀
+    // Accept zero high bits or the configured Android tagged-pointer prefix.
     uintptr_t highBits = address & ~(uintptr_t)0x7fffffffff;
     return highBits == 0 || highBits == (uintptr_t)0xB400000000000000;
 }
@@ -153,8 +153,8 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
         }
         g_KMgrInitialized = true;
 
-        // 启用 kPtrValidator region 缓存：否则每次 isPtrReadable 都会重开 /proc/<pid>/maps 全文解析，
-        // 在 FName 查询热路径上会被放大到几十万次 fopen，造成严重卡顿。
+        // Enable the pointer-validator region cache to avoid reparsing /proc/<pid>/maps
+        // for each readability check on the FName lookup path.
         kPtrValidator.setPID(kMgr.processID());
         kPtrValidator.setUseCache(true);
         kPtrValidator.refreshRegionCache();
@@ -165,7 +165,7 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
         }
     }
 
-    // Match game by AppID (like dump_thread)
+    // Match the current process name against profile AppIDs.
     g_ExProfile = nullptr;
     for (auto* ex : GetExProfiles()) {
         auto* profile = ex->AsGameProfile();

@@ -1,68 +1,55 @@
 # AndUEProber
 
-| Game | Version | GUObjectArray | DecryptFName | ProcessEventIdx |
-|------|---------|----------|--------------------|-----------------|
-| com.tencent.tmgp.dfm | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.tmgp.nz | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.nrc | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.mf.uam | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.tmgp.codev | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.ig | ✅ | ✅ | ✅ | ✅ |
-| com.tencent.tmgp.pubgmhd | ✅ | ✅ | ✅ | ❌️ |
+AndUEProber is an experimental Unreal Engine runtime-analysis tool for Android AArch64. It probes reflection layouts, object/name access and engine-call metadata, displays results through ImGui, and adapts discovered values to a pinned AndUEDumper fork for SDK export.
 
-| 探测结果总览 | Dump 结果 |
-|:---:|:---:|
-| ![results](misc/p2.jpg) | ![dump](misc/p3.jpg) |
+The intended use is engine analysis and security-tool development on owned or explicitly authorized software. A package profile identifies a code path; it does not establish authorization or verified compatibility with a current application version.
 
-探测原理: [ReverseUE.md](source/UEProber/UECore/ReverseUE.md)（文档部分内容可能未及时更新）
+## Current capabilities
 
----
+| Area | Source | Boundary |
+|---|---|---|
+| Reflection layouts | [UEProber.cpp](source/UEProber/UEProber.cpp) | Heuristic, profile-dependent results; no general UE-version guarantee |
+| Target profiles | [GameProfiles](source/UEProber/GameProfiles) | Contains third-party package identifiers and name-resolution logic; see [scope inventory](docs/research-scope.md) |
+| Engine calls | ProcessEvent and name-resolution paths | Execute host code; thread, range and allocation checks are incomplete |
+| SDK export | [DumperBridge.cpp](source/UEProber/DumperBridge.cpp) | Replaces an existing output directory; write failures are not fully propagated |
+| Graphics and input | Pinned AndSwapChainHook | Inherits the pinned implementation's hook, threading and lifecycle limits |
 
-## 概述
+The [probe model](source/UEProber/UECore/ReverseUE.md) describes current assumptions. No generated SDK is supplied as an independently validated reference fixture.
 
-集成了 [AndUEDumper](https://github.com/MJx0/AndUEDumper)，
-UEProber 可与 AndUEDumper 无缝衔接 —— 探测完成后可直接触发 Dump，无需手动配置偏移，
-生成的 SDK 可直接通过 `#include "SDK_A/SDK.hpp"` 引入编译使用。
+## Build
 
-## 构建
+Requirements: CMake 3.22.1 or newer, Ninja, Android NDK, recursive submodules. CMake selects `arm64-v8a`, API 27 and C++20.
 
-**环境要求：**
-- CMake 3.22.1+
-- Android NDK（ARM64-v8a，API 27+）
-
-```bash
-# 设置 NDK_HOME 环境变量（替换为你的 NDK 实际路径）
+```sh
 export NDK_HOME=/path/to/android-ndk
 git submodule update --init --recursive
-cmake -B build -G "Ninja" -DCMAKE_BUILD_TYPE=Release
+cmake -S . -B build -G Ninja -DCMAKE_BUILD_TYPE=Release
 cmake --build build
 ```
 
-> **⚠️ 请使用 Release 构建，否则注入后可能崩溃**
+Output: `build/libAndUEProber.so`. The Dumper submodule uses an SSH URL; initialization depends on Git access configuration. Release and Debug compiled and linked with NDK r29 in the repository review. Neither build was validated inside an Android target.
 
-输出：`libAndUEProber.so`
+## Startup and side effects
 
-## 使用方法
+[Library.cpp](source/Library.cpp) uses `JNI_OnLoad` key `1337` to start a detached worker. The key is an injector convention, not an authorization check. Initialization includes library scanning, graphics/input setup, an automatic dump attempt after eight seconds, and a package-dependent detached loop that repeatedly changes BSS memory protection. Scan failure can deliberately crash the host.
 
-使用 [AndKittyInjector v5.1.0](https://github.com/MJx0/AndKittyInjector) 注入到目标应用：
+External injection is a deployment dependency. Associated injector options include `--memfd`, `--hide`, and `--watch`. Concealment and process watching are not authorization controls. This revision has no validated owned-app deployment walkthrough.
 
-```bash
-./AndKittyInjector --package <包名> --libs libAndUEProber.so --memfd --hide --watch
-```
----
+## Known limitations
 
-## Todo
+Probe workers, UI access and export state lack a complete session/lifetime protocol. Signal-based recovery can cross C++ objects and locks. Engine calls lack a verified game-thread executor, and executable-range checks are incomplete. Zero offsets, defaults and confirmed results can be conflated. FName/FString allocation ownership and export replacement/error handling need repair.
 
-- [x] Auto-detect GUObjectArray / FName::ToString / ProcessEventIdx
-- [x] Fix FName::ToString on UE 4.18
-- [ ] Fix com.tencent.tmgp.pubgmhd ProcessEventIndex
-- [ ] UE6
-- [ ] Memory leak on FName::ToString
+The SDK smoke configuration skips its target when generated headers are absent; that is not a passing SDK test. Existing profiles and screenshots are not a versioned runtime compatibility matrix.
 
-## Credits
+## Project documentation
 
-- [AndUEDumper](https://github.com/MJx0/AndUEDumper)
-- [AndKittyInjector](https://github.com/MJx0/AndKittyInjector)
-- [Dobby](https://github.com/jmpews/Dobby)
-- [AndSwapChainHook](https://github.com/DumpA1n/AndSwapChainHook)
+- [Research scope](docs/research-scope.md)
+- [Lab guide and verification limits](docs/lab-guide.md)
+- [Data handling](docs/data-handling.md)
+- [Dependency provenance](THIRD_PARTY_NOTICES.md)
+- [Security reporting](SECURITY.md)
+- [Contributing](CONTRIBUTING.md)
 
+First-party code is [MIT licensed](LICENSE). Research and maintenance guidance does not amend that license. Third-party components retain their own terms.
+
+No repository security certification or platform access approval is claimed.

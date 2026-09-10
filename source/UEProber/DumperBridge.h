@@ -18,7 +18,7 @@ struct GameDetectionResult {
     uintptr_t GUObjectArrayPtr = 0;  // absolute VA of FUObjectArray
     uintptr_t ObjectsFieldAddr = 0;  // address TO READ to get Objects pointer
     uintptr_t UEBaseAddress = 0;     // UE module base address
-    uintptr_t DecryptFNameAddr = 0;     // FName 解码入口地址：DeltaForce → DecryptFName；NiZhan/Roco/PUBG → GetPlainANSIString；0 表示不可用
+    uintptr_t DecryptFNameAddr = 0;     // FName resolver entry: profile-specific decrypt/name call; zero means unavailable.
     int32_t NumElementsPerChunk = 0;    // 0 = flat (FUObjectItem*), >0 = chunked (FUObjectItem**)
 };
 
@@ -82,11 +82,11 @@ struct ProbedOffsets {
     uintptr_t ffieldOwner = 0;  // FFieldVariant Owner offset (prober Phase5_ProbeFFieldOwner)
     // FProperty
     uintptr_t fpropArrayDim = 0, fpropElemSize = 0, fpropFlags = 0, fpropOffset = 0, fpropSize = 0;
-    // FProperty 派生类 tail 起点 (DFM leading metadata: ≠ fpropSize)
+    // FProperty subclass-tail start can differ from fpropSize when leading metadata exists.
     uintptr_t fpropSubBase = 0;
-    // FEnumProperty UnderlyingType / Enum 偏移 (双布局变体)
+    // FEnumProperty UnderlyingType and Enum offsets for the selected layout.
     uintptr_t fenumUnderlying = 0, fenumEnum = 0;
-    // FArray/FSet/FMap tail inner-property 偏移 (per-subclass override of fpropSubBase).
+    // Per-subclass FArray/FSet/FMap tail offsets override fpropSubBase.
     // DFM-style alt: individual container subclasses have their own per-class
     // leading-metadata pad that the global fpropSubBase value doesn't capture
     // (prober Phase5_ProbeFContainerPropertyTails).
