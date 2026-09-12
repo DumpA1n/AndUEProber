@@ -1,40 +1,34 @@
 # UE reflection probe model
 
-The public Core/Probe components provide bounded observation and evidence algorithms. [UEProber.cpp](../UEProber.cpp) serializes adapter commands; [ConfiguredProbeBridge.cpp](../ConfiguredProbeBridge.cpp) consumes the public phases in configured Agent operations. [DumperBridge.cpp](../DumperBridge.cpp) owns the normal-linker profile boundary. None establishes universal UE-version compatibility.
+Public Core/Probe components implement bounded observations and immutable evidence. `UEProber.cpp` serializes commands, `ConfiguredProbeBridge.cpp` executes declared-metadata fixtures, and `DumperBridge.cpp` owns live profile discovery, reflection collection and SDK publication. None establishes universal compatibility across Unreal Engine versions.
 
-## Inputs and ownership
+## Ownership and reads
 
-A configured operation supplies an explicit object-array layout, canonical length-prefixed name pool, reflection model, bounded extents and independent expected metadata. Expected values must come from declared owned/profile knowledge; reading the unknown field to manufacture its expected value does not validate an offset. Arrays and strings are copied at admission. Referenced memory remains caller-owned until Stop joins.
+One worker owns the ProcessMemory lease, byte budget, deadline and cancellation token. Every read checks address overflow and provider results, then rechecks cancellation, deadline and generation. The module lease identifies mutable engine memory; it does not make that memory a coherent snapshot. UI drawing receives only a deep-copied observation and sends explicit commands to the worker.
 
-One worker owns the ProcessMemory module lease, budget and cancellation token. Every Core read checks overflow, budget, deadline, cancellation and generation before and after the provider returns. Module lifetime keeps the normal loader instance resident; it does not freeze mutable object memory. UI drawing receives only a deep-copied immutable snapshot. The generic command view submits explicit supported commands; configured Agent observations are read only.
+Configured operations copy arrays and strings at admission and borrow referenced fixture memory until Stop joins. Expected values are independent declarations; reading an unknown field to manufacture its expected value is not evidence. Automatic operations instead collect independent live relationships from the object registry and FField chains.
 
-Seven first-party automatic profiles use bounded module/object-array discovery. Their custom names require a bounded provider and remain unsupported. The 26 pinned upstream profiles have no admitted bounded discovery provider. Profile identifiers record source inventory and do not grant target authorization.
+## Automatic phases
 
-## Phase boundaries
+| Phase | Live relationships and published layout |
+|---|---|
+| 1 | Indexed UObjects validate `InternalIndex`, `NamePrivate`, `ClassPrivate`, `OuterPrivate` and `ObjectFlags` |
+| 2 | Typed UStruct objects validate `UField::Next`, `SuperStruct`, `Children`, `ChildProperties` and `PropertiesSize` |
+| 3 | UClass/default-object ownership validates `CastFlags` and `ClassDefaultObject` |
+| 4 | Coherent UFunction records validate flags, parameter count/size, return offset and native-function pointer |
+| 5 | Independent FField owner/next/class/name relationships, FProperty scalars, base size, subclass base, pointer members and Bool metadata validate the reflection property model |
+| 6 | UEnum arrays and names are validated; ProcessEvent is found through executable UObject vtable relationships and recorded separately |
 
-| Phase | Production boundary | Evidence and limits |
-|---|---|---|
-| UObject | Core index/name/class/outer and independent uint32 flags | Current validated layout, samples and dependency versions; zero/high-bit flags do not use a guessed mask |
-| UField/UStruct | `probeStructFields` through configured Phase2 | Independent Next, SuperStruct, Children, PropertiesSize and applicable ChildProperties metadata; optional MinAlignment; no fabricated UObject size |
-| UClass | `probeClassFields` through configured Phase3 | Independent uint64 CastFlags and default-object pointers; atomic publication after readback; default objects are not dereferenced |
-| UFunction | `probeFunctionFields` through configured Phase4 | Independent flags, parameter count/size, return offset and native pointer values; five non-overlapping fields publish atomically; no invocation |
-| FField | `probeFieldFields` through configured base operation | Names reuse the exact physical pool observation; independent owner/next/class/flags metadata; five fields publish atomically |
-| FProperty | `probePropertyFields` through configured property operation | Four scalar fields with independent containing-value bounds and occupied FField prefix; exact preceding owner/name provenance |
-| Property subclass pointers | `probePropertyTails` through configured tail operation | Explicit Enum/Array/Set/Map/Object/Struct/Byte/Class/Interface pointer columns; complete FProperty prefix and provenance; pointed-to memory is not accessed |
-| Complete container layout/ownership | Complete Phase5 returns Unsupported | Bool, FieldPath, container storage semantics and complete collector remain implementation gates |
-| UEnum | `probeEnumNames` through configured enum operation | Complete ordered names and signed int64 values, explicit header/entry/prefix layouts, all-array readback and exact name observation identity |
-| ProcessEvent | Unsupported | Requires a verified engine signature and thread/allocator contract |
+At least three distinct named anchors are required for scalar/relationship fields where the algorithm admits comparison. Ambiguity, invalid text, changed relationships or read failures stop the phase without publishing a partially completed automatic result. User overrides survive rediscovery and must agree with current live evidence. Replacing an upstream value invalidates its dependency closure.
 
-Configured struct/class/function phases require current validated upstream versions. Ambiguous observations and read failures do not publish partial phase results. Unconfigured phase commands return Unsupported. Reflection model and read extents are explicit metadata; a version number alone is insufficient.
+`sizeof(FProperty)` and `FProperty::SubPropertyBase` are inferred from independent pointer-tail and NativeBool anchors, not from a configured constant. Container pointer members establish key/value/element relationships. They do not claim the complete runtime representation of `TArray`, `TSet`, `TMap`, allocators or element storage.
 
-Every configured phase validates the complete required evidence dependency closure before reads and after tentative publication, with bounded node/edge/metadata counts and the same cancellation/deadline. Unrelated stale observations do not block an independent phase. No automatic anchor collector or property-tail ranking path is admitted.
+ProcessEvent discovery validates an executable vtable entry and records its index and module-relative address. Invocation is absent because the repository has no verified target signature, object-ownership proof, game-thread executor or matching allocation/release contract. FName decoding uses bounded pool reads; no FName-to-FString engine call is used.
 
-## Results and export
+## Reflection export
 
-Core offsets distinguish absence from zero, probe results from user overrides, and candidate/validated/stale evidence. Reprobing invalidates downstream versions. User values are preserved; agreement with a read does not establish that an unvalidated user override is validated. Sessions freeze an independent deep copy before publication. The inspector projects Core state without obtaining a memory-reader reference.
+After all phases complete, the frozen offset set configures the pinned AndUEDumper collector. The bounded adapter supplies serialized reads only; export performs no unbounded module scan and does not rescan ProcessEvent. The collector gathers UObject-derived and FField-derived reflection, inheritance, properties, enums, functions, parameter layouts and package relationships, then emits the SDK, object inventory, offset evidence and completion manifest into a staging directory.
 
-`AUEP_StartStructProbe` executes UObject and UStruct phases; `AUEP_StartClassProbe` adds UClass; `AUEP_StartFunctionProbe` adds UFunction. Each operation shares one 64 MiB read budget and 30-second deadline and publishes one frozen observation only after its complete configured pipeline succeeds. A later phase failure does not publish an intermediate result.
+Publication checks creation, write, flush, close, rename and directory synchronization. A failure retains the preceding completed export. `completion.json` is written only after the staged file inventory is frozen. ProcessEvent is available to generated wrappers as a verified address/index but is never executed by the analysis process.
 
-Full live SDK export returns Unsupported because complete property/container collection and the full UE reflection model are unavailable. `AUEP_StartFunctionLayoutProbe` emits a frozen declared function data-layout subset using actual observed offsets and independent record size/alignment. Its pinned formatter reads no process memory. `AUEP_StartFieldBaseProbe` adds five FField observations; `AUEP_StartPropertyProbe` adds four FProperty scalars with independently declared bounds. `AUEP_StartEnumProbe` adds complete UEnum array observations after the UObject/UField prerequisites. `AUEP_StartPropertyTailProbe` adds the declared opaque subclass pointer fields. Complete container storage, Bool and FieldPath coverage remain implementation gates. The standalone SDKCoreGen fixture compiles and executes a generated owned object-array subset from frozen index offsets. A complete owned UE reflection SDK remains an acceptance gate.
-
-Signal/longjmp recovery is absent. Raw FName-to-FString and ProcessEvent entry points are not callable through these operations. The separate compiled text-shim executor requires explicit thread, signature, module lease and allocator ownership; its owned native fixtures do not establish a verified UE binding.
+Configured Core operations and the public DumperAdapter remain useful independent validation paths. Their metadata is an oracle for fixtures, not a requirement for the automatic production workflow.

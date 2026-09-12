@@ -56,10 +56,11 @@ Status CommandSession::start() {
 }
 Status CommandSession::submit(Command command, std::uint64_t& id) {
     id = 0;
-    if (command.kind < CommandKind::Detect || command.kind > CommandKind::Export || command.field.size() > 1024 ||
+    if (command.kind < CommandKind::Detect || command.kind > CommandKind::InspectMemory || command.field.size() > 1024 ||
         (command.kind == CommandKind::ProbePhase && (command.phase < 1 || command.phase > 6)) ||
         ((command.kind == CommandKind::SetOverride || command.kind == CommandKind::ClearOverride) && command.field.empty()) ||
-        (command.kind == CommandKind::SetOverride && (!command.value || *command.value > INT32_MAX)))
+        (command.kind == CommandKind::SetOverride && (!command.value || *command.value > INT32_MAX)) ||
+        (command.kind == CommandKind::InspectMemory && (!command.address || !command.size || command.size > 512)))
         return {Error::InvalidArgument, "Invalid inspector command"};
     std::lock_guard lock(state_->mutex);
     if (!state_->started || state_->closed) return {Error::Busy, "The command session is not accepting work"};

@@ -18,6 +18,21 @@ int main() {
     CHECK(value.evidence.relativeAddresses.back() == 0x1900);
     CHECK(findNameToStringCandidate(memory, module, budget, value));
     CHECK(value.address == memory.base + 0x3300);
+    CHECK(findNamePoolCandidate(memory, module, budget, value));
+    CHECK(value.address == memory.base + 0x1d00);
+    const std::array pattern{std::byte{0x91}, std::byte{0x00}, std::byte{0x10}, std::byte{0x81},
+        std::byte{0x52}, std::byte{0x00}, std::byte{0x00}, std::byte{0x21}, std::byte{0x8b}};
+    const std::array mask{std::byte{0xff}, std::byte{0x00}, std::byte{0xff}, std::byte{0xff},
+        std::byte{0xff}, std::byte{0x00}, std::byte{0x00}, std::byte{0xff}, std::byte{0xff}};
+    CHECK(findAddressFromAarch64Pattern(memory, module, pattern, mask, -7, budget, value));
+    CHECK(value.address == memory.base + 0x1a00);
+    CHECK(value.evidence.relativeAddresses == std::vector<std::uintptr_t>({0x3507, 0x3500, 0x1a00}));
+    {
+        auto invalidMask = mask; invalidMask[1] = std::byte{1};
+        CHECK(findAddressFromAarch64Pattern(memory, module, pattern, invalidMask, -28, budget, value).code == Error::InvalidArgument);
+        CHECK(!value.address);
+        CHECK(findAddressFromAarch64Pattern(memory, module, pattern, mask, -6, budget, value).code == Error::InvalidEvidence);
+    }
     memory.call(0x310c, 0x3080);
     CHECK(findNameToStringCandidate(memory, module, budget, value));
     CHECK(value.address == memory.base + 0x3080); // Negative BL displacement is decoded without signed shifts.
@@ -61,15 +76,16 @@ int main() {
         memory.call(0x3110, 0x3400); memory.put(0x3114, 0xd65f03c0, 4);
         CHECK(findNameToStringCandidate(memory, module, budget, value).code == Error::InvalidEvidence);
         memory.put(0x3110, 0xd65f03c0, 4);
-        memory.put(0x300c, 0x14000001, 4);
-        CHECK(findObjectArrayCandidate(memory, module, budget, value).code == Error::Unsupported);
+        memory.jump(0x300c, 0x3200);
+        CHECK(findObjectArrayCandidate(memory, module, budget, value));
+        CHECK(value.address == memory.base + 0x1980);
         memory.call(0x300c, 0x3200);
         memory.put(0x3010, 0, 4);
         CHECK(!findObjectArrayCandidate(memory, module, budget, value));
         memory.put(0x3010, 0xd65f03c0, 4);
-        memory.put(0x3204, 0xf9400000u | (0x800u / 8u << 10) | (12u << 5) | 11, 4);
+        memory.put(0x3208, 0xf9400000u | (0x800u / 8u << 10) | (12u << 5) | 11, 4);
         CHECK(!findObjectArrayCandidate(memory, module, budget, value));
-        memory.put(0x3204, 0xf9400000u | (0x800u / 8u << 10) | (10u << 5) | 11, 4);
+        memory.put(0x3208, 0xf9400000u | (0x800u / 8u << 10) | (10u << 5) | 11, 4);
         unsigned slotReads = 0;
         memory.onRead = [&](auto address) { if (address == memory.base + 0x1800 && ++slotReads == 2) memory.put(0x1800, memory.base + 0x1900, 8); };
         CHECK(findObjectArrayCandidate(memory, module, budget, value).code == Error::StaleIdentity);

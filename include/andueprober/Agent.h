@@ -287,7 +287,8 @@ typedef struct AUEP_LayoutSchema {
 
 typedef enum AUEP_CommandKind {
     AUEP_DETECT = 1, AUEP_PROBE_PHASE = 2, AUEP_PROBE_ALL = 3,
-    AUEP_SET_OVERRIDE = 4, AUEP_CLEAR_OVERRIDE = 5, AUEP_CLEAR_RESULTS = 6, AUEP_EXPORT = 7
+    AUEP_SET_OVERRIDE = 4, AUEP_CLEAR_OVERRIDE = 5, AUEP_CLEAR_RESULTS = 6,
+    AUEP_EXPORT = 7, AUEP_INSPECT_MEMORY = 8
 } AUEP_CommandKind;
 typedef struct AUEP_Command {
     uint32_t struct_size;
@@ -295,6 +296,8 @@ typedef struct AUEP_Command {
     uint32_t phase;
     const char* field;
     uint32_t has_value, value;
+    uintptr_t address;
+    uint32_t size;
     uint64_t generation;
 } AUEP_Command;
 typedef struct AUEP_CommandResult {
@@ -353,8 +356,9 @@ AUEP_API AUEP_Error AUEP_Submit(const AUEP_Command* command, uint64_t* id);
 AUEP_API AUEP_Error AUEP_QueryCommands(AUEP_CommandResult* result);
 // The caller owns the selected ImGui 1.92.2b context, matching pinned imconfig/layout,
 // active frame, renderer and input. All draws use one caller thread. No context is created.
-// Interactive providers disable unavailable phase/export buttons. Configured sessions
-// render immutable observations without command controls, including after Stop.
+// Automatic providers expose phase, export, candidate-selection and bounded read-only
+// inspection commands. Configured sessions render immutable observations without
+// command controls, including after Stop.
 AUEP_API AUEP_Error AUEP_DrawInspector(void* imgui_context);
 AUEP_API AUEP_Error AUEP_Cancel(void);
 // Stop closes command admission, requests cancellation and joins the owned worker.

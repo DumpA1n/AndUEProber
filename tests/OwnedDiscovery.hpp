@@ -22,9 +22,22 @@ struct OwnedDiscovery final : andueprober::MemoryReader {
         call(0x300c, 0x3200); put(0x3010, 0xd65f03c0, 4);
         put(0x3100, 0xd10083ff, 4); reference(0x3104, 0x1100, 9);
         call(0x310c, 0x3300); put(0x3110, 0xd65f03c0, 4);
-        adrp(0x3200, 0x1800, 10); put(0x3204, 0xf9400000u | (0x800u / 8u << 10) | (10u << 5) | 11, 4);
-        put(0x3208, 0xd65f03c0, 4); put(0x3300, 0xd65f03c0, 4);
+        adrp(0x3200, 0x1800, 10); put(0x3204, 0xd503201f, 4);
+        put(0x3208, 0xf9400000u | (0x800u / 8u << 10) | (10u << 5) | 11, 4);
+        put(0x320c, 0xd65f03c0, 4); put(0x3300, 0xd65f03c0, 4);
         put(0x1800, base + 0x1900, 8);
+        adrp(0x3500, 0x1a00, 14);
+        put(0x3504, 0x91000000u | (0xa00u << 10) | (14u << 5) | 14u, 4);
+        put(0x3508, 0x52811000, 4);
+        put(0x350c, 0x8b210000, 4);
+        put(0x3600, 0x52a00000, 4); put(0x3604, 0x52a00000, 4);
+        put(0x3608, 0x1a000000, 4); put(0x360c, 0x1b000000, 4);
+        adrp(0x3610, 0x1c00, 13);
+        put(0x3614, 0x91000000u | (0xc00u << 10) | (13u << 5) | 13u, 4);
+        put(0x3700, 0x370000c8, 4);
+        adrp(0x3704, 0x1d00, 15);
+        put(0x3708, 0x91000000u | (0xd00u << 10) | (15u << 5) | 15u, 4);
+        put(0x370c, 0x97000000, 4);
     }
     void put(std::size_t offset, std::uint64_t value, std::size_t size) {
         for (std::size_t i = 0; i < size; ++i) bytes.at(offset + i) = std::byte((value >> (i * 8)) & 255);
@@ -49,6 +62,10 @@ struct OwnedDiscovery final : andueprober::MemoryReader {
     void call(std::size_t pc, std::size_t target) {
         const auto words = (static_cast<std::int64_t>(target) - static_cast<std::int64_t>(pc)) / 4;
         put(pc, 0x94000000u | (static_cast<std::uint32_t>(words) & 0x03ffffffu), 4);
+    }
+    void jump(std::size_t pc, std::size_t target) {
+        const auto words = (static_cast<std::int64_t>(target) - static_cast<std::int64_t>(pc)) / 4;
+        put(pc, 0x14000000u | (static_cast<std::uint32_t>(words) & 0x03ffffffu), 4);
     }
     andueprober::ReadResult read(std::uintptr_t address, std::span<std::byte> destination) override {
         ++reads;

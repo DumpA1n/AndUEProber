@@ -88,6 +88,11 @@ int main() {
         REQUIRE(active.submit(command, id).code == Error::InvalidArgument);
         command.value = 0xffffffff;
         REQUIRE(active.submit(command, id).code == Error::InvalidArgument);
+        command = {}; command.kind = CommandKind::InspectMemory; command.address = 0x1000; command.size = 513;
+        REQUIRE(active.submit(command, id).code == Error::InvalidArgument);
+        command.size = 16;
+        REQUIRE(active.submit(command, id));
+        until([&] { return active.view().completed == id; });
         REQUIRE(active.stop());
     }
     std::puts("PASS: bounded command admission, persistent worker, immutable Core results, override invalidation, cancellation, shutdown and callback failures");

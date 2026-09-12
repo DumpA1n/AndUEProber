@@ -8,19 +8,35 @@ option(ANDUEPROBER_BUILD_TESTS "Build host regression fixtures" ${PROJECT_IS_TOP
 option(ANDUEPROBER_SANITIZERS "Enable host address and undefined behavior sanitizers" OFF)
 option(ANDUEPROBER_BUILD_DUMPER_EMITTER "Build the private bounded pinned text emitter" OFF)
 option(ANDUEPROBER_BUILD_DUMPER_ADAPTER "Build the optional frozen reflection text adapter" ${ANDUEPROBER_BUILD_AGENT})
+set(ANDUEPROBER_MEMORY_SOURCE_DIR "" CACHE PATH "Explicit public Memory producer checkout; no sibling discovery")
+set(ANDSWAPCHAIN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/AndSwapChainHook CACHE PATH "Pinned Android dependency source directory")
+set(ANDUEDUMPER_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/external/AndUEDumper" CACHE PATH "Pinned dumper dependency source directory")
 find_package(Threads REQUIRED)
 find_package(Git QUIET)
-set(ANDUEPROBER_SOURCE_REVISION "unrecorded-source-archive")
-if(GIT_FOUND)
-    execute_process(COMMAND ${GIT_EXECUTABLE} rev-parse HEAD WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE source_revision OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
-    if(source_revision)
-        set(ANDUEPROBER_SOURCE_REVISION "${source_revision}")
-        execute_process(COMMAND ${GIT_EXECUTABLE} status --porcelain WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} OUTPUT_VARIABLE source_changes ERROR_QUIET)
-        if(source_changes)
-            string(APPEND ANDUEPROBER_SOURCE_REVISION "-dirty")
+function(andueprober_git_revision directory fallback output)
+    set(revision "${fallback}")
+    if(GIT_FOUND AND EXISTS "${directory}")
+        execute_process(COMMAND ${GIT_EXECUTABLE} -C "${directory}" rev-parse HEAD
+            OUTPUT_VARIABLE found_revision OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+        if(found_revision)
+            set(revision "${found_revision}")
+            execute_process(COMMAND ${GIT_EXECUTABLE} -C "${directory}" status --porcelain
+                OUTPUT_VARIABLE changes OUTPUT_STRIP_TRAILING_WHITESPACE ERROR_QUIET)
+            if(changes)
+                string(APPEND revision "-dirty")
+            endif()
         endif()
     endif()
+    set(${output} "${revision}" PARENT_SCOPE)
+endfunction()
+andueprober_git_revision("${CMAKE_CURRENT_SOURCE_DIR}" "unrecorded-source-archive" ANDUEPROBER_SOURCE_REVISION)
+andueprober_git_revision("${ANDUEDUMPER_ROOT}" "unrecorded-dumper-source" ANDUEPROBER_DUMPER_REVISION)
+if(ANDUEPROBER_MEMORY_SOURCE_DIR)
+    andueprober_git_revision("${ANDUEPROBER_MEMORY_SOURCE_DIR}" "unrecorded-memory-source" ANDUEPROBER_MEMORY_REVISION)
+else()
+    set(ANDUEPROBER_MEMORY_REVISION "unrecorded-installed-memory-package")
 endif()
+andueprober_git_revision("${ANDSWAPCHAIN_DIR}/external/KittyMemoryEx" "unrecorded-kitty-source" ANDUEPROBER_KITTY_REVISION)
 configure_file(cmake/BuildInfo.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/generated/BuildInfo.hpp @ONLY)
 add_library(AndUEProberCore STATIC source/Core/Core.cpp source/Core/Export.cpp source/Core/Commands.cpp source/Core/Engine.cpp source/Core/Reflection.cpp source/Core/Evidence.cpp)
 add_library(AndUEProber::Core ALIAS AndUEProberCore)
@@ -39,6 +55,7 @@ add_library(AndUEProberProbe STATIC
     source/Probe/Functions.cpp
     source/Probe/Fields.cpp
     source/Probe/Properties.cpp
+    source/Probe/PropertyBases.cpp
     source/Probe/ObjectFlags.cpp
     source/Probe/Enums.cpp
     source/Probe/PropertyTails.cpp
@@ -64,7 +81,6 @@ install(EXPORT AndUEProberTargets NAMESPACE AndUEProber:: DESTINATION ${CMAKE_IN
 install(FILES LICENSE THIRD_PARTY_NOTICES.md DESTINATION ${CMAKE_INSTALL_DATADIR}/licenses/AndUEProber)
 write_basic_package_version_file(${CMAKE_CURRENT_BINARY_DIR}/AndUEProberConfigVersion.cmake VERSION ${PROJECT_VERSION} COMPATIBILITY SameMajorVersion)
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/AndUEProberConfig.cmake ${CMAKE_CURRENT_BINARY_DIR}/AndUEProberConfigVersion.cmake DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/AndUEProber)
-set(ANDUEPROBER_MEMORY_SOURCE_DIR "" CACHE PATH "Explicit public Memory producer checkout; no sibling discovery")
 option(ANDUEPROBER_WITH_PROCESS_MEMORY "Build the process-memory adapter using AndSwapChainHook::Memory" OFF)
 if(ANDUEPROBER_MEMORY_SOURCE_DIR)
     set(ANDUEPROBER_WITH_PROCESS_MEMORY ON)
@@ -103,7 +119,6 @@ if(ANDUEPROBER_WITH_PROCESS_MEMORY)
     install(TARGETS AndUEProberProcessMemory EXPORT AndUEProberProcessMemoryTargets ARCHIVE DESTINATION ${CMAKE_INSTALL_LIBDIR})
     install(EXPORT AndUEProberProcessMemoryTargets NAMESPACE AndUEProber:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/AndUEProber)
 endif()
-set(ANDSWAPCHAIN_DIR ${CMAKE_CURRENT_SOURCE_DIR}/external/AndSwapChainHook CACHE PATH "Pinned Android dependency source directory")
 set(inspector_default OFF)
 if(ANDUEPROBER_BUILD_AGENT OR ANDUEPROBER_BUILD_TESTS)
     set(inspector_default ON)
@@ -168,7 +183,7 @@ set(ANDUEDUMPER_SRC  ${ANDUEDUMPER_DIR}/src)
 set(ANDUEDUMPER_DEPS ${ANDUEDUMPER_ROOT}/deps)
 
 add_library(AndUEDumperLib STATIC
-    ${ANDUEDUMPER_SRC}/UE/UEGameProfile.cpp ${ANDUEDUMPER_SRC}/UE/UEMemory.cpp
+    ${ANDUEDUMPER_SRC}/UE/UEGameProfile.cpp source/UEProber/BoundedUEMemory.cpp
     ${ANDUEDUMPER_SRC}/UE/UEOffsets.cpp ${ANDUEDUMPER_SRC}/UE/UEWrappers.cpp
     ${ANDUEDUMPER_SRC}/Utils/BufferFmt.cpp ${ANDUEDUMPER_SRC}/Utils/ProgressUtils.cpp
     ${ANDUEDUMPER_SRC}/Dumper.cpp ${ANDUEDUMPER_SRC}/UPackageGenerator.cpp
@@ -178,6 +193,7 @@ set_target_properties(AndUEDumperLib PROPERTIES POSITION_INDEPENDENT_CODE ON)
 target_include_directories(AndUEDumperLib PUBLIC
     ${ANDUEDUMPER_SRC}        # exposed UE/* and Utils/BufferFmt.hpp consumed by UEProber
     ${ANDUEDUMPER_DEPS}       # BufferFmt.hpp transitively needs fmt/; UEProber uses utfcpp/
+    ${CMAKE_CURRENT_SOURCE_DIR}/source/UEProber
 )
 
 target_link_libraries(AndUEDumperLib PUBLIC KittyMemoryExLib)
@@ -218,6 +234,9 @@ target_link_libraries(AndUEProber PRIVATE
 if(ANDUEPROBER_WITH_PROCESS_MEMORY)
     target_link_libraries(AndUEProberAgentRuntime PUBLIC AndUEProber::ProcessMemory)
     target_compile_definitions(AndUEProberAgentRuntime PUBLIC ANDUEPROBER_HAS_PROCESS_MEMORY=1)
+    add_executable(andueprober_target_runner source/TargetRunner.cpp)
+    target_link_libraries(andueprober_target_runner PRIVATE AndUEProberAgentRuntime log)
+    install(TARGETS andueprober_target_runner RUNTIME DESTINATION ${CMAKE_INSTALL_BINDIR})
 endif()
 install(TARGETS AndUEProber EXPORT AndUEProberAgentTargets LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR})
 install(EXPORT AndUEProberAgentTargets NAMESPACE AndUEProber:: DESTINATION ${CMAKE_INSTALL_LIBDIR}/cmake/AndUEProber)

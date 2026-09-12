@@ -15,7 +15,7 @@
 // Construction.
 // ============================================================
 
-UEProber::UEProber() {
+UEProber::UEProber(std::string outputRoot) : m_OutputRoot(std::move(outputRoot)) {
     for (int i = 0; i < 7; ++i)
         m_PhaseStatus[i] = EPhaseStatus::NotStarted;
 }
@@ -73,16 +73,19 @@ void UEProber::ExecutePhase(int phase) {
         {"UField::Next", "UStruct::SuperStruct", "UStruct::Children", "UStruct::PropertiesSize"},
         {"UClass::CastFlags", "UClass::ClassDefaultObject"},
         {"UFunction::FunctionFlags", "UFunction::NumParms", "UFunction::ParmsSize", "UFunction::ReturnValueOffset", "UFunction::Func"},
-        {"FField::NamePrivate", "FField::ClassPrivate", "FProperty::ArrayDim", "FProperty::ElementSize", "FProperty::PropertyFlags", "FProperty::Offset_Internal"},
+        {"FField::NamePrivate", "FField::Owner", "FField::Next", "FField::ClassPrivate", "FField::FlagsPrivate",
+            "FProperty::ArrayDim", "FProperty::ElementSize", "FProperty::PropertyFlags", "FProperty::Offset_Internal",
+            "sizeof(FProperty)", "FProperty::SubPropertyBase", "FEnumProperty::UnderlyingType", "FEnumProperty::Enum",
+            "FArrayProperty::Inner", "FSetProperty::ElementProp", "FMapProperty::KeyProp", "FMapProperty::ValueProp",
+            "FBoolProperty::FieldSize", "FBoolProperty::ByteOffset", "FBoolProperty::ByteMask", "FBoolProperty::FieldMask"},
         {"ProcessEvent::VTableIdx", "UEnum::Names"}};
     const bool complete = m_GameDetected && static_cast<bool>(m_CoreSnapshot.result) && std::all_of(required[phase].begin(), required[phase].end(), [&](const auto& name) { return HasConfirmed(name); });
     m_PhaseStatus[phase] = ProbeCancelled() ? EPhaseStatus::Cancelled : complete ? EPhaseStatus::Completed : EPhaseStatus::Failed;
 }
 
 void UEProber::Phase1_AutoProbe() {
-    m_CoreSnapshot.result = {andueprober::Error::Unsupported,
-        "UObject probing requires an explicit object-array, name-pool and independent anchor configuration"};
-    LogError(m_CoreSnapshot.result.message);
+    m_CoreSnapshot.result = RunAutomaticProfilePhase(1, m_CoreSnapshot);
+    if (!m_CoreSnapshot.result) LogError(m_CoreSnapshot.result.message);
 }
 
 // ============================================================
@@ -110,8 +113,8 @@ andueprober::Status UEProber::RunConfiguredStructPhase(andueprober::MemoryReader
 }
 void UEProber::Phase2_AutoProbe() {
     if (!m_StructOperation) {
-        m_CoreSnapshot.result = {andueprober::Error::Unsupported,
-            "Struct probing requires explicit independent size and relationship metadata"};
+        m_CoreSnapshot.result = RunAutomaticProfilePhase(2, m_CoreSnapshot);
+        if (!m_CoreSnapshot.result) LogError(m_CoreSnapshot.result.message);
         return;
     }
     auto& operation = *m_StructOperation;
@@ -142,8 +145,8 @@ andueprober::Status UEProber::RunConfiguredClassPhase(andueprober::MemoryReader&
 }
 void UEProber::Phase3_AutoProbe() {
     if (!m_ClassOperation) {
-        m_CoreSnapshot.result = {andueprober::Error::Unsupported,
-            "Class probing requires independent cast-flags and default-object metadata"};
+        m_CoreSnapshot.result = RunAutomaticProfilePhase(3, m_CoreSnapshot);
+        if (!m_CoreSnapshot.result) LogError(m_CoreSnapshot.result.message);
         return;
     }
     auto& operation = *m_ClassOperation;
@@ -174,8 +177,8 @@ andueprober::Status UEProber::RunConfiguredFunctionPhase(andueprober::MemoryRead
 }
 void UEProber::Phase4_AutoProbe() {
     if (!m_FunctionOperation) {
-        m_CoreSnapshot.result = {andueprober::Error::Unsupported,
-            "Function probing requires independent parameter and native-pointer metadata"};
+        m_CoreSnapshot.result = RunAutomaticProfilePhase(4, m_CoreSnapshot);
+        if (!m_CoreSnapshot.result) LogError(m_CoreSnapshot.result.message);
         return;
     }
     auto& operation = *m_FunctionOperation;
@@ -225,9 +228,9 @@ andueprober::Status UEProber::RunConfiguredPropertyPhase(andueprober::MemoryRead
 }
 
 void UEProber::Phase5_AutoProbe() {
-    m_CoreSnapshot.result = {andueprober::Error::Unsupported,
-        "Property probing requires independently declared FProperty and container metadata"};
-    LogError(m_CoreSnapshot.result.message);
+    m_CoreSnapshot.result = RunAutomaticProfilePhase(5, m_CoreSnapshot);
+    if (m_CoreSnapshot.result) m_ReflectionModel = EReflectionModel::FField;
+    else LogError(m_CoreSnapshot.result.message);
 }
 
 andueprober::Status UEProber::RunConfiguredPropertyTailPhase(andueprober::MemoryReader& reader,
@@ -303,9 +306,8 @@ andueprober::Status UEProber::RunConfiguredEnumPhase(andueprober::MemoryReader& 
 }
 
 void UEProber::Phase6_AutoProbe() {
-    m_CoreSnapshot.result = {andueprober::Error::Unsupported,
-        "Enum probing requires independently declared arrays and names; ProcessEvent requires a verified engine contract"};
-    LogError(m_CoreSnapshot.result.message);
+    m_CoreSnapshot.result = RunAutomaticProfilePhase(6, m_CoreSnapshot);
+    if (!m_CoreSnapshot.result) LogError(m_CoreSnapshot.result.message);
 }
 
 andueprober::Status UEProber::ExecuteCommand(const andueprober::Command& command, andueprober::Snapshot& observation) {
@@ -357,6 +359,7 @@ andueprober::Status UEProber::ExecuteCommand(const andueprober::Command& command
     case CommandKind::ClearResults:
         std::erase_if(m_CoreSnapshot.offsets, [](const auto& item) { return item.second.origin != Origin::User; });
         m_CoreSnapshot.fieldReports.clear();
+        m_CoreSnapshot.memoryInspection.reset();
         InvalidateDerivedState();
         m_Log.clear();
         break;
@@ -364,6 +367,9 @@ andueprober::Status UEProber::ExecuteCommand(const andueprober::Command& command
         StartDump();
         if (m_DumpStatus.load() != EDumpStatus::Success)
             result = !m_CoreSnapshot.result ? m_CoreSnapshot.result : Status{ProbeCancelled() ? Error::Cancelled : Error::InvalidEvidence, m_DumpError};
+        break;
+    case CommandKind::InspectMemory:
+        result = InspectTargetMemory(command.address, command.size, m_CoreSnapshot);
         break;
     default:
         return {Error::InvalidArgument, "Unsupported inspector command"};
@@ -424,11 +430,22 @@ void UEProber::DetectGame() {
 }
 
 void UEProber::StartDump() {
-    const auto admission = FullSdkExportAdmission();
     m_DumpOutputDir.clear();
-    m_DumpError = admission.message;
-    m_CoreSnapshot.result = admission;
-    m_DumpStatus.store(EDumpStatus::Failed);
+    m_DumpError.clear();
+    if (m_OutputRoot.empty()) {
+        m_CoreSnapshot.result = {andueprober::Error::InvalidArgument, "The SDK publication root is not configured"};
+    } else {
+        static const std::atomic<bool> neverCancelled{false};
+        m_CoreSnapshot.result = RunFullSdkDump(m_CoreSnapshot, m_OutputRoot, neverCancelled, m_DumpOutputDir);
+    }
+    if (m_CoreSnapshot.result) {
+        m_DumpStatus.store(EDumpStatus::Success);
+        Log("Full SDK published to " + m_DumpOutputDir);
+    } else {
+        m_DumpError = m_CoreSnapshot.result.message;
+        m_DumpStatus.store(ProbeCancelled() ? EDumpStatus::Cancelled : EDumpStatus::Failed);
+        LogError(m_DumpError);
+    }
 }
 
 andueprober::Snapshot UEProber::GetSnapshot() const {

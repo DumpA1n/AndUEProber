@@ -24,7 +24,7 @@
 
 class UEProber {
 public:
-    UEProber();
+    explicit UEProber(std::string outputRoot = {});
     ~UEProber() = default;
     UEProber(const UEProber&) = delete;
     UEProber& operator=(const UEProber&) = delete;
@@ -156,6 +156,7 @@ private:
     std::atomic<EDumpStatus> m_DumpStatus{EDumpStatus::Idle};
     std::string m_DumpError;
     std::string m_DumpOutputDir;
+    std::string m_OutputRoot;
 
     // Profile-detection state.
     andueprober::Snapshot m_CoreSnapshot;

@@ -10,7 +10,8 @@ struct InspectorCapabilities {
     bool exportCommand = true;
 };
 // The caller owns a compatible ImGui context, active frame, rendering and input thread.
-// This view performs no memory reads, profile discovery, engine calls or file publication.
+// Rendering performs no memory reads, profile discovery, engine calls or file
+// publication. Explicit commands execute through the caller-owned worker.
 class Inspector {
 public:
     Status draw(CommandSession&, ImGuiContext*, bool* open = nullptr);
@@ -22,6 +23,8 @@ private:
     Status drawView(const CommandView&, CommandSession*, ImGuiContext*, const InspectorCapabilities&, bool*);
     std::array<char, 1025> field_{};
     std::array<char, 17> offset_{};
+    std::array<char, 17> address_{};
+    std::array<char, 4> size_{{'6', '4', '\0', '\0'}};
     std::string submissionError_;
 };
 }

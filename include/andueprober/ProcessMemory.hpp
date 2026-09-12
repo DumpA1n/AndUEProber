@@ -1,5 +1,6 @@
 #pragma once
 #include "Core.hpp"
+#include <sys/types.h>
 
 namespace andueprober {
 // Uses the public AndSwapChainHook::Memory provider. Only normal Android/Linux
@@ -14,8 +15,16 @@ public:
     ProcessMemory& operator=(const ProcessMemory&) = delete;
     Status open(const std::string& modulePath, std::uintptr_t addressInModule, ReadBudget* budget = nullptr);
     Status openByName(std::span<const std::string> moduleNames, ReadBudget&);
+    // Opens an existing read-only procfs channel. This never attaches to the
+    // target or changes its process state. The caller must revalidate the lease
+    // between bounded operations because an external loader lease is impossible.
+    Status openRemoteByName(pid_t, std::span<const std::string> moduleNames, ReadBudget&);
+    Status validateLease() const;
     std::uintptr_t elfAddress() const;
     std::uintptr_t loadBias() const;
+    std::string modulePath() const;
+    pid_t targetPid() const;
+    bool isRemote() const;
     ReadResult read(std::uintptr_t, std::span<std::byte>) override;
     std::uint64_t generation() const override;
     std::string identity() const;

@@ -59,7 +59,7 @@ extern "C" AUEP_Error AUEP_Start() try {
     andueprober::Snapshot initial;
     initial.sessionId = "android-agent";
     initial.moduleIdentity = runtime.package;
-    runtime.prober = std::make_shared<UEProber>();
+    runtime.prober = std::make_shared<UEProber>(runtime.outputRoot);
     runtime.session = std::make_shared<andueprober::Session>(std::move(initial));
     auto status = runtime.session->start([prober = runtime.prober](andueprober::Snapshot& snapshot, const std::atomic<bool>& cancelled) {
         ConfigureProbeOperation(&cancelled);
@@ -140,7 +140,7 @@ AUEP_Error startConfiguredProbe(ConfiguredProbeSetup setup) {
     return AUEP_MISSING_DEPENDENCY;
 #else
     andueprober::Snapshot initial; initial.sessionId = setup.sessionId;
-    runtime.prober = std::make_shared<UEProber>();
+    runtime.prober = std::make_shared<UEProber>(runtime.outputRoot);
     runtime.session = std::make_shared<andueprober::Session>(std::move(initial));
     const auto status = runtime.session->start([setup = std::move(setup), prober = runtime.prober,
         root = runtime.outputRoot](auto& snapshot, const auto& cancelled) {
@@ -286,7 +286,7 @@ extern "C" AUEP_Error AUEP_StartInteractive() try {
     return AUEP_MISSING_DEPENDENCY;
 #else
     andueprober::Snapshot initial; initial.sessionId = "interactive-agent";
-    runtime.prober = std::make_shared<UEProber>();
+    runtime.prober = std::make_shared<UEProber>(runtime.outputRoot);
     runtime.commands = std::make_shared<andueprober::CommandSession>(std::move(initial),
         [prober = runtime.prober](const auto& command, auto& observation, const auto& cancelled) {
             ConfigureProbeOperation(&cancelled);
@@ -300,13 +300,16 @@ extern "C" AUEP_Error AUEP_StartInteractive() try {
 extern "C" AUEP_Error AUEP_Submit(const AUEP_Command* input, uint64_t* id) try {
     if (id) *id = 0;
     if (!input || !id || input->struct_size != sizeof(*input) || input->kind < AUEP_DETECT ||
-        input->kind > AUEP_EXPORT || input->has_value > 1 || (input->field && strnlen(input->field, 1025) > 1024))
+        input->kind > AUEP_INSPECT_MEMORY || input->has_value > 1 ||
+        (input->field && strnlen(input->field, 1025) > 1024))
         return AUEP_INVALID_ARGUMENT;
     andueprober::Command command;
     command.kind = static_cast<andueprober::CommandKind>(input->kind - AUEP_DETECT);
     command.phase = input->phase; command.generation = input->generation;
     if (input->field) command.field = input->field;
     if (input->has_value) command.value = input->value;
+    command.address = input->address;
+    command.size = input->size;
     auto& runtime = agent();
     std::lock_guard lock(runtime.mutex);
     if (!runtime.commands) return AUEP_NOT_INITIALIZED;
@@ -344,7 +347,7 @@ extern "C" AUEP_Error AUEP_DrawInspector(void* context) try {
     if (!drawing.owns_lock()) return AUEP_BUSY;
     const auto current = std::this_thread::get_id();
     if (runtime.drawThread != std::thread::id{} && runtime.drawThread != current) return AUEP_BUSY;
-    auto status = commands ? runtime.inspector.draw(*commands, static_cast<ImGuiContext*>(context), {false, false}) :
+    auto status = commands ? runtime.inspector.draw(*commands, static_cast<ImGuiContext*>(context), {true, true}) :
         runtime.inspector.draw(session->snapshot(), static_cast<ImGuiContext*>(context));
     if (status) runtime.drawThread = current;
     return status ? AUEP_OK : AUEP_INVALID_ARGUMENT;

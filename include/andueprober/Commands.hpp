@@ -2,12 +2,14 @@
 #include "Core.hpp"
 
 namespace andueprober {
-enum class CommandKind { Detect, ProbePhase, ProbeAll, SetOverride, ClearOverride, ClearResults, Export };
+enum class CommandKind { Detect, ProbePhase, ProbeAll, SetOverride, ClearOverride, ClearResults, Export, InspectMemory };
 struct Command {
     CommandKind kind = CommandKind::Detect;
     std::uint32_t phase = 0;
     std::string field;
     std::optional<std::uint32_t> value;
+    std::uintptr_t address = 0;
+    std::uint32_t size = 0;
     std::uint64_t generation = 0;
 };
 struct CommandView {

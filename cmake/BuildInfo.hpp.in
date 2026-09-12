@@ -1,7 +1,7 @@
 #pragma once
 namespace andueprober::build {
 inline constexpr const char* revision = "@ANDUEPROBER_SOURCE_REVISION@";
-inline constexpr const char* dumperRevision = "5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0";
-inline constexpr const char* swapRevision = "61e022a850ade7aa173e252a32e4c0059d2a5134";
-inline constexpr const char* kittyRevision = "aa128114d98cc31fbe0955e9820b91657c6cb87d";
+inline constexpr const char* dumperRevision = "@ANDUEPROBER_DUMPER_REVISION@";
+inline constexpr const char* swapRevision = "@ANDUEPROBER_MEMORY_REVISION@";
+inline constexpr const char* kittyRevision = "@ANDUEPROBER_KITTY_REVISION@";
 }

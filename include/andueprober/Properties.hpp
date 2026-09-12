@@ -43,8 +43,9 @@ std::string propertyObservationIdentity(const PropertyProbeProfile&, const NameL
 // candidates follow the complete inherited prefix and pass final readback before
 // atomic publication. Name and owner layouts must match their preceding evidence
 // sources, including the physical pool and generation. All five base field ranges
-// must fit the declared prefix. Strict matching-user override validation preserves value/origin/version/validation and rejects stale
-// or incomplete evidence. Failed attempts preserve reports and stale automatic
+// must fit the declared prefix. Strict matching-user override validation preserves
+// value, origin, version and validation and rejects stale or incomplete evidence.
+// Failed attempts preserve reports and stale automatic
 // results. The caller owns input storage and synchronizes target metadata.
 // Required dependencies and tentative outputs pass bounded iterative transitive
 // validation (4096 nodes, 16384 edges, 4 MiB evidence) with the read deadline and
@@ -53,4 +54,31 @@ std::string propertyObservationIdentity(const PropertyProbeProfile&, const NameL
 Status probePropertyFields(MemoryReader&, const PropertyProbeProfile&,
     std::span<const PropertySample>, const NameLayout&, std::uintptr_t pool,
     const NamePoolProfile&, ReadBudget&, Snapshot&);
+
+enum class BoolTailRepresentation { Unknown, NativeBool };
+struct PropertyBaseProbeProfile {
+    std::string identity, moduleIdentity, propertyObservationIdentity;
+    std::uint64_t generation = 0;
+    Layout layout = Layout::Unknown;
+    std::uint32_t extent = 0;
+    BoolTailRepresentation boolRepresentation = BoolTailRepresentation::Unknown;
+};
+struct PropertyPointerTailSample {
+    std::uintptr_t object = 0, expectedPointer = 0;
+    std::string identity;
+};
+struct PropertyBoolTailSample {
+    std::uintptr_t object = 0;
+    std::string identity;
+};
+
+// Discovers both the aligned FProperty base size and the first known pointer in
+// derived-property storage. Distinct pointer anchors come from independent struct/object
+// property relationships. NativeBool anchors locate the supported 01 00 01 ff
+// metadata tuple and establish the preceding eight-byte-aligned base boundary.
+// The two results can differ when derived properties insert leading metadata.
+// Pointers are compared as opaque values; pointed-to storage is never accessed.
+Status probePropertyBases(MemoryReader&, const PropertyBaseProbeProfile&,
+    std::span<const PropertyPointerTailSample>, std::span<const PropertyBoolTailSample>,
+    ReadBudget&, Snapshot&);
 }

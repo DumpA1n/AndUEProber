@@ -8,10 +8,14 @@
 #include <limits>
 #include <sstream>
 #include <iomanip>
+#include <fstream>
+#include <set>
 #if defined(__linux__)
 #include <dlfcn.h>
 #include <elf.h>
+#include <fcntl.h>
 #include <link.h>
+#include <unistd.h>
 #include <sys/stat.h>
 #endif
 
@@ -36,12 +40,128 @@ Error convert(AndSwapChainHook::Memory::Error error) {
     return Error::Internal;
 }
 std::atomic<std::uint64_t> nextLease{1};
+#if defined(__linux__)
+Status processStartTime(pid_t pid, std::uint64_t& value) {
+    value = 0;
+    std::ifstream input("/proc/" + std::to_string(pid) + "/stat");
+    std::string line;
+    if (!input || !std::getline(input, line) || line.size() > 4096)
+        return {Error::Io, "Cannot read the target process identity"};
+    const auto end = line.rfind(')');
+    if (end == std::string::npos || end + 2 >= line.size())
+        return {Error::InvalidEvidence, "The target process identity is malformed"};
+    std::istringstream fields(line.substr(end + 2));
+    std::string field;
+    for (int number = 3; number <= 22; ++number) {
+        if (!(fields >> field)) return {Error::InvalidEvidence, "The target process identity is truncated"};
+        if (number == 22) {
+            try { value = std::stoull(field); }
+            catch (...) { return {Error::InvalidEvidence, "The target process generation is invalid"}; }
+        }
+    }
+    return value ? Status{} : Status{Error::InvalidEvidence, "The target process generation is zero"};
+}
+
+Status fileBuildId(const std::string& path, std::string& result) {
+    result.clear();
+    const int fd = ::open(path.c_str(), O_RDONLY | O_CLOEXEC);
+    if (fd < 0) return {Error::PermissionDenied, "Cannot open the mapped module file"};
+    struct Close { int fd; ~Close() { if (fd >= 0) ::close(fd); } } close{fd};
+    Elf64_Ehdr header{};
+    if (::pread(fd, &header, sizeof(header), 0) != sizeof(header) ||
+        std::memcmp(header.e_ident, ELFMAG, SELFMAG) != 0 || header.e_ident[EI_CLASS] != ELFCLASS64 ||
+        header.e_phentsize != sizeof(Elf64_Phdr) || !header.e_phnum || header.e_phnum > 64)
+        return {Error::InvalidEvidence, "The mapped module file has an invalid ELF header"};
+    std::vector<Elf64_Phdr> programs(header.e_phnum);
+    const auto programBytes = programs.size() * sizeof(Elf64_Phdr);
+    if (::pread(fd, programs.data(), programBytes, static_cast<off_t>(header.e_phoff)) !=
+        static_cast<ssize_t>(programBytes))
+        return {Error::ShortRead, "The mapped module program headers are truncated"};
+    for (const auto& program : programs) {
+        if (program.p_type != PT_NOTE) continue;
+        if (!program.p_filesz || program.p_filesz > 65536)
+            return {Error::BudgetExceeded, "The mapped module note exceeds its bound"};
+        std::vector<std::byte> bytes(static_cast<std::size_t>(program.p_filesz));
+        if (::pread(fd, bytes.data(), bytes.size(), static_cast<off_t>(program.p_offset)) !=
+            static_cast<ssize_t>(bytes.size())) return {Error::ShortRead, "The mapped module note is truncated"};
+        std::size_t cursor = 0;
+        while (cursor < bytes.size()) {
+            if (bytes.size() - cursor < sizeof(Elf64_Nhdr))
+                return {Error::InvalidEvidence, "The mapped module note header is truncated"};
+            Elf64_Nhdr note{};
+            std::memcpy(&note, bytes.data() + cursor, sizeof(note));
+            cursor += sizeof(note);
+            const auto nameBytes = (static_cast<std::uint64_t>(note.n_namesz) + 3) & ~std::uint64_t{3};
+            const auto dataBytes = (static_cast<std::uint64_t>(note.n_descsz) + 3) & ~std::uint64_t{3};
+            if (nameBytes > bytes.size() - cursor || dataBytes > bytes.size() - cursor - nameBytes)
+                return {Error::InvalidEvidence, "The mapped module note exceeds its segment"};
+            if (note.n_type == NT_GNU_BUILD_ID && note.n_namesz == 4 && note.n_descsz > 0 && note.n_descsz <= 64 &&
+                std::memcmp(bytes.data() + cursor, "GNU", 4) == 0) {
+                std::ostringstream hex;
+                for (std::size_t index = 0; index < note.n_descsz; ++index)
+                    hex << std::hex << std::setw(2) << std::setfill('0') <<
+                        std::to_integer<unsigned>(bytes[cursor + nameBytes + index]);
+                if (!result.empty() && result != hex.str())
+                    return {Error::InvalidEvidence, "The mapped module has conflicting build identifiers"};
+                result = hex.str();
+            }
+            cursor += static_cast<std::size_t>(nameBytes + dataBytes);
+        }
+    }
+    return result.empty() ? Status{Error::Unsupported, "The mapped module has no GNU Build ID"} : Status{};
+}
+
+struct RemoteModule {
+    std::string path;
+    std::uintptr_t bias = 0;
+    std::uint64_t inode = 0;
+};
+Status findRemoteModule(pid_t pid, std::span<const std::string> names, RemoteModule& result) {
+    result = {};
+    const auto mapsPath = "/proc/" + std::to_string(pid) + "/maps";
+    FILE* file = std::fopen(mapsPath.c_str(), "re");
+    if (!file) return {Error::PermissionDenied, "Cannot inspect the target module mappings"};
+    struct Close { FILE* file; ~Close() { std::fclose(file); } } close{file};
+    char* line = nullptr; std::size_t capacity = 0, visited = 0;
+    std::set<std::pair<std::string, std::uint64_t>> matches;
+    while (getline(&line, &capacity, file) >= 0) {
+        if (++visited > 65536) { std::free(line); return {Error::BudgetExceeded, "Target mapping count exceeds its bound"}; }
+        unsigned long long begin = 0, end = 0, offset = 0, inode = 0;
+        char permissions[5]{}, path[4096]{};
+        const auto count = std::sscanf(line, "%llx-%llx %4s %llx %*x:%*x %llu %4095[^\n]",
+            &begin, &end, permissions, &offset, &inode, path);
+        if (count < 5 || begin >= end) continue;
+        if (count != 6) continue;
+        std::string candidate(path);
+        candidate.erase(0, candidate.find_first_not_of(' '));
+        const auto slash = candidate.find_last_of('/');
+        const auto basename = slash == std::string::npos ? candidate : candidate.substr(slash + 1);
+        if (std::find(names.begin(), names.end(), basename) == names.end()) continue;
+        matches.emplace(candidate, inode);
+        if (offset == 0) {
+            if (result.bias && result.bias != begin) { std::free(line); return {Error::InvalidEvidence, "Target module has multiple load biases"}; }
+            result.path = candidate; result.bias = static_cast<std::uintptr_t>(begin); result.inode = inode;
+        }
+    }
+    std::free(line);
+    if (std::ferror(file)) return {Error::Io, "Cannot finish reading target mappings"};
+    if (matches.size() != 1 || !result.bias || result.path.empty())
+        return {Error::InvalidEvidence, "Target module selection is absent or ambiguous"};
+    if (*matches.begin() != std::pair{result.path, result.inode})
+        return {Error::InvalidEvidence, "Target module mapping identity is inconsistent"};
+    return {};
+}
+#endif
 }
 struct ProcessMemory::Impl {
     AndSwapChainHook::Memory::ProcessReader reader;
     std::uint64_t epoch = 0;
     std::string moduleIdentity;
     std::uintptr_t elfAddress = 0, loadBias = 0;
+    std::string modulePath;
+    pid_t targetPid = 0;
+    std::uint64_t processStart = 0, moduleInode = 0;
+    bool remote = false;
 #if defined(__linux__)
     void* lease = nullptr;
     ~Impl() { if (lease) dlclose(lease); }
@@ -189,9 +309,11 @@ Status ProcessMemory::open(const std::string& modulePath, std::uintptr_t address
     }
     if (buildId.empty()) return {Error::Unsupported, "Module requires a bounded GNU build identifier"};
     impl_->moduleIdentity = std::string(notes.path.data()) + "#gnu-build-id:" + buildId;
+    impl_->modulePath = notes.path.data();
     impl_->epoch = epoch;
     impl_->loadBias = notes.bias;
     impl_->elfAddress = notes.elfAddress;
+    impl_->targetPid = getpid();
     impl_->lease = pending.handle;
     pending.handle = nullptr;
     return {};
@@ -242,8 +364,75 @@ Status ProcessMemory::openByName(std::span<const std::string> names, ReadBudget&
     return open(selection.path.data(), selection.address, &budget);
 #endif
 }
+
+Status ProcessMemory::openRemoteByName(pid_t pid, std::span<const std::string> names, ReadBudget& budget) {
+    if (impl_->epoch) return {Error::Busy, "Memory provider already owns a module lease"};
+    if (pid <= 0 || pid == getpid() || names.empty() || names.size() > 16)
+        return {Error::InvalidArgument, "Remote module selection requires another positive PID and exact names"};
+    for (const auto& name : names)
+        if (name.empty() || name.size() > 255 || name.find('/') != std::string::npos)
+            return {Error::InvalidArgument, "Remote module selection requires bounded basenames"};
+#if !defined(__linux__)
+    (void)budget;
+    return {Error::Unsupported, "Remote process memory requires Android or Linux"};
+#else
+    if (budget.cancelled && budget.cancelled->load()) return {Error::Cancelled, "Remote module selection cancelled"};
+    if (std::chrono::steady_clock::now() >= budget.deadline) return {Error::DeadlineExceeded, "Remote module selection deadline expired"};
+    RemoteModule module;
+    if (auto status = findRemoteModule(pid, names, module); !status) return status;
+    struct stat fileStat{};
+    if (::stat(module.path.c_str(), &fileStat) != 0 || static_cast<std::uint64_t>(fileStat.st_ino) != module.inode)
+        return {Error::StaleIdentity, "The mapped module file identity changed"};
+    std::string buildId;
+    if (auto status = fileBuildId(module.path, buildId); !status) return status;
+    std::uint64_t start = 0;
+    if (auto status = processStartTime(pid, start); !status) return status;
+    const auto opened = impl_->reader.Open(pid);
+    if (!opened) return {convert(opened.error), "Cannot open the explicit target memory channel; system error " + std::to_string(opened.systemError)};
+    const auto refreshed = impl_->reader.RefreshMappings();
+    if (!refreshed) return {convert(refreshed.error), "Cannot refresh target mappings; system error " + std::to_string(refreshed.systemError)};
+    auto epoch = nextLease.load();
+    do {
+        if (epoch == std::numeric_limits<std::uint64_t>::max())
+            return {Error::Overflow, "Module lease generation capacity exhausted"};
+    } while (!nextLease.compare_exchange_weak(epoch, epoch + 1));
+    impl_->epoch = epoch;
+    impl_->moduleIdentity = module.path + "#gnu-build-id:" + buildId + ";pid-start:" + std::to_string(start);
+    impl_->modulePath = module.path;
+    impl_->elfAddress = module.bias;
+    impl_->loadBias = module.bias;
+    impl_->targetPid = pid;
+    impl_->processStart = start;
+    impl_->moduleInode = module.inode;
+    impl_->remote = true;
+    budget.generation = epoch;
+    if (auto status = validateLease(); !status) return status;
+    return {};
+#endif
+}
+
+Status ProcessMemory::validateLease() const {
+    if (!impl_->epoch) return {Error::InvalidArgument, "Memory provider has no module lease"};
+    if (!impl_->remote) return {};
+#if !defined(__linux__)
+    return {Error::Unsupported, "Remote process memory requires Android or Linux"};
+#else
+    std::uint64_t start = 0;
+    if (auto status = processStartTime(impl_->targetPid, start); !status) return status;
+    if (start != impl_->processStart) return {Error::StaleIdentity, "The target process generation changed"};
+    RemoteModule module;
+    const std::array<std::string, 2> names{"libUE4.so", "libUnreal.so"};
+    if (auto status = findRemoteModule(impl_->targetPid, names, module); !status) return status;
+    if (module.path != impl_->modulePath || module.bias != impl_->loadBias || module.inode != impl_->moduleInode)
+        return {Error::StaleIdentity, "The target module mapping identity changed"};
+    return {};
+#endif
+}
 std::uintptr_t ProcessMemory::elfAddress() const { return impl_->elfAddress; }
 std::uintptr_t ProcessMemory::loadBias() const { return impl_->loadBias; }
+std::string ProcessMemory::modulePath() const { return impl_->modulePath; }
+pid_t ProcessMemory::targetPid() const { return impl_->remote ? impl_->targetPid : getpid(); }
+bool ProcessMemory::isRemote() const { return impl_->remote; }
 ReadResult ProcessMemory::read(std::uintptr_t address, std::span<std::byte> bytes) {
     if (!impl_->epoch) return {0, Error::InvalidArgument};
     const auto result = impl_->reader.Read(address, bytes);

@@ -76,6 +76,12 @@ struct FieldProbeReport {
     std::vector<Offset> candidates;
     std::vector<CandidateRejection> rejected;
 };
+struct MemoryInspection {
+    std::uintptr_t address = 0;
+    std::vector<std::uint8_t> bytes;
+    std::string moduleIdentity;
+    std::uint64_t generation = 0;
+};
 struct Snapshot {
     std::uint32_t schemaVersion = 1;
     std::string sessionId;
@@ -86,6 +92,7 @@ struct Snapshot {
     TaskState state = TaskState::Pending;
     std::map<std::string, Offset> offsets;
     std::map<std::string, FieldProbeReport> fieldReports;
+    std::optional<MemoryInspection> memoryInspection;
     std::vector<std::string> messages;
     Status result;
 };

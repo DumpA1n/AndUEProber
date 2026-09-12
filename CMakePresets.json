@@ -53,6 +53,24 @@
       "toolchainFile": "$env{NDK_HOME}/build/cmake/android.toolchain.cmake"
     },
     {
+      "name": "android-analysis-debug",
+      "inherits": "android-debug",
+      "binaryDir": "${sourceDir}/build/android-analysis-debug",
+      "cacheVariables": {
+        "ANDUEPROBER_WITH_PROCESS_MEMORY": true,
+        "ANDUEPROBER_MEMORY_SOURCE_DIR": "$env{AUEP_MEMORY_SOURCE_DIR}"
+      }
+    },
+    {
+      "name": "android-analysis-release",
+      "inherits": "android-release",
+      "binaryDir": "${sourceDir}/build/android-analysis-release",
+      "cacheVariables": {
+        "ANDUEPROBER_WITH_PROCESS_MEMORY": true,
+        "ANDUEPROBER_MEMORY_SOURCE_DIR": "$env{AUEP_MEMORY_SOURCE_DIR}"
+      }
+    },
+    {
       "name": "host-sanitizers",
       "inherits": "host-debug",
       "binaryDir": "${sourceDir}/build/host-sanitizers",
@@ -77,6 +95,14 @@
     {
       "name": "android-release",
       "configurePreset": "android-release"
+    },
+    {
+      "name": "android-analysis-debug",
+      "configurePreset": "android-analysis-debug"
+    },
+    {
+      "name": "android-analysis-release",
+      "configurePreset": "android-analysis-release"
     },
     {
       "name": "host-sanitizers",

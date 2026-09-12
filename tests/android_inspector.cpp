@@ -113,16 +113,27 @@ int main(int argc, char** argv) {
         const auto x = 20 + style.WindowPadding.x;
         const auto y = 20 + ImGui::GetFontSize() + 2 * style.FramePadding.y + style.WindowPadding.y
             + (ImGui::GetFontSize() + 2 * style.FramePadding.y) / 2;
+        const auto waitCompleted = [&](std::uint64_t expected) {
+            const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+            do {
+                REQUIRE(AUEP_QueryCommands(&commands) == AUEP_OK);
+                if (commands.completed >= expected) return;
+                std::this_thread::yield();
+            } while (std::chrono::steady_clock::now() < deadline);
+            REQUIRE(commands.completed >= expected);
+        };
         click(x + detectWidth + style.ItemSpacing.x + allWidth / 2, y);
+        waitCompleted(1);
+        REQUIRE(commands.operation.error == AUEP_FAILED);
         click(x + detectWidth + allWidth + 2 * style.ItemSpacing.x + exportWidth / 2, y);
+        waitCompleted(2);
+        REQUIRE(commands.operation.error == AUEP_FAILED);
         click(x + 20, y + ImGui::GetFontSize() + 2 * style.FramePadding.y + style.ItemSpacing.y);
-        REQUIRE(AUEP_QueryCommands(&commands) == AUEP_OK && commands.completed == 0 && !commands.pending);
+        waitCompleted(3);
+        REQUIRE(commands.operation.error == AUEP_FAILED);
         click(x + detectWidth / 2, y);
-        const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
-        do { REQUIRE(AUEP_QueryCommands(&commands) == AUEP_OK); if (commands.completed) break;
-            std::this_thread::yield();
-        } while (std::chrono::steady_clock::now() < deadline);
-        REQUIRE(commands.completed == 1 && commands.operation.error == AUEP_UNSUPPORTED);
+        waitCompleted(4);
+        REQUIRE(commands.operation.error == AUEP_UNSUPPORTED);
         REQUIRE(AUEP_Query(&state) == AUEP_OK && state.state == AUEP_RUNNING && state.error == AUEP_UNSUPPORTED);
         REQUIRE(!std::filesystem::exists(output));
     } else {
@@ -156,5 +167,5 @@ int main(int argc, char** argv) {
     }
     ImGui::DestroyContext(context);
     std::printf("PASS: Agent inspector mode=%s, one caller context, strict configured override lifecycle, thread admission and joined-input release; %s\n",
-        mode.c_str(), interactive ? "disabled phase/export buttons and explicit Detect" : "immutable configured observation after input invalidation");
+        mode.c_str(), interactive ? "phase/export command admission and explicit Detect" : "immutable configured observation after input invalidation");
 }

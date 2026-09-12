@@ -1,6 +1,8 @@
 #include <andueprober/Inspector.hpp>
 #include "imgui.h"
+#include <algorithm>
 #include <charconv>
+#include <cstdio>
 #include <cstring>
 
 namespace andueprober {
@@ -53,6 +55,21 @@ Status Inspector::drawView(const CommandView& view, CommandSession* owner, ImGui
             if (parsed.ec != std::errc{} || parsed.ptr != end) { submissionError_ = "Enter a hexadecimal offset"; return; }
             command.value = value;
         }
+        if (kind == CommandKind::InspectMemory) {
+            std::uintptr_t address = 0;
+            std::uint32_t size = 0;
+            const auto addressEnd = address_.data() + std::strlen(address_.data());
+            const auto sizeEnd = size_.data() + std::strlen(size_.data());
+            auto parsedAddress = std::from_chars(address_.data(), addressEnd, address, 16);
+            auto parsedSize = std::from_chars(size_.data(), sizeEnd, size, 10);
+            if (parsedAddress.ec != std::errc{} || parsedAddress.ptr != addressEnd || !address ||
+                parsedSize.ec != std::errc{} || parsedSize.ptr != sizeEnd || !size || size > 512) {
+                submissionError_ = "Enter a hexadecimal address and a decimal size from 1 to 512";
+                return;
+            }
+            command.address = address;
+            command.size = size;
+        }
         std::uint64_t id;
         submissionError_ = owner->submit(std::move(command), id).message;
     };
@@ -88,6 +105,9 @@ Status Inspector::drawView(const CommandView& view, CommandSession* owner, ImGui
         if (ImGui::Button("Remove override")) submit(CommandKind::ClearOverride);
         ImGui::SameLine();
         if (ImGui::Button("Clear automatic results")) submit(CommandKind::ClearResults);
+        ImGui::InputText("Memory address", address_.data(), address_.size(), ImGuiInputTextFlags_CharsHexadecimal);
+        ImGui::InputText("Memory bytes", size_.data(), size_.size(), ImGuiInputTextFlags_CharsDecimal);
+        if (ImGui::Button("Inspect memory")) submit(CommandKind::InspectMemory);
         ImGui::EndDisabled();
         if (ImGui::Button("Cancel session")) owner->cancel();
         ImGui::Text("Worker: %s; pending: %zu; completed command: %llu", view.running ? "running" : "idle",
@@ -122,10 +142,44 @@ Status Inspector::drawView(const CommandView& view, CommandSession* owner, ImGui
         for (const auto& [field, report] : snapshot.fieldReports) {
             if (!ImGui::TreeNode(field.c_str())) continue;
             ImGui::Text("Examined: %zu; candidates: %zu", report.examinedOffsets, report.candidates.size());
+            for (std::size_t index = 0; index < report.candidates.size(); ++index) {
+                const auto& candidate = report.candidates[index];
+                if (!candidate.value) continue;
+                ImGui::PushID(static_cast<int>(index));
+                ImGui::Text("0x%X (%s)", *candidate.value, validationName(candidate.validation));
+                if (owner && ImGui::Button("Use candidate")) {
+                    std::snprintf(field_.data(), field_.size(), "%s", field.c_str());
+                    std::snprintf(offset_.data(), offset_.size(), "%X", *candidate.value);
+                    submit(CommandKind::SetOverride);
+                }
+                ImGui::PopID();
+            }
             for (const auto& rejected : report.rejected)
                 ImGui::TextWrapped("0x%X, error %d, %s: %s", rejected.offset, static_cast<int>(rejected.error),
                     rejected.sampleIdentity.c_str(), rejected.reason.c_str());
             ImGui::TreePop();
+        }
+        ImGui::TreePop();
+    }
+    if (snapshot.memoryInspection && ImGui::TreeNode("Memory inspection")) {
+        const auto& inspection = *snapshot.memoryInspection;
+        ImGui::Text("Address: 0x%llX; bytes: %zu", static_cast<unsigned long long>(inspection.address),
+            inspection.bytes.size());
+        for (std::size_t start = 0; start < inspection.bytes.size(); start += 16) {
+            char line[128]{};
+            auto cursor = std::snprintf(line, sizeof(line), "%016llX  ",
+                static_cast<unsigned long long>(inspection.address + start));
+            const auto count = std::min<std::size_t>(16, inspection.bytes.size() - start);
+            for (std::size_t index = 0; index < 16; ++index)
+                cursor += std::snprintf(line + cursor, sizeof(line) - static_cast<std::size_t>(cursor),
+                    index < count ? "%02X " : "   ", index < count ? inspection.bytes[start + index] : 0);
+            cursor += std::snprintf(line + cursor, sizeof(line) - static_cast<std::size_t>(cursor), " ");
+            for (std::size_t index = 0; index < count && static_cast<std::size_t>(cursor + 1) < sizeof(line); ++index) {
+                const auto byte = inspection.bytes[start + index];
+                line[cursor++] = byte >= 0x20 && byte <= 0x7e ? static_cast<char>(byte) : '.';
+            }
+            line[cursor] = '\0';
+            ImGui::TextUnformatted(line);
         }
         ImGui::TreePop();
     }
