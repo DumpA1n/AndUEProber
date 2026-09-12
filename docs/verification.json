@@ -1,435 +1,272 @@
 {
-  "schemaVersion": 2,
-  "recordedDate": "2026-09-12",
-  "scope": "Current selected-source evidence index. Compilation, host execution, owned Android native execution and unavailable support are distinguished by each referenced manifest; no complete refactor or release acceptance claim.",
-  "baseCommit": "3304244255c662d5896556c32573de6ad776e751",
-  "sourceState": "modified-worktree",
-  "sourceDigest": {
-    "algorithm": "sha256",
-    "digest": "e3b2ef30fa1d11478b2a515efac9559c60be8c565eba5eff64cc756c4413ebe7",
-    "scope": "Configured Agent source/include/cmake/tests/build inputs. Digest is SHA-256 of UTF-8 json.dumps(fileSha256, sort_keys=True) with Python's default separators and ASCII escaping, matching tests/verify_agent.py. This selected map does not include every repository file or independently validate all consumers.",
-    "fileCount": 153,
-    "fileSha256": {
-      "CMakeLists.txt": "9f1cf4cd9f03b50361c26b1253f2ada9cd9df364cba4a6a24f88252fe1caef49",
-      "CMakePresets.json": "b72c40346497160ab9982037aac562d04f14d9548a001411de6aef748bffc9ea",
-      "cmake/AndUEProberConfig.cmake.in": "d5cbe63b352a13212dd81982677e015b137ad1e32c20468f6b41f11fb4f4c287",
-      "cmake/AndUEProberImGuiConfig.cmake.in": "9e70626c58fac3f8ece3874acd7d721a266f02691f3d46cb64d93f1d57bb3772",
-      "cmake/BuildInfo.hpp.in": "0c78014cab2384b1c36b462053d512d2242bdaf378103fbb1f05b7a0731e335b",
-      "cmake/CheckImGuiVersion.cpp": "16dfafb9a3e5489be701216c91222c15ce2592ee85cdbd012b29aef9e202133f",
-      "cmake/DumperEmitter.cmake": "eb502f5b62f47e8a4aed2c59aae95ad8730d4bdc543a83d611a6c5d9a73ab255",
-      "cmake/ImGuiDependency.cmake": "55d576f7f0b612a86f26c589dbf78e1aa9a4bc8ab98354272913e959bc919c8e",
-      "include/andueprober/Agent.h": "9e4c38fe9db937ec55c74b0b93dc3a6cf2ecc8fec5f8cfa635a37679d2584791",
-      "include/andueprober/Classes.hpp": "7df0549f2418cfb72e505dc5a567c1be0a75e996b9a20f8084cb2ac22793e4f2",
-      "include/andueprober/Commands.hpp": "3cf3f2418d0f2a6048261e4df5c0c37a3efcd365716877bb4a34ccb73f3c8a34",
-      "include/andueprober/Core.hpp": "9ca1f3432307ebb29e12a38f4031a1510e7b3f03fff78e63fda37cc29c34c28e",
-      "include/andueprober/Discovery.hpp": "14d85fe73eef9041ad6960a693e6cc47dc1df8185ad6beaa2cecd6a260cba568",
-      "include/andueprober/DumperAdapter.hpp": "b62ab20bee10d7ff09985aa53c4554a0943a9370391e2b3af8fa898123658715",
-      "include/andueprober/Engine.hpp": "71eb594f3b654352742b04f88038694e72e6023480e240d36cb7b24baad0b2ad",
-      "include/andueprober/Enums.hpp": "3f062fc0e0f1436c744106a5f9cdf6b4247f12f0e99e062ee019d71857928743",
-      "include/andueprober/Evidence.hpp": "e96d5a674b33478e43ef4d784ffc800a784446b8728955ee6b00b4fba0bfce8b",
-      "include/andueprober/Export.hpp": "cfa6ef5459eeb324b8fadb6099ea118ddb1fe5eff0f0e02afe1ad27351b7de7a",
-      "include/andueprober/Fields.hpp": "9f93c57109f1f0f218a0b3f6bacac094e6840fe15198a81d3d338b71620b4895",
-      "include/andueprober/Functions.hpp": "151b963c7969be11d32d2e2d842dec1577dad36cc7270ee98ef230bdf98a6654",
-      "include/andueprober/Inspector.hpp": "661c29bff4b8e50703f6efeb5641cf74389315d2aaef82eaeaf24c9737ae7569",
-      "include/andueprober/Names.hpp": "877b9b5db9b0dbc9a4cf7902ca8064c030489313c9567aec527d7c1ce8767e2d",
-      "include/andueprober/ObjectFlags.hpp": "c3797002ee5dc262086cf05de3b06ea691f7732e2d9fb5cc7aba8c7df4d79544",
-      "include/andueprober/Probe.hpp": "0b540e555a6b4f223dc8666440b12153d6ce8dd41f0535edb3d9e21c059843ab",
-      "include/andueprober/ProcessMemory.hpp": "d0304b98cc8281508b9b577733faaa80bb29e405b8b14b07e58e08c80836fa7c",
-      "include/andueprober/Properties.hpp": "17b0cb367461a28d584aca3144ebc44a86a5698ab0ac783da25087ad362a8323",
-      "include/andueprober/PropertyTails.hpp": "1e26a31e30918f4d5b2191ca539d89c615de7b914d5d4d44dea26abc01b88324",
-      "include/andueprober/PropertyValues.hpp": "c9cd202cb4466a4654758694b9e9cf03abfddafddc3ad0894c3ba5b56e0dc94c",
-      "include/andueprober/Reflection.hpp": "e99247db3031fe00e2d87158b738c9da1c9bb64eb94b2e3af84a271fdba47d92",
-      "include/andueprober/Relations.hpp": "114ac7a3b4a8ca60099620f576e87258c209fbe8562e5065afae9edd3251ab0d",
-      "include/andueprober/Structs.hpp": "7b53cb5e0b1775ad69a6292c68bc7e06ab95e134c8d43e9d2060ba39a8242304",
-      "source/Android/ProcessMemory.cpp": "4dad8f6105d4fb27c45d1e1026cea8dba2c0f057ee420394dd35650991e60025",
-      "source/Core/Commands.cpp": "027859ee0ec4e720bd95eca83aeb9dafed8b97417806ecfdd665d6c2c8c2c573",
-      "source/Core/Core.cpp": "efcdcdd84090c7698a0fabe9a1adc8e79dff1f79c37832710a0c044278035df1",
-      "source/Core/Engine.cpp": "1c19f83d06da777e44a385703160862004d7eaeef8a04c68e15a34888758bc02",
-      "source/Core/Evidence.cpp": "e2a5abeba39461e9c6c31077627e0c5657d3959bd8aa596afa3a0ed26320bd5e",
-      "source/Core/Export.cpp": "e0f3640cf8dae71e6989fb967b14ad35b20a2d18d7028c83f5aa1ddd25d26ceb",
-      "source/Core/Reflection.cpp": "ffdcebdac8fe48d5d2915bdb2e589b2c15b60d12a186e1e49937015094fd8dd3",
-      "source/DumperEmitter/BoundedBuffer.hpp": "e55bb92e7156ce587d68908c68e21aae9710ba8f93f3852694fc1025150129ae",
-      "source/DumperEmitter/DumperAdapter.cpp": "9fb33714ba5a668072e700516b402c8b5db94766b496042aa1a72875b651016e",
-      "source/DumperEmitter/Emitter.cpp": "d98781c6cd76f1c0b392cb7b4b0026ebfbb7053edddfa36f6291d0e172620e11",
-      "source/DumperEmitter/Emitter.hpp": "582cdd656d90d37dca2ad2f057881b4922bfe5a6722a9ece927638a9eff8c753",
-      "source/DumperEmitter/EmitterTypes.hpp": "dcc7558d0a485a2568e3b9f9a8423b6448306446dcb58c821898635c9e66d6c3",
-      "source/Library.cpp": "eb0d0213b228130125288324e9ca6a117e806b206f6f9b6402dd5e6144b192b1",
-      "source/Probe/Classes.cpp": "d56a002f671b74bcc725d784d3d41855e254a9bc5b6f6cd7463bd60b0cab42fb",
-      "source/Probe/Discovery.cpp": "186e70fb2479dc3179b9dd3e4b2d0375b058a3e03b999e8d755b6b45bd62a00c",
-      "source/Probe/Enums.cpp": "c0f7f679781325961707ec6d4cc5a00da79e7cada318bb9320d42f21eecbc4f0",
-      "source/Probe/Fields.cpp": "941f59aed535f4d335b3e3be255d80cff80e8366166519fae365c4175800d66f",
-      "source/Probe/Functions.cpp": "92d87f0039cc17b4eab7367a1b945afc4689ffbb8a72eea232b124d1892ad40d",
-      "source/Probe/Names.cpp": "9d3a12f1393bdc19c66c8f8c9729dcb65a84436c789008ae7c03ac2317319f67",
-      "source/Probe/ObjectFlags.cpp": "cfb9c91e13b50113be4407dc870521232594b8ea6a46e7e3217d821dd39d13cb",
-      "source/Probe/Probe.cpp": "64b9d80e2043a3507587e57cac3ceecd717fbd87badead9a144dea37733e7710",
-      "source/Probe/Properties.cpp": "1c9a0f05dd9dbc4af824604c5b719fa06efaad37ac2d54a66d90453711371d6a",
-      "source/Probe/PropertyContext.cpp": "5d9d1b955194ebd17d3a6cfbf8311860df8ad1b313664d30c2568b4bf17af830",
-      "source/Probe/PropertyContext.hpp": "5c4cf2f5b373db0e8896ed09faaa601c268e5aa3b5685e346e942847f2dab918",
-      "source/Probe/PropertyTails.cpp": "58e17718f29849dcae048abc9ad8ec1c667a96a1129eea35e9795b223221ef5f",
-      "source/Probe/PropertyValues.cpp": "fa0a0dc60d7e361dbca764e28f16a68816e8e977f5006c881bd6dc9dc9516465",
-      "source/Probe/Relations.cpp": "db806e4a062dde1f3ca83e4f80274a616f06bb544c9f15590f45a6a738d61741",
-      "source/Probe/Structs.cpp": "176510704acd42dc33362e56a238c955d12d049c6ad6a0dc5e0f10e0fb63b91d",
-      "source/UEProber/ConfiguredProbeBridge.cpp": "75978787f3aa71e45d5177e26cd425df424fd78bb9a69c57db203182c4ccd2b7",
-      "source/UEProber/ConfiguredProbeBridge.h": "4cab053fb77d62ad27843706c3ec4dc188bc1f51265a99e22af73cfdabc26662",
-      "source/UEProber/DumperBridge.cpp": "2de9c5b90b53b88929d7eaf87d8ee6e7c667b775998e0f50ab41f42f0d33c070",
-      "source/UEProber/DumperBridge.h": "defe63e3a3958240a439699fa7af6adc25271dbab78f2bf3ac2b9be57e165a34",
-      "source/UEProber/GameProfiles/ArenaBreakout.hpp": "47beb99e669bab0a16f84ce2232d68aed702fcf8eabce510f0abc91e6329a994",
-      "source/UEProber/GameProfiles/DeltaForce.hpp": "7eed7aa2462cff1e56ca819ed8352b1a22ac6896196b2a9983d30a6a0d604570",
-      "source/UEProber/GameProfiles/IGameProfileAndroid.hpp": "abdb91a0727cb17bebf77ae1b204f2c50f54dee577054f36a616b08a8cb91985",
-      "source/UEProber/GameProfiles/IGameProfileEx.hpp": "a5c0c272093684a49c841df00ed1cab754370c8df35a0cb27db3839c6f75ae77",
-      "source/UEProber/GameProfiles/NiZhan.hpp": "c55b0a79c22f8a0a3129d42d239be0d89edaa3130468ef07dad599b854a7fe8d",
-      "source/UEProber/GameProfiles/PUBG.hpp": "cd6e07118fb410f290ba9ac0885cc399558a649d191839f2ebbcdcc0850b10fe",
-      "source/UEProber/GameProfiles/PUBGMHD.hpp": "d49c2d0c1dfe487a36786ebce173b277a3a250279caec024f689e3a455e3339f",
-      "source/UEProber/GameProfiles/RocoKingdom.hpp": "a0784677e04ca36bb54ee6bbf856c98b94b9dc0e09efabd3732c4389c603ca7c",
-      "source/UEProber/GameProfiles/Valorant.hpp": "aa90ff180ebab0ce575c705b4fc3b7d957c35f8a7ee2e33c715349c94a99a721",
-      "source/UEProber/UEProber.cpp": "0147bccb31275d14f5459f1ff9783c8528ceddabbf591fad87a994e683e150a7",
-      "source/UEProber/UEProber.h": "e1292c67a248145b89506ef163a8e46c41b2051c6914a34721bd886f6494b458",
-      "source/UI/Inspector.cpp": "3335549685416d2911c2ab051b56f4619d2585708afd4ed10d9403bca11ad088",
-      "source/UI/Inspector.hpp": "dfb7b0a6f71bc36ab1e941cb075b5a337aba1284ab33d20cc2f0e7279cab0cd8",
-      "tests/CMakeLists.txt": "8ba8dc869f79fb8f9acbff436c508428629c6be3f79e88b04f33d732a4cbd291",
-      "tests/OwnedAgentClasses.hpp": "e299070aae1626d9cce63d4c02f771e9e3ffa1b54c7d7c21fd3e0469fd6b8a03",
-      "tests/OwnedAgentFields.hpp": "1e1a935c86e6ab054d6f33dc88ce8e96f6c1c7ea1c03b0e5322a0518952f3eca",
-      "tests/OwnedAgentFunctions.hpp": "e9bdfe6abedc691d01fca533e5662be99794c9ae20c4fca1b66d88058a22643a",
-      "tests/OwnedAgentObjects.hpp": "bb5d3cf2722e6868358ea8b403f733b8e4d40bc63dc8369760c232323a014ff2",
-      "tests/OwnedAgentProperties.hpp": "9ef777726aa58e2b716b4d7de1b2f9fe1c33b28914a307526ab43dcf93570e70",
-      "tests/OwnedAgentStructs.hpp": "512dc409399b213d656bde14acfcff00ca1b6aec708e0f2e261e0ce6d5b0e5f5",
-      "tests/OwnedClasses.hpp": "31df37143c3cb15c1b64d9c1b8d4f89197a832dd9ce33b6c95aa15e6f2daf159",
-      "tests/OwnedDiscovery.hpp": "592e01b0a53e99b6d00d03fe720e734560fc9d00da657cf7fcbfdde67c0e6780",
-      "tests/OwnedEnums.hpp": "3be703b1cbc9bdefe222a134964d72c682a7bdb0b633315b542daf6025d2111c",
-      "tests/OwnedFields.hpp": "499fe4e1dd6846aa680d3e194cc5c9006e5913a9052f3858be77fdd50ff58633",
-      "tests/OwnedFunctions.hpp": "6f86a49e03023b23272f60305bb17d7764f28bc5ce945579f9a55f58537352fc",
-      "tests/OwnedObjectArray.hpp": "60cd9d7c44d1bab536c3cdc65e5e935fb7c0648e17185cceda1f28439c1ca9eb",
-      "tests/OwnedObjectFlags.hpp": "fb94cc790cf1a6e15753e5ebdf0ed961530082e414a00b09dc184bb52465603c",
-      "tests/OwnedProperties.hpp": "87ef2ec5f7b023fc8833201229d20b8f4ee7657e799c3f965c4d922a6d055d03",
-      "tests/OwnedPropertyTails.hpp": "41080ee22dbd2043446aa0e124721cd6f34822afedb4a452b25f07486b187203",
-      "tests/OwnedPropertyValues.hpp": "6bb85ffd4546abd64c9265051ea8b31076a61174f467a790941938c0fa0441d7",
-      "tests/OwnedRelations.hpp": "e26178aeba3313c3fa638387d3364edbd211cf5849cddd99974ebbe9062ac26c",
-      "tests/OwnedStructs.hpp": "e1d057791087c9801ffa47d7ad2dfea6aed7bb3ac4208584172d6ad03d5be727",
-      "tests/agent_consumer/main.c": "c868f9e2a5d2d74fb96c0bf2841ea8afd4d29aeb0677fe7d19a5932f2995fd28",
-      "tests/allocation_failure.cpp": "6ea47c1f62197184235a3f53b09e9c2f35c39afc410f7ed47e84c41173660074",
-      "tests/android_classes.cpp": "1cfeb56f6e0c804a7e5b34ec9a29cf8c4bba8f72ce486790cba70cba8fdec367",
-      "tests/android_commands.cpp": "4a626f94662ef229295abca762429a0c4c205fb2eb5205e9dd31fd824461ef69",
-      "tests/android_enums.cpp": "5cb6737e36b2f535142aef51e08ff5a7ae446e094292f92e90dc225092fd33ea",
-      "tests/android_fields.cpp": "5efd593e35028b429b2f0e024bda21855e4b04b6bfe5cc24fb740aa15f4e44d0",
-      "tests/android_functions.cpp": "78815adefb33efa8e75c689276c31eeee60360ef4ad644a5b61400dd32a3c335",
-      "tests/android_index.cpp": "3a9150a54a66657f2bf9ab45ad2def9a747970d3bdd41f958f3904fe505a24fc",
-      "tests/android_inspector.cpp": "c11201b5b865882617dd44bc47a8d4975073843d66a4f344c1c1996b551eab99",
-      "tests/android_layout.cpp": "71036711fa864b88b6c8a229969ddc4547f8e4ef5f53becba209e2c62bda17b6",
-      "tests/android_load.cpp": "64debe531a30a87ad538fcc745dfd337cf975ca5a85b468f24af8a0627a28642",
-      "tests/android_names.cpp": "8be50c31efa0f3aea5ff8ac13744b6167e7c7aa339e370867c70671d510df311",
-      "tests/android_object_flags.cpp": "4302ef15cf8be5898baf322c20670e586177d1614270e404fdfda942320c9db4",
-      "tests/android_properties.cpp": "52c8fee3bae9019667def89e788c97103d37ff14e0f0100b0e9011d2a5bc8483",
-      "tests/android_property_tails.cpp": "f9bb247ee9336eb8a3eeb71690b82220493f23ecf0f00fc84234968c96745806",
-      "tests/android_property_values.cpp": "76ae0b051b2c676e4d1337a3536a5718a4c114b6a5375d56dcc4924fb8d08e78",
-      "tests/android_relations.cpp": "1388842f46f922db705fa1c13696b1523feca62176010fac59328e905b325e0a",
-      "tests/android_structs.cpp": "38e90e522d7d0b62ff443a2c74c6b31839a9c6205f6f861fb4452347353a5072",
-      "tests/classes.cpp": "8411850b0c074137ca22f251a5c593f305ed62e2449662d5675b34261980a557",
-      "tests/commands.cpp": "83f02224c9b1aab97e272f25bea6d00a149596a43074adf9e891d455acda9031",
-      "tests/component_consumer/component.cpp": "72a951689dbd6d82626e43a513ee920c564f9694375111240045e4929876da73",
-      "tests/component_consumer/main.cpp": "fe8eb38922a007e962c86bf413d3f69a966f7f21bf9cc4ac80f038223fd3b899",
-      "tests/consumer/main.cpp": "fed80cfb38c703d4bcb9c8115b917f79a43845d04ad04174b4a856d3d48c2b99",
-      "tests/contracts.cpp": "b760d0c652222e05ce82c9fd83e1ed6c488e52280f7a0da2c4aa85661e630c0a",
-      "tests/discovery.cpp": "7aa47f4e870f62b579849f6c1709442b2cf629d26348446c4278da6a5fc172d8",
-      "tests/dumper_consumer/OwnedLayout.hpp": "a9bc6f21d9f02b88b8f755ecb37e57820cc283865e18c3e122f367bb2df26504",
-      "tests/dumper_consumer/main.cpp": "a7c3d1f70b9e53ecabe79cd1629a02adf8263e5294750ca8894d9fb94ec041ae",
-      "tests/dumper_consumer/owned.cpp": "6984a11d33601910ef64368200254bcb37469ca25ad651fabe7484d9cc192aa1",
-      "tests/dumper_consumer/smoke/main.cpp": "3ad093c95bc0d4599f404b0db40bd04c7884cd8eab8de8d46743c3ded370e237",
-      "tests/dumper_emitter/fixtures.cpp": "2c362527d98b843696fbf3665cc72dd1402f4a0bbd88460362a85290f838912e",
-      "tests/engine/Fixture.hpp": "48f0cf24e7783bd887a84882ec861d5ccb0c38069abb877c07aa4cbb16a6618b",
-      "tests/engine/Module.cpp": "01910c36ef6f9e12c47667d1fe73c4fc21321c9e3f8f71e4dddce2320b1f0d6b",
-      "tests/engine.cpp": "391eedb08500a3c24887448580851bc6bb59a6a68070d68cf9a0ec5bc8ce797f",
-      "tests/enums.cpp": "712df5352bcd1025cc525509381e4d66fd73fad484657842ff945e433a43c586",
-      "tests/evidence.cpp": "b8c4cb4438702f32f41d058b7b15823957cb1464cdfe6f88a180845f684df9ce",
-      "tests/evidence_phases.cpp": "ed8f3422aad71c3521f676bd84147f048da4fe83e5f4a27ad424d107edb83979",
-      "tests/export_interruption.cpp": "650d3c5603ce71838f9f8bdb600dbe1f5cc7a4a7c557eef9c498f3790f42e89c",
-      "tests/export_limits.cpp": "f9248a2a7bcf7e174a15477efcba08884d6992ed81ea93e981daf98f755d0638",
-      "tests/fields.cpp": "fa422ca5ac27e4413926f6dcbe1f4902e0deb0ccd68e626acadaea0341098c3d",
-      "tests/functions.cpp": "d288f4e466b9161833611eec284f7cb20a2a262fe4ee83251393e490756be7a1",
-      "tests/inspector.cpp": "4dc508a0278aa897dded2cee9583819ddfcc3a834117bda49d8ba36191a13105",
-      "tests/inspector_consumer/main.cpp": "5fcdd3341af73256a107384e73035f92603fdb5bc8ff5d9d6c519d67f46f8d3b",
-      "tests/layout_smoke.cpp": "6aca38415fa895fbb0b765076acdb47c576f8721477d8d4d423cd31e84815f08",
-      "tests/module_fixture.cpp": "46ed2553f57be29be44c0360813625fccf22754c81a58f69cba6e60f0d62e258",
-      "tests/names.cpp": "48358b814713947f8a826d31baf27f13fd55b5136a971ae266283672605246cb",
-      "tests/object_array.cpp": "cce63d14dca1197968d921c04d69c615377b758a0ba08c173a068cbfc6ada441",
-      "tests/object_flags.cpp": "ab4ce13352c7e2e0942eb9c70dfd39c19bc822a6035b835ea44355ae4c70305b",
-      "tests/process_memory.cpp": "3df654c2b099b6332ddf8abc6c14f9425c7727d4d99106c5cb0ae499a875e875",
-      "tests/profile_discovery.cpp": "e2d8ea2457a50c8761d231cbbeb524f9e35efc1ca11527b5000ef31028eb3ad2",
-      "tests/properties.cpp": "20802e60489a2a201d04ca415dfa3c0ac9fc5ee0ef3da842f71a525855f414fc",
-      "tests/property_tails.cpp": "aab94a947dff17348d6ac58af3a718cfb042705b6fc5e3d49779324f3bfebf43",
-      "tests/property_values.cpp": "500ac81e135585d470c6d5c272eb8141f80262cadfa77706d7abc6391f8d5b06",
-      "tests/reflection.cpp": "1d8809bae944333ac773718141214bd4f49b6f895efe25eb1c1c756cc6ca3438",
-      "tests/relations.cpp": "63f92be73d9a52881237c490449b3b838111346aeb94878048f6fb47ddec9f72",
-      "tests/sdk_generator.cpp": "7cacd2353d5e4823c341890844cfa03d116ef0327f2cc82f740c0b3099461d41",
-      "tests/structs.cpp": "6ca9123583a3ee3dbeb0f9d4975294604df40ae94ee9cf035f500b92d99a30c1",
-      "tests/verify_agent.py": "9f713493733eaf49fcd8a301d26705c023814b8be0ef743c34679973e75a346a",
-      "tools/extract_dumper_emitter.py": "064bd6626501f119560e0353c899eab528f2d167dbd7ef619165c6d0aac3c8e6"
-    },
-    "sourceConsistentAtExecution": true,
-    "currentSelectedInputsMatch": true,
-    "inputManifest": {
-      "path": "build/slices/e3b2ef30fa1d11478b2a515efac9559c60be8c565eba5eff64cc756c4413ebe7/inputs.json",
-      "sha256": "e7278f9b0605294d7214b00ad8e12ec2179ab3be6a173ce118187293b5ba9a37"
-    },
-    "inputArchive": {
-      "path": "build/slices/e3b2ef30fa1d11478b2a515efac9559c60be8c565eba5eff64cc756c4413ebe7/first-party-source.tar.gz",
-      "sha256": "a47caefddbe974dfb52e9cf06ac3170ae435e32fa36b77e380a786db0e96ad4e"
-    }
+  "schemaVersion": 3,
+  "recordedDate": "2026-09-13",
+  "scope": "Functional migration acceptance for the exact source and target identities recorded below. Synthetic, owned-fixture, compiled, and actual-target results are distinguished explicitly.",
+  "acceptance": {
+    "automaticSixPhaseDiscovery": "passed-on-actual-target",
+    "reflectionCollectionAndSdkPublication": "passed-on-actual-target",
+    "generatedTargetSdkCompilation": "passed",
+    "processEventDiscovery": "passed-on-actual-target",
+    "processEventInvocation": "not-enabled",
+    "inspectorInteraction": "passed-on-owned-android-fixtures"
   },
-  "toolchains": {
-    "host": "AppleClang 17.0.0.17000013 on macOS arm64",
-    "android": "Android NDK 29.0.14206865, Clang 21.0.0, arm64-v8a, API 27"
-  },
-  "dependencies": {
-    "AndSwapChainHook": "61e022a850ade7aa173e252a32e4c0059d2a5134",
-    "AndUEDumper": "5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0",
+  "source": {
+    "originalAndUEProber": "3304244255c662d5896556c32573de6ad776e751",
+    "migrationBaselineAndUEProber": "e66488ed1fd1277d6d679a927cfda7fcd90942e7",
+    "executedAndUEProber": "071a3882f20e6dc323002928d30878c979796916",
+    "functionalMigrationAndUEProber": "9e97b5bc792d83895b9133b918c593c104da9ec2",
+    "AndUEDumper": "3f4eaba87756e39ebfb0d88609deb572ab5f6a50",
+    "selectedMemorySource": {
+      "path": "/Users/ddd/Developer/AndSwapChainHook",
+      "revision": "4ff6235c8a19d0b4f76b0499e82c2121e58d7932",
+      "sourceFingerprint": "bcc0171299b9c7db56b238b4c6a5e538158d16197ee3596814e26bca14c06579"
+    },
+    "pinnedAndSwapChainHookGitlink": "61e022a850ade7aa173e252a32e4c0059d2a5134",
     "KittyMemoryEx": "aa128114d98cc31fbe0955e9820b91657c6cb87d",
-    "KittyMemory": "4bc7691498d94a521884f6ff3327cbe56cb5437c"
+    "AndCommon": "609cf63b17606fbaf31ff6b536d23676e038cd34",
+    "PointerHook": "180a4c98413cc0aee010b3a1d71e2a8b620500a4"
   },
-  "optionalMemoryProducer": {
-    "selection": "explicit ANDUEPROBER_MEMORY_SOURCE_DIR; not the pinned gitlink",
-    "component": "AndSwapChainHook::Memory",
-    "provenance": "working-tree-memory-source-sha256:81e87b0d74776396263753289d31105dccdada5b6510c7a5afd2124f36e0b2eb",
-    "fingerprintAlgorithm": "sha256(sha256(Memory.h) + colon + sha256(Memory.cpp))",
-    "immutablePinTransition": "open"
-  },
-  "currentManifests": [
-    {
-      "path": "tests/classes/verification.json",
-      "sha256": "526b621217a2ff0403d41f0c880b89f1a019416693f7e766ccd4c5b126ea861e",
-      "scope": "Complete pure Core/Probe Phase 3 using independent uint64 cast flags and declared default-object addresses, after production Phase 1/2 observations; no UE process or engine functions",
-      "sourceConsistentAtExecution": true
+  "build": {
+    "configurePreset": "android-analysis-release",
+    "buildPreset": "android-analysis-release",
+    "buildType": "Release",
+    "abi": "arm64-v8a",
+    "androidPlatform": "android-27",
+    "ndk": "29.0.14206865",
+    "clang": "21.0.0",
+    "options": {
+      "ANDUEPROBER_BUILD_AGENT": true,
+      "ANDUEPROBER_BUILD_DUMPER_ADAPTER": true,
+      "ANDUEPROBER_BUILD_INSPECTOR": true,
+      "ANDUEPROBER_BUILD_TESTS": true,
+      "ANDUEPROBER_WITH_PROCESS_MEMORY": true,
+      "ANDUEPROBER_MEMORY_SOURCE_DIR": "/Users/ddd/Developer/AndSwapChainHook"
     },
-    {
-      "path": "tests/component-acceptance.json",
-      "sha256": "f34e44fa0a85139f4dd4a86c8387b1dd526e21e1bce40aad494573021496f131",
-      "scope": "Current Debug/Release public source and relocated-installed package consumers; explicit Release Memory dependencies; owned native Android execution",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/component-verification.json",
-      "sha256": "bb586f05264073f095880ec2a53c5f331d662a5ea49f6f9b74a4dd544b274103",
-      "scope": "Public static components in a caller DSO; component-selective installed packages; Agent C linkage",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/dumper_emitter/verification.json",
-      "sha256": "80f2b77639efdedc936a9c71b609bebe6c5c962ec4ac3123cb9cbc114ca65e91",
-      "scope": "Checked pinned emitter; source and relocated installed static-to-caller-DSO DumperAdapter consumption",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/engine/verification.json",
-      "sha256": "afad496d856986aba7c7ecc2bca734a4a79bd9a339b8473f699f896b59a10ed6",
-      "scope": "Real compiled CompiledUtf16V1 functions in an owned DSO through production Core binding/executor/UTF-16 code; does not invoke a UE engine",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/enums/verification.json",
-      "sha256": "aa6628a7a1057c5bfde77853b701e65a5e85a3e98348990fd9a50668185fe70d",
-      "scope": "Production bounded observations from independently declared owned native fixtures; no external UE compatibility claim",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/evidence/verification.json",
-      "sha256": "fb97dbe29ae4850eb3daca6cf8caddcb914c5e4f2719e31323416030f83a1b70",
-      "scope": "Bounded evidence closure, selected real phase regressions and static components in a caller DSO",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/export/verification.json",
-      "sha256": "02ad1d7d1b186ccbe2a8a608259a138431016a32551e2cda62483a2ce8ddfbc7",
-      "scope": "Production Core frozen-snapshot file publication using owned temporary directories; no UE engine, full reflection SDK or power-loss experiment",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/fields/verification.json",
-      "sha256": "8e7aae050901a949f342fcecaebbc702f31a5b74f5bb052b7c5902fdf3e5d671",
-      "scope": "Five FField base fields after actual production Phase 1/2/3/4 observations, with complete transitive evidence closure; excludes property/container metadata and complete Phase 5 acceptance",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/functions/verification.json",
-      "sha256": "152f80943ba4bc80951da2f6673b98872f1b4b3fb172b2302ce631d6269cb468",
-      "scope": "Complete pure Core/Probe Phase 4 using independent typed function metadata, after production Phase 1/2/3 observations; native function addresses are compared but never called",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/inspector-verification.json",
-      "sha256": "fef3897917f98924a71a5be950adf17461a117059abe0aaff35feed8e14640d9",
-      "scope": "Core/UI implementation, actual Phase 1 owned fixture and independent consumers with recursively included API headers. Other Probe archive members and unused Agent C header declarations are supporting package artifacts; their installed bytes are recorded without a runtime claim.",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/inspector_link/verification.json",
-      "sha256": "972c8fea8ac80ad636f0ab1b18d7e087561d819e84d144e51736334901352f97",
-      "scope": "Android Inspector fixture internal static Runtime linkage; default Agent compile and explicit Memory-provider interactive/configured native CLI execution. No Android renderer or UE engine invocation.",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/object_flags/verification.json",
-      "sha256": "7d0ee25e05e87acda5a0ba818f5f416dc749ba715b0890c9f14940958eb9b4f8",
-      "scope": "Production bounded observations from independently declared owned native fixtures; no external UE compatibility claim",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/properties/verification.json",
-      "sha256": "9483bd4e9675c1b8e9ceddc4adf54f9d89d98e1a3945626370a2a5a8c24e3658",
-      "scope": "Four FProperty scalar offsets and exact FField evidence; shared-context regression",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/property_tails/verification.json",
-      "sha256": "c2fffa2d5374b3c23ce4b7427cf1aab4001d6420a766176545778b4b641b1b26",
-      "scope": "Eleven opaque pointer offsets across nine kinds through shared PropertyContext; excludes Bool, FieldPath and complete containers",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/property_values/verification.json",
-      "sha256": "544e5d03e9b9bff9b18c8ca1cd27dc66591ea9308d6ed25f591f9abf2fbdf398",
-      "scope": "Four independently scanned Bool uint8 offsets and explicitly declared inline-FName FieldPath; no engine or complete UE layout claim",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/reflection/verification.json",
-      "sha256": "4dcd96de702fc0a31d42d49ffb4926a4effc2a4cc55c165cbf6d972886fcd0b7",
-      "scope": "Production immutable typed data-layout subset from actual owned Phase 1-4 observations; caller-declared complete type sizes are not independently verified external UE layouts",
-      "sourceConsistentAtExecution": true
-    },
-    {
-      "path": "tests/structs/verification.json",
-      "sha256": "20a83c4aed3509027c06ae53985124e5617c443b143e5b0e90761dac1e344311",
-      "scope": "Complete pure Core/Probe Phase 2 against independently declared native fixture types, with production Phase 1 observations and immutable Session publication; no UE process or engine functions",
-      "sourceConsistentAtExecution": true
+    "artifacts": {
+      "andueprober_target_runner": {
+        "path": "build/android-analysis-release/tests/andueprober_target_runner",
+        "sha256": "ad6ac821a5882c1b9c4c931e44f8fe0be346633134e39f46539341c6f8f0ef15"
+      },
+      "libAndUEProberAgent.so": {
+        "path": "build/android-analysis-release/libAndUEProberAgent.so",
+        "sha256": "bc6ffe51026aa5e2282aa9b27d1120a1552d0098f7e537b905ead26d357d65e5"
+      }
     }
-  ],
-  "currentConfiguredIntegration": {
-    "path": "build/slices/e3b2ef30fa1d11478b2a515efac9559c60be8c565eba5eff64cc756c4413ebe7/configured-agent-verification.json",
-    "sha256": "d40a4c4f72b36785cf0e9a9f14cc60bb9a36c66d4d816adcf8a89edea50c48b3",
-    "sourceDigest": "e3b2ef30fa1d11478b2a515efac9559c60be8c565eba5eff64cc756c4413ebe7",
-    "sourceConsistentAtExecution": true,
-    "counts": {
-      "android-build": 8,
-      "android-execution": 194,
-      "android-sdk-compile": 4,
-      "artifact-check": 76,
-      "dependency-read": 1,
-      "device-read": 5,
-      "host-build": 3,
-      "host-execution": 13,
-      "host-sdk-compile": 4,
-      "pull-generated": 4,
-      "push": 76,
-      "staging": 83,
-      "toolchain-read": 1
-    },
-    "scope": "Six Android Agent configurations: default, explicit Memory, and explicit Memory with DumperAdapter disabled, Debug/Release. 190 actual Agent fixture processes plus 4 generated SDK executables on PLQ110/API36/4096-byte pages. Configured UObject/UField/UStruct/UClass/UFunction/FField/FProperty/UEnum, nine opaque property-tail kinds, four independently scanned Bool bytes and explicit inline-FName FieldPath metadata pass success, corruption, ambiguity and admission checks. The Bool/FieldPath fixture executes 42 processes including missing-Memory and no-adapter configurations. Deep evidence integration, inert loading, command/index regressions and actual Agent ImGui command/read-only views pass. Four emitted headers compile with host Clang and NDK and all eight compiled programs execute. Host Inspector/Names/Relations execute in Debug, Release and ASan/UBSan. All 472 commands exit zero; source and artifact SHA-256 hashes remain stable. No automatic metadata collection, complete container storage, actual UE engine binding, platform renderer or full reflected SDK claim."
-  },
-  "componentRuntime": [
-    {
-      "configuration": "Debug",
-      "package": {
-        "path": "artifacts/component-validation/20260912T140055Z-debug/verification.json",
-        "sha256": "3fc0ae2d188fc11b7072ab86cfdc945902444c7daa29eab5e7ba6cdbdc937fe9"
-      },
-      "runtime": {
-        "path": "artifacts/component-runtime/20260912T140408Z/verification.json",
-        "sha256": "7b99d15397b15c6ad586cdbcadd47b0bc105134d4d304a8ce14e74acb288fb6e"
-      },
-      "scope": "Frozen package artifacts executed by owned Android native consumers; this record does not verify source changes after the package build."
-    },
-    {
-      "configuration": "Release",
-      "package": {
-        "path": "artifacts/component-validation/20260912T140411Z-release/verification.json",
-        "sha256": "bb586f05264073f095880ec2a53c5f331d662a5ea49f6f9b74a4dd544b274103"
-      },
-      "runtime": {
-        "path": "artifacts/component-runtime/20260912T140857Z/verification.json",
-        "sha256": "ed7692c507555220fba9a019a5d160793c281798b6eabd70c7a87e592eb9b17e"
-      },
-      "scope": "Frozen package artifacts executed by owned Android native consumers; this record does not verify source changes after the package build."
-    }
-  ],
-  "archivedBaseline": {
-    "scope": "Historical source and execution records only. Recorded artifact paths in these manifests refer to reused build directories and are not current-file integrity references. Their original hashes are preserved; no current runtime claim is derived from them.",
-    "sourceDigest": "ff2604e5d2c7f0ac2f5cb0001daeb2ebd8da35ea32a9f2176cd9c6294a9e43e4",
-    "sourceFileCount": 90,
-    "sourceManifest": {
-      "path": "build/slices/ff2604e5d2c7f0ac2f5cb0001daeb2ebd8da35ea32a9f2176cd9c6294a9e43e4/inputs.json",
-      "sha256": "c90c3fdf4479add909cbbbfb5670a6b77ec91013c71eb4db9a635b95daaa789a"
-    },
-    "sourceArchive": {
-      "path": "build/slices/ff2604e5d2c7f0ac2f5cb0001daeb2ebd8da35ea32a9f2176cd9c6294a9e43e4/first-party-source.tar.gz",
-      "sha256": "73b01fcd38ccc8217c2d0b79dfbf82b2fdf62de54843020578800c5931f1b327"
-    },
-    "baselineRecord": {
-      "path": "build/slices/ff2604e5d2c7f0ac2f5cb0001daeb2ebd8da35ea32a9f2176cd9c6294a9e43e4/verification.json",
-      "sha256": "73f64d3e35202b38749d76b258236dccbdb8560a4b22bd0da522ca942ec7d3ca"
-    },
-    "priorIndexRecord": {
-      "path": "artifacts/verification-archive/20260912T155719Z/verification.json",
-      "sha256": "3ca9febdf2b31da913543cd7725ca202e93c07b8f897bce90136ffe461d5d06b"
-    }
-  },
-  "traceability": {
-    "implemented": [
-      "R09 inert entry and owned worker",
-      "R10 signal/longjmp removal",
-      "R11 unsafe engine/string call rejection",
-      "R12 transactional writer and failure propagation",
-      "R13 optional Core offsets, evidence, overrides and snapshot contracts",
-      "R21 Core/Probe presets and installed consumption",
-      "R18 normal-linker module lease, GNU build-id, bounded public Memory adapter and monotonic generations",
-      "R13 bounded object-index, NamePrivate, ClassPrivate and OuterPrivate phases; rejected-candidate diagnostics, exact layout identity, sample evidence, dependency versions and reprobe invalidation",
-      "R09 explicit interactive command owner, bounded admission, worker-owned inspector and immutable UI observations",
-      "R09 allocation-safe worker exception publication and deep snapshot isolation",
-      "R12 SDK field layout generated from validated frozen index observations",
-      "R21 configured install include directory in exported usage requirements",
-      "R09/R13/R18 bounded first-party profile discovery and explicit unsupported upstream bootstrap",
-      "R11 compiled typed-shim executor and allocator admission; raw UE addresses remain unsupported",
-      "R09/R13 configured UObject -> UStruct -> UClass -> UFunction Core phases share one session budget and freeze once; explicit metadata, unsigned field widths, atomic phase publication and dependency validation; native pointers never invoked",
-      "R09/R13 ObjectFlags, FProperty scalars, nine explicit property pointer kinds and UEnum arrays use production Core providers with current required transitive evidence closure; unconfigured legacy heuristics and redundant result projections are removed",
-      "R09 public Inspector capabilities disable unavailable provider actions; configured Agent sessions render retained immutable snapshots without commands or target reads",
-      "R13 only Core Validated observations count as confirmed; same-value Candidate user overrides remain unvalidated and survive automatic-result clearing",
-      "R13 independently scanned Bool metadata and explicit inline-FName FieldPath, with shared FField/FProperty evidence, strict overrides and atomic publication",
-      "R21 Debug/Release public source and installed package consumers, including custom ImGui and independent C headers; owned Android native consumer execution"
-    ],
-    "partial": [
-      "R09 automatic independent metadata collector and complete end-to-end owned UE workflow",
-      "R11 verified UE engine and allocator binding",
-      "R12 complete reflected SDK generation and owned UE fixture",
-      "R13 complete container storage/ownership and undeclared Bool/FieldPath representations",
-      "R22 immutable public producer pin transition and private downstream compatibility",
-      "R18 manual/custom module loaders and concurrent engine mutation consistency"
-    ],
-    "evidenceCategories": [
-      "C01",
-      "C07",
-      "C09",
-      "E01",
-      "E02",
-      "E05",
-      "E06",
-      "E07"
-    ]
   },
   "device": {
-    "model": "PLQ110",
-    "api": "36",
-    "buildFingerprint": "OnePlus/PLQ110/OP6113L1:16/BP2A.250605.015/B.12c47b6_f0e766_ee7ff8:user/release-keys",
-    "pageSize": "4096",
-    "architecture": "aarch64",
     "serial": "3B163600WKV00000",
-    "scope": "Owned command-line records and normal-linker DSOs; no external application or graphics driver execution",
-    "hardening": "Build-cache settings only; separate PAC/BTI/CFI/MTE matrix unverified"
+    "product": "PLQ110",
+    "model": "PLQ110",
+    "device": "OP6113L1",
+    "api": 36,
+    "abi": "arm64-v8a",
+    "kernelArchitecture": "aarch64",
+    "pageSizeBytes": 4096,
+    "gpu": "Adreno 830",
+    "graphicsDriver": "Qualcomm Adreno 830 OpenGL ES 3.2 V@0800.60, GIT 4e0c77737e, Ie77accac30, build 1761308598, 2025-10-24",
+    "eglDriver": "adreno",
+    "vulkanDriver": "adreno",
+    "hardening": {
+      "buildType": "user",
+      "selinux": "Enforcing",
+      "verifiedBootState": "green",
+      "flashLocked": true,
+      "targetTracerPid": 0,
+      "targetEffectiveCapabilities": "0000000000000000",
+      "targetNoNewPrivs": 0,
+      "targetSeccomp": 0
+    }
   },
-  "openAcceptanceGates": [
-    "Batch 08: automatic collection of independent anchor metadata and custom profile names is unavailable. Configured Core operations cover UObject flags/foundation, UField/UStruct, UClass/UFunction, five FField fields, four FProperty scalars, declared opaque pointer tails, UEnum arrays, four independently located Bool bytes and explicit inline-FName FieldPath metadata. Complete container storage and element ownership, and other Bool/FieldPath representations, remain unsupported.",
-    "Batch 08: 26 upstream profiles require bounded discovery providers; first-party custom names require an explicit bounded resolver and independent profile metadata. No game runtime compatibility is established.",
-    "Batch 09: the public frozen data-layout adapter and actual generated subset compilation are implemented; complete bounded UE reflection collection, inheritance/bitfield/function modeling and full reflected SDK generation remain unavailable. FullSdkExportAdmission reports Unsupported for this missing implementation.",
-    "Batch 09: the compiled native shim executor is tested, but no verified UE engine/allocator binding, authorized owned UE application or complete generated reflected SDK fixture exists.",
-    "Batch 10/11: public Memory producer pin transition and private downstream consumer validation remain open; an explicit working-tree fingerprint is not an immutable published dependency revision.",
-    "No runtime evidence for 16 KiB Android pages, manual/unlinked modules, non-AArch64 Agent ABI, real UE engine execution or an Android platform-rendered inspector provider. CPU ImGui context/frame and command/read-only lifecycles have owned native fixtures."
+  "target": {
+    "package": "com.tencent.tmgp.dfm",
+    "versionCode": 2019,
+    "versionName": "1.201.37114.81",
+    "targetSdk": 34,
+    "minSdk": 24,
+    "primaryAbi": "arm64-v8a",
+    "pid": 24094,
+    "processName": "MainThread-UE4",
+    "processStartIdentity": "36454520",
+    "codePath": "/data/app/~~bqI4krjsr7lEEjiSMDjdlQ==/com.tencent.tmgp.dfm-Ch7TvlrxOrVNdR9hPU0YbQ=="
+  },
+  "module": {
+    "name": "libUE4.so",
+    "path": "/data/app/~~bqI4krjsr7lEEjiSMDjdlQ==/com.tencent.tmgp.dfm-Ch7TvlrxOrVNdR9hPU0YbQ==/lib/arm64/libUE4.so",
+    "baseAddress": "0x7602f9e000",
+    "sizeBytes": 508099424,
+    "inode": 21537,
+    "gnuBuildId": "8187ddb9edbc9d5201201ffd7b008df3bfe533db",
+    "sha256": "60851fc9b654a76b1c4b3c522629b834370e7032c558375d61e31e202c73a21b",
+    "identity": "/data/app/~~bqI4krjsr7lEEjiSMDjdlQ==/com.tencent.tmgp.dfm-Ch7TvlrxOrVNdR9hPU0YbQ==/lib/arm64/libUE4.so#gnu-build-id:8187ddb9edbc9d5201201ffd7b008df3bfe533db;pid-start:36454520"
+  },
+  "actualTargetExecution": {
+    "command": "/data/local/tmp/auep-validation-071a388/andueprober_target_runner 24094 com.tencent.tmgp.dfm /data/local/tmp/auep-dfm-071a388",
+    "resultCode": 0,
+    "generation": 1,
+    "profile": "Delta Force",
+    "phaseStatus": {
+      "phase1UObject": "completed",
+      "phase2UFieldAndUStruct": "completed",
+      "phase3UClass": "completed",
+      "phase4UFunction": "completed",
+      "phase5FFieldAndFProperty": "completed",
+      "phase6UEnum": "completed"
+    },
+    "offsetCount": 43,
+    "offsets": {
+      "FArrayProperty::Inner": 136,
+      "FBoolProperty::ByteMask": 130,
+      "FBoolProperty::ByteOffset": 129,
+      "FBoolProperty::FieldMask": 131,
+      "FBoolProperty::FieldSize": 128,
+      "FEnumProperty::Enum": 136,
+      "FEnumProperty::UnderlyingType": 128,
+      "FField::ClassPrivate": 32,
+      "FField::FlagsPrivate": 8,
+      "FField::NamePrivate": 40,
+      "FField::Next": 24,
+      "FField::Owner": 8,
+      "FMapProperty::KeyProp": 136,
+      "FMapProperty::ValueProp": 144,
+      "FProperty::ArrayDim": 56,
+      "FProperty::ElementSize": 60,
+      "FProperty::Offset_Internal": 76,
+      "FProperty::PropertyFlags": 64,
+      "FProperty::SubPropertyBase": 136,
+      "FSetProperty::ElementProp": 128,
+      "Module::GUObjectArray": 484386600,
+      "Module::NamePool": 484227264,
+      "ProcessEvent::Address": 244021744,
+      "ProcessEvent::VTableIdx": 69,
+      "UClass::CastFlags": 216,
+      "UClass::ClassDefaultObject": 312,
+      "UEnum::Names": 64,
+      "UField::Next": 40,
+      "UFunction::Func": 216,
+      "UFunction::FunctionFlags": 184,
+      "UFunction::NumParms": 176,
+      "UFunction::ParmsSize": 178,
+      "UFunction::ReturnValueOffset": 180,
+      "UObject::ClassPrivate": 8,
+      "UObject::InternalIndex": 36,
+      "UObject::NamePrivate": 28,
+      "UObject::ObjectFlags": 24,
+      "UObject::OuterPrivate": 16,
+      "UStruct::ChildProperties": 104,
+      "UStruct::Children": 80,
+      "UStruct::PropertiesSize": 60,
+      "UStruct::SuperStruct": 64,
+      "sizeof(FProperty)": 128
+    },
+    "offsetEvidence": {
+      "validation": "validated",
+      "originSummary": {
+        "boundedProbe": 16,
+        "admittedProfile": 27
+      },
+      "detailedEvidencePath": "build/actual-target-071a388/profile-369089073675712/completion.json"
+    },
+    "processEvent": {
+      "relativeAddress": "0xe8b79f0",
+      "absoluteAddress": "0x76118559f0",
+      "vtableIndex": 69,
+      "discovered": true,
+      "invoked": false
+    },
+    "engineGlobals": {
+      "GEngineRelativeAddress": "0x1d0e50b0",
+      "GEngineAbsoluteAddress": "0x76200830b0",
+      "GWorldRelativeAddress": "0x1d0e8668",
+      "GWorldAbsoluteAddress": "0x7620086668"
+    }
+  },
+  "reflectionAndPublication": {
+    "objectsGathered": 97615,
+    "objectInventoryLines": 96866,
+    "packagesGathered": 437,
+    "packagesSaved": 436,
+    "classesSaved": 11582,
+    "structsSaved": 8064,
+    "enumsSaved": 3271,
+    "functionsSaved": 47258,
+    "deviceOutputPath": "/data/local/tmp/auep-dfm-071a388/profile-369089073675712",
+    "localOutputPath": "build/actual-target-071a388/profile-369089073675712",
+    "published": true,
+    "completionMarkerComplete": true,
+    "regularFiles": 886,
+    "manifestedFiles": 885,
+    "devicePublishedBytes": 85757324,
+    "pulledBytes": 85628184,
+    "generatedCppFiles": 437,
+    "generatedHppFiles": 438,
+    "hashes": {
+      "completion.json": "34fbbb0b1ec174af8019f4463eb7160c92df31dbbc8fd1469fd76478fb71ebfb",
+      "Objects.txt": "e0ec58fe3e09676213b9966747a19167d971272229600e59135a7fc548982b8c",
+      "Offsets.hpp": "603dd8a0b17c07a74d56b44de448c29224c07131eb550dad73844431a0dec571",
+      "AIOHeader.hpp": "0bbfcc04bc33342f7309f3ab547b7803bbcdd41dfd3f6aaafb7f985780e764ad",
+      "SDK_A/SDK.hpp": "ed9670530ce9063641b5628b12170f4c80a980082daa20c773dc6ccc166e394e",
+      "SDK_A/Basic.h": "110d1c262951aae4f41bda7ad8da19b084f995eed49057105b97f4176766fd98",
+      "SDK_A/Basic.cpp": "716d5cb919a757849a401389482ff1b58ed067d650fae70d28b7059e21a2a2af",
+      "SDK_A/CoreUObject_classes.hpp": "f583b9f247f5ec4ea124d02db79d1505a7b92d8c2d23a8619123f0772efff185",
+      "SDK_A/CoreUObject_structs.hpp": "573260703f022959cc4b764757d630ff89c3907d77b28aac691b86a63660242f",
+      "SDK_A/CoreUObject_functions.cpp": "05758cdbd1b2bdb00e8206bb29a5505bee0f3f6033039c7e3ee2078812c996f8"
+    }
+  },
+  "generatedSdkCompilation": {
+    "compiler": "AppleClang 17.0.0.17000013",
+    "language": "C++20",
+    "translationUnitCommand": "find SDK_A -name '*.cpp' -print0 | xargs -0 -n1 -P4 clang++ -w -std=c++20 -fsyntax-only -I SDK_A",
+    "translationUnits": 437,
+    "translationUnitExitCode": 0,
+    "aggregateCommand": "clang++ -w -std=c++20 -fsyntax-only -x c++ -I SDK_A SDK_A/SDK.hpp",
+    "aggregateExitCode": 0
+  },
+  "regressionCoverage": {
+    "hostDebug": "26/26 passed",
+    "hostRelease": "26/26 passed",
+    "hostAddressUndefinedSanitizers": "26/26 passed",
+    "standaloneAndSwapChainHookDebug": "4/4 passed",
+    "standaloneAndSwapChainHookRelease": "4/4 passed",
+    "standaloneAndSwapChainHookAddressUndefinedSanitizers": "4/4 passed",
+    "androidAnalysisReleaseBuild": "passed",
+    "independentInstalledConsumers": [
+      "Core",
+      "component",
+      "Inspector"
+    ],
+    "exactAndroidFixtureExecution": [
+      "inert JNI loading and explicit lifecycle",
+      "exact linker selection, bounded reads, cancellation, budgets, eight generations and duplicate load rejection",
+      "bounded profile discovery",
+      "interactive Inspector commands",
+      "configured and frozen Inspector views"
+    ],
+    "faultCoverage": [
+      "corruption",
+      "short read",
+      "cancellation",
+      "operation budget",
+      "deadline",
+      "module generation change",
+      "export failure injection",
+      "previous successful export preservation"
+    ]
+  },
+  "unsupportedOrUnavailable": [
+    "ProcessEvent invocation remains disabled because no target-specific verified signature, object ownership, game-thread executor, and matching allocation/release contract was admitted.",
+    "Profiles other than Delta Force have bounded discovery providers and compile coverage but do not have runtime admission evidence for their current application versions.",
+    "Container property pointer relationships are discovered; complete runtime TArray, TSet, and TMap storage ABI inference is not claimed.",
+    "The caller-owned ImGui Inspector is implemented and fixture-executed; no public Android overlay, input hook, Vulkan hook, concealment, or protection bypass is included.",
+    "Android 16 KiB page devices and manual module-base selection were not executed in this acceptance run."
   ],
-  "releaseReady": false
+  "safety": {
+    "targetSelection": "explicit package, PID, and exact mapped module",
+    "memoryAccess": "read-only process memory",
+    "ptraceAttach": false,
+    "privilegeEscalation": false,
+    "concealment": false,
+    "protectionChanges": false,
+    "processStateChanges": false,
+    "engineFunctionCalls": false
+  }
 }
