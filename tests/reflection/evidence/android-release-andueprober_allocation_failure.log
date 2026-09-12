@@ -1,0 +1,1 @@
+PASS: worker allocation failures and 21 successive reflection allocation failures publish Internal without a partial snapshot

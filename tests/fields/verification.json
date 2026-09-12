@@ -1,0 +1,175 @@
+{
+  "format_version": 1,
+  "date": "2026-09-12",
+  "traceability": [
+    "R09",
+    "R13",
+    "R18",
+    "C04",
+    "E05"
+  ],
+  "scope": "Five FField base fields after actual production Phase 1/2/3/4 observations, with complete transitive evidence closure; excludes property/container metadata and complete Phase 5 acceptance",
+  "source_base_commit": "3304244255c662d5896556c32573de6ad776e751",
+  "source_state": "modified working tree; exact source content hashes below",
+  "source_sha256": {
+    "include/andueprober/Core.hpp": "9ca1f3432307ebb29e12a38f4031a1510e7b3f03fff78e63fda37cc29c34c28e",
+    "include/andueprober/Evidence.hpp": "e96d5a674b33478e43ef4d784ffc800a784446b8728955ee6b00b4fba0bfce8b",
+    "include/andueprober/Names.hpp": "877b9b5db9b0dbc9a4cf7902ca8064c030489313c9567aec527d7c1ce8767e2d",
+    "include/andueprober/Probe.hpp": "0b540e555a6b4f223dc8666440b12153d6ce8dd41f0535edb3d9e21c059843ab",
+    "include/andueprober/Relations.hpp": "114ac7a3b4a8ca60099620f576e87258c209fbe8562e5065afae9edd3251ab0d",
+    "include/andueprober/Structs.hpp": "7b53cb5e0b1775ad69a6292c68bc7e06ab95e134c8d43e9d2060ba39a8242304",
+    "include/andueprober/Classes.hpp": "7df0549f2418cfb72e505dc5a567c1be0a75e996b9a20f8084cb2ac22793e4f2",
+    "include/andueprober/Functions.hpp": "151b963c7969be11d32d2e2d842dec1577dad36cc7270ee98ef230bdf98a6654",
+    "include/andueprober/Fields.hpp": "9f93c57109f1f0f218a0b3f6bacac094e6840fe15198a81d3d338b71620b4895",
+    "source/Core/Core.cpp": "efcdcdd84090c7698a0fabe9a1adc8e79dff1f79c37832710a0c044278035df1",
+    "source/Core/Evidence.cpp": "e2a5abeba39461e9c6c31077627e0c5657d3959bd8aa596afa3a0ed26320bd5e",
+    "source/Probe/Names.cpp": "9d3a12f1393bdc19c66c8f8c9729dcb65a84436c789008ae7c03ac2317319f67",
+    "source/Probe/Probe.cpp": "64b9d80e2043a3507587e57cac3ceecd717fbd87badead9a144dea37733e7710",
+    "source/Probe/Relations.cpp": "db806e4a062dde1f3ca83e4f80274a616f06bb544c9f15590f45a6a738d61741",
+    "source/Probe/Structs.cpp": "176510704acd42dc33362e56a238c955d12d049c6ad6a0dc5e0f10e0fb63b91d",
+    "source/Probe/Classes.cpp": "d56a002f671b74bcc725d784d3d41855e254a9bc5b6f6cd7463bd60b0cab42fb",
+    "source/Probe/Functions.cpp": "92d87f0039cc17b4eab7367a1b945afc4689ffbb8a72eea232b124d1892ad40d",
+    "source/Probe/Fields.cpp": "941f59aed535f4d335b3e3be255d80cff80e8366166519fae365c4175800d66f",
+    "tests/OwnedRelations.hpp": "e26178aeba3313c3fa638387d3364edbd211cf5849cddd99974ebbe9062ac26c",
+    "tests/OwnedStructs.hpp": "e1d057791087c9801ffa47d7ad2dfea6aed7bb3ac4208584172d6ad03d5be727",
+    "tests/OwnedClasses.hpp": "31df37143c3cb15c1b64d9c1b8d4f89197a832dd9ce33b6c95aa15e6f2daf159",
+    "tests/OwnedFunctions.hpp": "6f86a49e03023b23272f60305bb17d7764f28bc5ce945579f9a55f58537352fc",
+    "tests/OwnedFields.hpp": "499fe4e1dd6846aa680d3e194cc5c9006e5913a9052f3858be77fdd50ff58633",
+    "tests/fields.cpp": "fa422ca5ac27e4413926f6dcbe1f4902e0deb0ccd68e626acadaea0341098c3d"
+  },
+  "host": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit",
+    "architecture": "arm64"
+  },
+  "android": {
+    "ndk": "29.0.14206865",
+    "abi": "arm64-v8a",
+    "native_api_target": 27,
+    "stl": "c++_static",
+    "serial": "3B163600WKV00000",
+    "model": "OnePlus PLQ110",
+    "android_version": "16",
+    "api_level": 36,
+    "page_size": 4096,
+    "owned_directory": "/data/local/tmp/andueprober-property-closure-20260912",
+    "hardening": "NDK defaults; no separate BTI/PAC/CFI/MTE options or validation; bounded owned memory only"
+  },
+  "configurations": [
+    {
+      "name": "host-release",
+      "build_type": "Release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 730,
+      "production_boundary_replacement": false,
+      "sanitizers": "none",
+      "sanitizer_options": {},
+      "executable": {
+        "path": "/tmp/andueprober-property-closure-host-release/tests/andueprober_fields",
+        "sha256": "4fce967148fb82daf73cb50d923f542837c31ffc68ceac577f422a0ae3c62963",
+        "bytes": 420160,
+        "symbols": "matching unstripped artifact",
+        "uuid": "2F823AFE-3DF9-3C07-95C2-35484899B048"
+      },
+      "runtime_log": "tests/fields/evidence/host-release.log",
+      "build_log": "tests/fields/evidence/host-release-build.log"
+    },
+    {
+      "name": "host-sanitizers",
+      "build_type": "Debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 730,
+      "production_boundary_replacement": false,
+      "sanitizers": "AddressSanitizer and UndefinedBehaviorSanitizer",
+      "sanitizer_options": {
+        "ASAN_OPTIONS": "detect_leaks=0:halt_on_error=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      },
+      "executable": {
+        "path": "/tmp/andueprober-property-closure-host-sanitizers/tests/andueprober_fields",
+        "sha256": "39d944ea7949466ede50f59da662e5acdb2a79e3de5c3669cbe4827aa3a6e54c",
+        "bytes": 7161568,
+        "symbols": "matching unstripped artifact",
+        "uuid": "1644E4F7-E7C7-3A7E-B57C-36F8A92415F7"
+      },
+      "runtime_log": "tests/fields/evidence/host-sanitizers.log",
+      "build_log": "tests/fields/evidence/host-sanitizers-build.log"
+    },
+    {
+      "name": "android-debug",
+      "build_type": "Debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 730,
+      "production_boundary_replacement": false,
+      "sanitizers": "none",
+      "sanitizer_options": {},
+      "executable": {
+        "path": "/tmp/andueprober-property-closure-android-debug/tests/andueprober_fields",
+        "sha256": "e357efa3fe33a6847bc2662b78684ea72ae4728c9a5c5cb9787e15e57406d287",
+        "bytes": 8588320,
+        "symbols": "matching unstripped artifact",
+        "build_id": "d2e96609a494a5a944b9c09b40dbc7c640b70dd8"
+      },
+      "runtime_log": "tests/fields/evidence/android-debug.log",
+      "build_log": "tests/fields/evidence/android-debug-build.log",
+      "device_artifact": {
+        "path": "/data/local/tmp/andueprober-property-closure-20260912/android-debug/andueprober_fields",
+        "sha256": "e357efa3fe33a6847bc2662b78684ea72ae4728c9a5c5cb9787e15e57406d287",
+        "matches_executed_local_artifact": true
+      }
+    },
+    {
+      "name": "android-release",
+      "build_type": "Release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 730,
+      "production_boundary_replacement": false,
+      "sanitizers": "none",
+      "sanitizer_options": {},
+      "executable": {
+        "path": "/tmp/andueprober-property-closure-android-release/tests/andueprober_fields",
+        "sha256": "83a371bf6db35004a94d247fd7239d01d872514070c2dd88d186e0585040c4a3",
+        "bytes": 10403752,
+        "symbols": "matching unstripped artifact",
+        "build_id": "e555b6a6c95d524968733b266791fe256929d36b"
+      },
+      "runtime_log": "tests/fields/evidence/android-release.log",
+      "build_log": "tests/fields/evidence/android-release-build.log",
+      "device_artifact": {
+        "path": "/data/local/tmp/andueprober-property-closure-20260912/android-release/andueprober_fields",
+        "sha256": "83a371bf6db35004a94d247fd7239d01d872514070c2dd88d186e0585040c4a3",
+        "matches_executed_local_artifact": true
+      }
+    }
+  ],
+  "source_consistent": true,
+  "executed_fields": [
+    "FField::NamePrivate",
+    "FField::Owner (SeparateBoolean)",
+    "FField::Next",
+    "FField::ClassPrivate",
+    "FField::FlagsPrivate (uint32)"
+  ],
+  "executed_contracts": [
+    "3-16 independently declared named anchors, canonical physical pool and generation identity, opaque pointers without dereference, consistent named addresses and cycle rejection",
+    "Explicit SeparateBoolean pointer/kind layouts 0/8 and 8/0, both owner kinds, byte2 rejection, tagged/unknown Unsupported; complete owner extent participates in overlap checks",
+    "Zero NamePrivate offset is valid; all five fields use distinct candidates and final readback before atomic publication with nine prerequisite versions",
+    "Permission/mapping/short-read, byte budgets, deadlines, cancellation, generation changes, duplicate candidates, per-field final-read mutation and range overlap are exercised",
+    "Required roots and tentative outputs use the actual shared iterative evidence closure: 4096 nodes, 16384 dependencies, 4 MiB metadata, read deadline and cancellation",
+    "Deep Candidate/Stale, missing or failed evidence, cycles, absent or old dependency versions and a 4100-node graph reject before reads; a deep change during reads also rejects",
+    "Unrelated stale results do not prevent publication; a cycle between matching User outputs rejects without changing either retained version",
+    "Strict matching User overrides preserve value/origin/version/validation; conflict, incomplete evidence or expired prerequisites fail",
+    "Actual production Session deep-copy and cancellation preserve frozen snapshots; no engine or fixture native function is invoked"
+  ],
+  "unverified": [
+    "Actual UE application metadata and owned UE asset acceptance",
+    "All remaining property/container/subclass metadata and full Phase 5 acceptance",
+    "Engine ABI, target allocator and atomic target metadata coherence",
+    "Other devices, API levels, page sizes and independently configured BTI/PAC/CFI/MTE",
+    "LeakSanitizer is unsupported by the available macOS runtime and was disabled"
+  ],
+  "acceptance_boundary": "The listed pure component contracts are implemented and executed against owned compiled records. Actual UE application integration and complete property/container support remain separate gates."
+}

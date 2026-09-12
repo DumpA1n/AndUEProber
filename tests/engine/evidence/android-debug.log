@@ -1,0 +1,2 @@
+["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/andueprober_engine", "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/libandueprober_engine_module.so"]
+PASS: 144 engine shim/executor/FString checks; real owned DSO calls and allocator release; no UE engine invocation

@@ -1,0 +1,123 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 22,
+    "patch": 1
+  },
+  "configurePresets": [
+    {
+      "name": "host-debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ANDUEPROBER_BUILD_AGENT": false,
+        "ANDUEPROBER_BUILD_TESTS": true
+      }
+    },
+    {
+      "name": "android-debug",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/android-debug",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Debug",
+        "ANDUEPROBER_BUILD_AGENT": true,
+        "ANDUEPROBER_BUILD_TESTS": true,
+        "ANDROID_ABI": "arm64-v8a",
+        "ANDROID_PLATFORM": "android-27"
+      },
+      "toolchainFile": "$env{NDK_HOME}/build/cmake/android.toolchain.cmake"
+    },
+    {
+      "name": "host-release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/host-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ANDUEPROBER_BUILD_AGENT": false,
+        "ANDUEPROBER_BUILD_TESTS": true
+      }
+    },
+    {
+      "name": "android-release",
+      "generator": "Ninja",
+      "binaryDir": "${sourceDir}/build/android-release",
+      "cacheVariables": {
+        "CMAKE_BUILD_TYPE": "Release",
+        "ANDUEPROBER_BUILD_AGENT": true,
+        "ANDUEPROBER_BUILD_TESTS": true,
+        "ANDROID_ABI": "arm64-v8a",
+        "ANDROID_PLATFORM": "android-27"
+      },
+      "toolchainFile": "$env{NDK_HOME}/build/cmake/android.toolchain.cmake"
+    },
+    {
+      "name": "host-sanitizers",
+      "inherits": "host-debug",
+      "binaryDir": "${sourceDir}/build/host-sanitizers",
+      "cacheVariables": {
+        "ANDUEPROBER_SANITIZERS": true
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "host-debug",
+      "configurePreset": "host-debug"
+    },
+    {
+      "name": "android-debug",
+      "configurePreset": "android-debug"
+    },
+    {
+      "name": "host-release",
+      "configurePreset": "host-release"
+    },
+    {
+      "name": "android-release",
+      "configurePreset": "android-release"
+    },
+    {
+      "name": "host-sanitizers",
+      "configurePreset": "host-sanitizers"
+    }
+  ],
+  "testPresets": [
+    {
+      "name": "host-debug",
+      "configurePreset": "host-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "android-debug",
+      "configurePreset": "android-debug",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-release",
+      "configurePreset": "host-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "android-release",
+      "configurePreset": "android-release",
+      "output": {
+        "outputOnFailure": true
+      }
+    },
+    {
+      "name": "host-sanitizers",
+      "configurePreset": "host-sanitizers",
+      "output": {
+        "outputOnFailure": true
+      }
+    }
+  ]
+}

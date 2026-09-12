@@ -1,0 +1,3 @@
+
+COMMAND ["/tmp/andueprober-tail-closure-host-release/tests/andueprober_property_tails"]
+PASS: 1311 property-tail checks; eleven opaque pointer offsets across nine kinds, independent occupied prefixes, actual preceding phases and atomic closure validation; bool and complete containers excluded

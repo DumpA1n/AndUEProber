@@ -1,0 +1,2 @@
+["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-evidence-20260912T145933Z/android-debug-object_flags"]
+PASS: 191 object flag checks; explicit uint32 metadata, actual Phase 1 evidence, unique bounded reads, prefix exclusion and strict overrides

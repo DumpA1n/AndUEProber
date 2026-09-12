@@ -1,0 +1,1475 @@
+{
+  "format_version": 1,
+  "date": "2026-09-12",
+  "traceability": [
+    "R09",
+    "R13",
+    "R18",
+    "C04",
+    "E05"
+  ],
+  "scope": "Four FProperty scalar offsets and exact FField evidence; shared-context regression",
+  "source_state": "Modified working tree; selected source hashes and complete configured build records",
+  "source_sha256": {
+    "CMakeLists.txt": "9f1cf4cd9f03b50361c26b1253f2ada9cd9df364cba4a6a24f88252fe1caef49",
+    "cmake/AndUEProberConfig.cmake.in": "d5cbe63b352a13212dd81982677e015b137ad1e32c20468f6b41f11fb4f4c287",
+    "cmake/AndUEProberImGuiConfig.cmake.in": "9e70626c58fac3f8ece3874acd7d721a266f02691f3d46cb64d93f1d57bb3772",
+    "cmake/BuildInfo.hpp.in": "0c78014cab2384b1c36b462053d512d2242bdaf378103fbb1f05b7a0731e335b",
+    "cmake/CheckImGuiVersion.cpp": "16dfafb9a3e5489be701216c91222c15ce2592ee85cdbd012b29aef9e202133f",
+    "cmake/DumperEmitter.cmake": "eb502f5b62f47e8a4aed2c59aae95ad8730d4bdc543a83d611a6c5d9a73ab255",
+    "cmake/ImGuiDependency.cmake": "55d576f7f0b612a86f26c589dbf78e1aa9a4bc8ab98354272913e959bc919c8e",
+    "include/andueprober/Agent.h": "9e4c38fe9db937ec55c74b0b93dc3a6cf2ecc8fec5f8cfa635a37679d2584791",
+    "include/andueprober/Classes.hpp": "7df0549f2418cfb72e505dc5a567c1be0a75e996b9a20f8084cb2ac22793e4f2",
+    "include/andueprober/Commands.hpp": "3cf3f2418d0f2a6048261e4df5c0c37a3efcd365716877bb4a34ccb73f3c8a34",
+    "include/andueprober/Core.hpp": "9ca1f3432307ebb29e12a38f4031a1510e7b3f03fff78e63fda37cc29c34c28e",
+    "include/andueprober/Discovery.hpp": "14d85fe73eef9041ad6960a693e6cc47dc1df8185ad6beaa2cecd6a260cba568",
+    "include/andueprober/DumperAdapter.hpp": "b62ab20bee10d7ff09985aa53c4554a0943a9370391e2b3af8fa898123658715",
+    "include/andueprober/Engine.hpp": "71eb594f3b654352742b04f88038694e72e6023480e240d36cb7b24baad0b2ad",
+    "include/andueprober/Enums.hpp": "3f062fc0e0f1436c744106a5f9cdf6b4247f12f0e99e062ee019d71857928743",
+    "include/andueprober/Evidence.hpp": "e96d5a674b33478e43ef4d784ffc800a784446b8728955ee6b00b4fba0bfce8b",
+    "include/andueprober/Export.hpp": "cfa6ef5459eeb324b8fadb6099ea118ddb1fe5eff0f0e02afe1ad27351b7de7a",
+    "include/andueprober/Fields.hpp": "9f93c57109f1f0f218a0b3f6bacac094e6840fe15198a81d3d338b71620b4895",
+    "include/andueprober/Functions.hpp": "151b963c7969be11d32d2e2d842dec1577dad36cc7270ee98ef230bdf98a6654",
+    "include/andueprober/Inspector.hpp": "661c29bff4b8e50703f6efeb5641cf74389315d2aaef82eaeaf24c9737ae7569",
+    "include/andueprober/Names.hpp": "877b9b5db9b0dbc9a4cf7902ca8064c030489313c9567aec527d7c1ce8767e2d",
+    "include/andueprober/ObjectFlags.hpp": "c3797002ee5dc262086cf05de3b06ea691f7732e2d9fb5cc7aba8c7df4d79544",
+    "include/andueprober/Probe.hpp": "0b540e555a6b4f223dc8666440b12153d6ce8dd41f0535edb3d9e21c059843ab",
+    "include/andueprober/ProcessMemory.hpp": "d0304b98cc8281508b9b577733faaa80bb29e405b8b14b07e58e08c80836fa7c",
+    "include/andueprober/Properties.hpp": "17b0cb367461a28d584aca3144ebc44a86a5698ab0ac783da25087ad362a8323",
+    "include/andueprober/PropertyTails.hpp": "1e26a31e30918f4d5b2191ca539d89c615de7b914d5d4d44dea26abc01b88324",
+    "include/andueprober/PropertyValues.hpp": "c9cd202cb4466a4654758694b9e9cf03abfddafddc3ad0894c3ba5b56e0dc94c",
+    "include/andueprober/Reflection.hpp": "e99247db3031fe00e2d87158b738c9da1c9bb64eb94b2e3af84a271fdba47d92",
+    "include/andueprober/Relations.hpp": "114ac7a3b4a8ca60099620f576e87258c209fbe8562e5065afae9edd3251ab0d",
+    "include/andueprober/Structs.hpp": "7b53cb5e0b1775ad69a6292c68bc7e06ab95e134c8d43e9d2060ba39a8242304",
+    "source/Core/Commands.cpp": "027859ee0ec4e720bd95eca83aeb9dafed8b97417806ecfdd665d6c2c8c2c573",
+    "source/Core/Core.cpp": "efcdcdd84090c7698a0fabe9a1adc8e79dff1f79c37832710a0c044278035df1",
+    "source/Core/Engine.cpp": "1c19f83d06da777e44a385703160862004d7eaeef8a04c68e15a34888758bc02",
+    "source/Core/Evidence.cpp": "e2a5abeba39461e9c6c31077627e0c5657d3959bd8aa596afa3a0ed26320bd5e",
+    "source/Core/Export.cpp": "e0f3640cf8dae71e6989fb967b14ad35b20a2d18d7028c83f5aa1ddd25d26ceb",
+    "source/Core/Reflection.cpp": "ffdcebdac8fe48d5d2915bdb2e589b2c15b60d12a186e1e49937015094fd8dd3",
+    "source/Probe/Classes.cpp": "d56a002f671b74bcc725d784d3d41855e254a9bc5b6f6cd7463bd60b0cab42fb",
+    "source/Probe/Discovery.cpp": "186e70fb2479dc3179b9dd3e4b2d0375b058a3e03b999e8d755b6b45bd62a00c",
+    "source/Probe/Enums.cpp": "c0f7f679781325961707ec6d4cc5a00da79e7cada318bb9320d42f21eecbc4f0",
+    "source/Probe/Fields.cpp": "941f59aed535f4d335b3e3be255d80cff80e8366166519fae365c4175800d66f",
+    "source/Probe/Functions.cpp": "92d87f0039cc17b4eab7367a1b945afc4689ffbb8a72eea232b124d1892ad40d",
+    "source/Probe/Names.cpp": "9d3a12f1393bdc19c66c8f8c9729dcb65a84436c789008ae7c03ac2317319f67",
+    "source/Probe/ObjectFlags.cpp": "cfb9c91e13b50113be4407dc870521232594b8ea6a46e7e3217d821dd39d13cb",
+    "source/Probe/Probe.cpp": "64b9d80e2043a3507587e57cac3ceecd717fbd87badead9a144dea37733e7710",
+    "source/Probe/Properties.cpp": "1c9a0f05dd9dbc4af824604c5b719fa06efaad37ac2d54a66d90453711371d6a",
+    "source/Probe/PropertyContext.cpp": "5d9d1b955194ebd17d3a6cfbf8311860df8ad1b313664d30c2568b4bf17af830",
+    "source/Probe/PropertyContext.hpp": "5c4cf2f5b373db0e8896ed09faaa601c268e5aa3b5685e346e942847f2dab918",
+    "source/Probe/PropertyTails.cpp": "58e17718f29849dcae048abc9ad8ec1c667a96a1129eea35e9795b223221ef5f",
+    "source/Probe/PropertyValues.cpp": "fa0a0dc60d7e361dbca764e28f16a68816e8e977f5006c881bd6dc9dc9516465",
+    "source/Probe/Relations.cpp": "db806e4a062dde1f3ca83e4f80274a616f06bb544c9f15590f45a6a738d61741",
+    "source/Probe/Structs.cpp": "176510704acd42dc33362e56a238c955d12d049c6ad6a0dc5e0f10e0fb63b91d",
+    "tests/CMakeLists.txt": "8ba8dc869f79fb8f9acbff436c508428629c6be3f79e88b04f33d732a4cbd291",
+    "tests/OwnedAgentClasses.hpp": "e299070aae1626d9cce63d4c02f771e9e3ffa1b54c7d7c21fd3e0469fd6b8a03",
+    "tests/OwnedAgentFields.hpp": "1e1a935c86e6ab054d6f33dc88ce8e96f6c1c7ea1c03b0e5322a0518952f3eca",
+    "tests/OwnedAgentFunctions.hpp": "e9bdfe6abedc691d01fca533e5662be99794c9ae20c4fca1b66d88058a22643a",
+    "tests/OwnedAgentObjects.hpp": "bb5d3cf2722e6868358ea8b403f733b8e4d40bc63dc8369760c232323a014ff2",
+    "tests/OwnedAgentProperties.hpp": "9ef777726aa58e2b716b4d7de1b2f9fe1c33b28914a307526ab43dcf93570e70",
+    "tests/OwnedAgentStructs.hpp": "512dc409399b213d656bde14acfcff00ca1b6aec708e0f2e261e0ce6d5b0e5f5",
+    "tests/OwnedClasses.hpp": "31df37143c3cb15c1b64d9c1b8d4f89197a832dd9ce33b6c95aa15e6f2daf159",
+    "tests/OwnedDiscovery.hpp": "592e01b0a53e99b6d00d03fe720e734560fc9d00da657cf7fcbfdde67c0e6780",
+    "tests/OwnedEnums.hpp": "3be703b1cbc9bdefe222a134964d72c682a7bdb0b633315b542daf6025d2111c",
+    "tests/OwnedFields.hpp": "499fe4e1dd6846aa680d3e194cc5c9006e5913a9052f3858be77fdd50ff58633",
+    "tests/OwnedFunctions.hpp": "6f86a49e03023b23272f60305bb17d7764f28bc5ce945579f9a55f58537352fc",
+    "tests/OwnedObjectArray.hpp": "60cd9d7c44d1bab536c3cdc65e5e935fb7c0648e17185cceda1f28439c1ca9eb",
+    "tests/OwnedObjectFlags.hpp": "fb94cc790cf1a6e15753e5ebdf0ed961530082e414a00b09dc184bb52465603c",
+    "tests/OwnedProperties.hpp": "87ef2ec5f7b023fc8833201229d20b8f4ee7657e799c3f965c4d922a6d055d03",
+    "tests/OwnedPropertyTails.hpp": "41080ee22dbd2043446aa0e124721cd6f34822afedb4a452b25f07486b187203",
+    "tests/OwnedPropertyValues.hpp": "6bb85ffd4546abd64c9265051ea8b31076a61174f467a790941938c0fa0441d7",
+    "tests/OwnedRelations.hpp": "e26178aeba3313c3fa638387d3364edbd211cf5849cddd99974ebbe9062ac26c",
+    "tests/OwnedStructs.hpp": "e1d057791087c9801ffa47d7ad2dfea6aed7bb3ac4208584172d6ad03d5be727",
+    "tests/properties.cpp": "20802e60489a2a201d04ca415dfa3c0ac9fc5ee0ef3da842f71a525855f414fc",
+    "tests/property_tails.cpp": "aab94a947dff17348d6ac58af3a718cfb042705b6fc5e3d49779324f3bfebf43",
+    "tests/property_values.cpp": "500ac81e135585d470c6d5c272eb8141f80262cadfa77706d7abc6391f8d5b06",
+    "tests/verify_property_values.py": "4c2896581294b614b092e4b11381e3c99c23b35e4ba5b4dfa47c24ea0fdcd58d"
+  },
+  "source_consistent": true,
+  "commands": [
+    {
+      "kind": "device-read",
+      "config": "",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "getprop",
+        "ro.product.model"
+      ],
+      "exit_code": 0,
+      "output": "PLQ110\n",
+      "log": "build/property-values-validation/20260912T145248Z/000-device-read-.log"
+    },
+    {
+      "kind": "device-read",
+      "config": "",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "getprop",
+        "ro.build.version.sdk"
+      ],
+      "exit_code": 0,
+      "output": "36\n",
+      "log": "build/property-values-validation/20260912T145248Z/001-device-read-.log"
+    },
+    {
+      "kind": "device-read",
+      "config": "",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "getprop",
+        "ro.build.fingerprint"
+      ],
+      "exit_code": 0,
+      "output": "OnePlus/PLQ110/OP6113L1:16/BP2A.250605.015/B.12c47b6_f0e766_ee7ff8:user/release-keys\n",
+      "log": "build/property-values-validation/20260912T145248Z/002-device-read-.log"
+    },
+    {
+      "kind": "device-read",
+      "config": "",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "getconf",
+        "PAGESIZE"
+      ],
+      "exit_code": 0,
+      "output": "4096\n",
+      "log": "build/property-values-validation/20260912T145248Z/003-device-read-.log"
+    },
+    {
+      "kind": "device-read",
+      "config": "",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "uname",
+        "-m"
+      ],
+      "exit_code": 0,
+      "output": "aarch64\n",
+      "log": "build/property-values-validation/20260912T145248Z/004-device-read-.log"
+    },
+    {
+      "kind": "toolchain",
+      "config": "",
+      "command": [
+        "cmake",
+        "--version"
+      ],
+      "exit_code": 0,
+      "output": "cmake version 4.4.2\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).\n",
+      "log": "build/property-values-validation/20260912T145248Z/005-toolchain-.log"
+    },
+    {
+      "kind": "toolchain",
+      "config": "",
+      "command": [
+        "clang++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "output": "Apple clang version 17.0.0 (clang-1700.0.13.5)\nTarget: arm64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /Library/Developer/CommandLineTools/usr/bin\n",
+      "log": "build/property-values-validation/20260912T145248Z/006-toolchain-.log"
+    },
+    {
+      "kind": "toolchain",
+      "config": "",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "output": "Android (13989888, +pgo, -bolt, +lto, -mlgo, based on r563880c) clang version 21.0.0 (https://android.googlesource.com/toolchain/llvm-project 5e96669f06077099aa41290cdb4c5e6fa0f59349)\nTarget: arm64-apple-darwin24.6.0\nThread model: posix\nInstalledDir: /opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin\n",
+      "log": "build/property-values-validation/20260912T145248Z/007-toolchain-.log"
+    },
+    {
+      "kind": "configure",
+      "config": "host-debug",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DANDUEPROBER_SANITIZERS=OFF"
+      ],
+      "exit_code": 0,
+      "output": "-- The C compiler identification is AppleClang 17.0.0.17000013\n-- The CXX compiler identification is AppleClang 17.0.0.17000013\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /usr/bin/c++ - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Configuring done (2.1s)\n-- Generating done (0.1s)\n-- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug\n",
+      "log": "build/property-values-validation/20260912T145248Z/008-configure-host-debug.log"
+    },
+    {
+      "kind": "build",
+      "config": "host-debug",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug",
+        "--target",
+        "andueprober_properties",
+        "andueprober_property_tails",
+        "andueprober_property_values",
+        "header_PropertyValues_hpp",
+        "header_Agent_h",
+        "-j",
+        "3"
+      ],
+      "exit_code": 0,
+      "output": "[1/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Export.cpp.o\n[2/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Commands.cpp.o\n[3/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Core.cpp.o\n[4/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Engine.cpp.o\n[5/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Evidence.cpp.o\n[6/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Reflection.cpp.o\n[7/30] Linking CXX static library libAndUEProberCore.a\n[8/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Probe.cpp.o\n[9/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Names.cpp.o\n[10/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Relations.cpp.o\n[11/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Discovery.cpp.o\n[12/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Structs.cpp.o\n[13/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Classes.cpp.o\n[14/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Functions.cpp.o\n[15/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Fields.cpp.o\n[16/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Properties.cpp.o\n[17/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/ObjectFlags.cpp.o\n[18/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Enums.cpp.o\n[19/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyContext.cpp.o\n[20/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyTails.cpp.o\n[21/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyValues.cpp.o\n[22/30] Linking CXX static library libAndUEProberProbe.a\n[23/30] Building CXX object tests/CMakeFiles/andueprober_property_values.dir/property_values.cpp.o\n[24/30] Building CXX object tests/CMakeFiles/andueprober_properties.dir/properties.cpp.o\n[25/30] Building CXX object tests/CMakeFiles/header_Agent_h.dir/header_Agent_h.cpp.o\n[26/30] Linking CXX executable tests/andueprober_properties\n[27/30] Linking CXX executable tests/andueprober_property_values\n[28/30] Building CXX object tests/CMakeFiles/header_PropertyValues_hpp.dir/header_PropertyValues_hpp.cpp.o\n[29/30] Building CXX object tests/CMakeFiles/andueprober_property_tails.dir/property_tails.cpp.o\n[30/30] Linking CXX executable tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/009-build-host-debug.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-debug",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "UUID: 87A22939-09DA-3260-BCAB-6C1CF352D593 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_properties\n",
+      "log": "build/property-values-validation/20260912T145248Z/010-symbols-host-debug.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-debug",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 673 FProperty scalar checks; independent containing-value bounds, four typed fields, validated FField dependencies and immutable publication; containers and enum metadata not exercised\n",
+      "log": "build/property-values-validation/20260912T145248Z/011-host-execution-host-debug.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-debug",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "UUID: 817ED30B-ACB7-31E8-80D4-A5D6E0B0BD03 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/012-symbols-host-debug.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-debug",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 1311 property-tail checks; eleven opaque pointer offsets across nine kinds, independent occupied prefixes, actual preceding phases and atomic closure validation; bool and complete containers excluded\n",
+      "log": "build/property-values-validation/20260912T145248Z/013-host-execution-host-debug.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-debug",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "UUID: 504C71D5-09D8-3D06-B96D-260D33CB8972 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_values\n",
+      "log": "build/property-values-validation/20260912T145248Z/014-symbols-host-debug.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-debug",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 357 owned Bool/FieldPath checks; independent metadata and bounded reads, no engine execution\n",
+      "log": "build/property-values-validation/20260912T145248Z/015-host-execution-host-debug.log"
+    },
+    {
+      "kind": "configure",
+      "config": "host-release",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DANDUEPROBER_SANITIZERS=OFF"
+      ],
+      "exit_code": 0,
+      "output": "-- The C compiler identification is AppleClang 17.0.0.17000013\n-- The CXX compiler identification is AppleClang 17.0.0.17000013\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /usr/bin/c++ - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Configuring done (1.8s)\n-- Generating done (0.1s)\n-- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release\n",
+      "log": "build/property-values-validation/20260912T145248Z/016-configure-host-release.log"
+    },
+    {
+      "kind": "build",
+      "config": "host-release",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release",
+        "--target",
+        "andueprober_properties",
+        "andueprober_property_tails",
+        "andueprober_property_values",
+        "header_PropertyValues_hpp",
+        "header_Agent_h",
+        "-j",
+        "3"
+      ],
+      "exit_code": 0,
+      "output": "[1/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Export.cpp.o\n[2/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Commands.cpp.o\n[3/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Core.cpp.o\n[4/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Engine.cpp.o\n[5/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Evidence.cpp.o\n[6/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Probe.cpp.o\n[7/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Reflection.cpp.o\n[8/30] Linking CXX static library libAndUEProberCore.a\n[9/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Names.cpp.o\n[10/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Discovery.cpp.o\n[11/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Relations.cpp.o\n[12/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Structs.cpp.o\n[13/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Classes.cpp.o\n[14/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Functions.cpp.o\n[15/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Fields.cpp.o\n[16/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Properties.cpp.o\n[17/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/ObjectFlags.cpp.o\n[18/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Enums.cpp.o\n[19/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyTails.cpp.o\n[20/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyContext.cpp.o\n[21/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyValues.cpp.o\n[22/30] Linking CXX static library libAndUEProberProbe.a\n[23/30] Building CXX object tests/CMakeFiles/andueprober_property_values.dir/property_values.cpp.o\n[24/30] Building CXX object tests/CMakeFiles/andueprober_properties.dir/properties.cpp.o\n[25/30] Building CXX object tests/CMakeFiles/header_Agent_h.dir/header_Agent_h.cpp.o\n[26/30] Linking CXX executable tests/andueprober_properties\n[27/30] Linking CXX executable tests/andueprober_property_values\n[28/30] Building CXX object tests/CMakeFiles/header_PropertyValues_hpp.dir/header_PropertyValues_hpp.cpp.o\n[29/30] Building CXX object tests/CMakeFiles/andueprober_property_tails.dir/property_tails.cpp.o\n[30/30] Linking CXX executable tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/017-build-host-release.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-release",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "UUID: 73A060F5-911E-35F9-AF92-A685BFD407AA (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_properties\n",
+      "log": "build/property-values-validation/20260912T145248Z/018-symbols-host-release.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-release",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 673 FProperty scalar checks; independent containing-value bounds, four typed fields, validated FField dependencies and immutable publication; containers and enum metadata not exercised\n",
+      "log": "build/property-values-validation/20260912T145248Z/019-host-execution-host-release.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-release",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "UUID: 1E3B26C9-D591-3DE2-8415-24C92E6FE9D3 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/020-symbols-host-release.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-release",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 1311 property-tail checks; eleven opaque pointer offsets across nine kinds, independent occupied prefixes, actual preceding phases and atomic closure validation; bool and complete containers excluded\n",
+      "log": "build/property-values-validation/20260912T145248Z/021-host-execution-host-release.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-release",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "UUID: ADD72D80-B3B6-3844-97DC-14DA36E84F33 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_values\n",
+      "log": "build/property-values-validation/20260912T145248Z/022-symbols-host-release.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-release",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 357 owned Bool/FieldPath checks; independent metadata and bounded reads, no engine execution\n",
+      "log": "build/property-values-validation/20260912T145248Z/023-host-execution-host-release.log"
+    },
+    {
+      "kind": "configure",
+      "config": "host-sanitizers",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DANDUEPROBER_SANITIZERS=ON"
+      ],
+      "exit_code": 0,
+      "output": "-- The C compiler identification is AppleClang 17.0.0.17000013\n-- The CXX compiler identification is AppleClang 17.0.0.17000013\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /usr/bin/cc - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /usr/bin/c++ - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success\n-- Found Threads: TRUE\n-- Configuring done (1.8s)\n-- Generating done (0.1s)\n-- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers\n",
+      "log": "build/property-values-validation/20260912T145248Z/024-configure-host-sanitizers.log"
+    },
+    {
+      "kind": "build",
+      "config": "host-sanitizers",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers",
+        "--target",
+        "andueprober_properties",
+        "andueprober_property_tails",
+        "andueprober_property_values",
+        "header_PropertyValues_hpp",
+        "header_Agent_h",
+        "-j",
+        "3"
+      ],
+      "exit_code": 0,
+      "output": "[1/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Export.cpp.o\n[2/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Commands.cpp.o\n[3/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Core.cpp.o\n[4/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Engine.cpp.o\n[5/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Evidence.cpp.o\n[6/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Probe.cpp.o\n[7/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Reflection.cpp.o\n[8/30] Linking CXX static library libAndUEProberCore.a\n[9/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Names.cpp.o\n[10/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Discovery.cpp.o\n[11/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Relations.cpp.o\n[12/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Structs.cpp.o\n[13/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Classes.cpp.o\n[14/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Functions.cpp.o\n[15/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Fields.cpp.o\n[16/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Properties.cpp.o\n[17/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/ObjectFlags.cpp.o\n[18/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Enums.cpp.o\n[19/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyTails.cpp.o\n[20/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyContext.cpp.o\n[21/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyValues.cpp.o\n[22/30] Linking CXX static library libAndUEProberProbe.a\n[23/30] Building CXX object tests/CMakeFiles/andueprober_property_values.dir/property_values.cpp.o\n[24/30] Building CXX object tests/CMakeFiles/andueprober_properties.dir/properties.cpp.o\n[25/30] Building CXX object tests/CMakeFiles/header_Agent_h.dir/header_Agent_h.cpp.o\n[26/30] Linking CXX executable tests/andueprober_properties\n[27/30] Linking CXX executable tests/andueprober_property_values\n[28/30] Building CXX object tests/CMakeFiles/header_PropertyValues_hpp.dir/header_PropertyValues_hpp.cpp.o\n[29/30] Building CXX object tests/CMakeFiles/andueprober_property_tails.dir/property_tails.cpp.o\n[30/30] Linking CXX executable tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/025-build-host-sanitizers.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-sanitizers",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "UUID: C4B6AE41-2BF8-398D-AC55-0ED2903C01A5 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_properties\n",
+      "log": "build/property-values-validation/20260912T145248Z/026-symbols-host-sanitizers.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-sanitizers",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 673 FProperty scalar checks; independent containing-value bounds, four typed fields, validated FField dependencies and immutable publication; containers and enum metadata not exercised\n",
+      "log": "build/property-values-validation/20260912T145248Z/027-host-execution-host-sanitizers.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-sanitizers",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "UUID: A00E807C-4A5B-3B86-B17C-8099960C3778 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/028-symbols-host-sanitizers.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-sanitizers",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 1311 property-tail checks; eleven opaque pointer offsets across nine kinds, independent occupied prefixes, actual preceding phases and atomic closure validation; bool and complete containers excluded\n",
+      "log": "build/property-values-validation/20260912T145248Z/029-host-execution-host-sanitizers.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "host-sanitizers",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "UUID: C5071036-852F-3F2F-B0EB-7558378C6542 (arm64) /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_values\n",
+      "log": "build/property-values-validation/20260912T145248Z/030-symbols-host-sanitizers.log"
+    },
+    {
+      "kind": "host-execution",
+      "config": "host-sanitizers",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 357 owned Bool/FieldPath checks; independent metadata and bounded reads, no engine execution\n",
+      "log": "build/property-values-validation/20260912T145248Z/031-host-execution-host-sanitizers.log"
+    },
+    {
+      "kind": "configure",
+      "config": "android-debug",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DANDUEPROBER_SANITIZERS=OFF",
+        "-DCMAKE_TOOLCHAIN_FILE=/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/build/cmake/android.toolchain.cmake",
+        "-DANDROID_ABI=arm64-v8a",
+        "-DANDROID_PLATFORM=android-27",
+        "-DANDROID_STL=c++_static"
+      ],
+      "exit_code": 0,
+      "output": "-- The C compiler identification is Clang 21.0.0\n-- The CXX compiler identification is Clang 21.0.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++ - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed\n-- Looking for pthread_create in pthreads\n-- Looking for pthread_create in pthreads - not found\n-- Looking for pthread_create in pthread\n-- Looking for pthread_create in pthread - not found\n-- Check if compiler accepts -pthread\n-- Check if compiler accepts -pthread - yes\n-- Found Threads: TRUE\n-- Configuring done (2.1s)\n-- Generating done (0.1s)\n-- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug\n",
+      "log": "build/property-values-validation/20260912T145248Z/032-configure-android-debug.log"
+    },
+    {
+      "kind": "build",
+      "config": "android-debug",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug",
+        "--target",
+        "andueprober_properties",
+        "andueprober_property_tails",
+        "andueprober_property_values",
+        "header_PropertyValues_hpp",
+        "header_Agent_h",
+        "-j",
+        "3"
+      ],
+      "exit_code": 0,
+      "output": "[1/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Export.cpp.o\n[2/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Commands.cpp.o\n[3/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Core.cpp.o\n[4/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Engine.cpp.o\n[5/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Evidence.cpp.o\n[6/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Reflection.cpp.o\n[7/30] Linking CXX static library libAndUEProberCore.a\n[8/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Probe.cpp.o\n[9/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Names.cpp.o\n[10/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Relations.cpp.o\n[11/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Discovery.cpp.o\n[12/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Structs.cpp.o\n[13/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Classes.cpp.o\n[14/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Functions.cpp.o\n[15/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Fields.cpp.o\n[16/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Properties.cpp.o\n[17/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/ObjectFlags.cpp.o\n[18/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Enums.cpp.o\n[19/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyTails.cpp.o\n[20/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyContext.cpp.o\n[21/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyValues.cpp.o\n[22/30] Linking CXX static library libAndUEProberProbe.a\n[23/30] Building CXX object tests/CMakeFiles/andueprober_property_values.dir/property_values.cpp.o\n[24/30] Building CXX object tests/CMakeFiles/andueprober_properties.dir/properties.cpp.o\n[25/30] Building CXX object tests/CMakeFiles/header_Agent_h.dir/header_Agent_h.cpp.o\n[26/30] Linking CXX executable tests/andueprober_properties\n[27/30] Linking CXX executable tests/andueprober_property_values\n[28/30] Building CXX object tests/CMakeFiles/header_PropertyValues_hpp.dir/header_PropertyValues_hpp.cpp.o\n[29/30] Building CXX object tests/CMakeFiles/andueprober_property_tails.dir/property_tails.cpp.o\n[30/30] Linking CXX executable tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/033-build-android-debug.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "mkdir",
+        "-p",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/034-staging-android-debug.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "android-debug",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "Displaying notes found in: .note.android.ident\n  Owner                Data size \tDescription\n  Android              0x00000084\tNT_ANDROID_TYPE_IDENT\n   description data: 1b 00 00 00 72 32 39 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 34 32 30 36 38 36 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n\nDisplaying notes found in: .note.gnu.build-id\n  Owner                Data size \tDescription\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: e0e46c13ab2d3367d3b8af542f7bd1df7601a586\n",
+      "log": "build/property-values-validation/20260912T145248Z/035-symbols-android-debug.log"
+    },
+    {
+      "kind": "push",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_properties",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_properties: 1 file pushed, 0 skipped. 151.3 MB/s (9146272 bytes in 0.058s)\n",
+      "log": "build/property-values-validation/20260912T145248Z/036-push-android-debug.log"
+    },
+    {
+      "kind": "artifact-check",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "f0db10ebe08bca2d28234ae6bcac50600e41b3c77de06ee407ce56070b9caf0e  /data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_properties\n",
+      "log": "build/property-values-validation/20260912T145248Z/037-artifact-check-android-debug.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/038-staging-android-debug.log"
+    },
+    {
+      "kind": "android-execution",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 673 FProperty scalar checks; independent containing-value bounds, four typed fields, validated FField dependencies and immutable publication; containers and enum metadata not exercised\n",
+      "log": "build/property-values-validation/20260912T145248Z/039-android-execution-android-debug.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "android-debug",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "Displaying notes found in: .note.android.ident\n  Owner                Data size \tDescription\n  Android              0x00000084\tNT_ANDROID_TYPE_IDENT\n   description data: 1b 00 00 00 72 32 39 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 34 32 30 36 38 36 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n\nDisplaying notes found in: .note.gnu.build-id\n  Owner                Data size \tDescription\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: bca0364264d83d9920339d06bdb1cab246057d96\n",
+      "log": "build/property-values-validation/20260912T145248Z/040-symbols-android-debug.log"
+    },
+    {
+      "kind": "push",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_tails",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_tails: 1 file pushed, 0 skipped. 174.5 MB/s (9856200 bytes in 0.054s)\n",
+      "log": "build/property-values-validation/20260912T145248Z/041-push-android-debug.log"
+    },
+    {
+      "kind": "artifact-check",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "8f7e6a85737d59e7d91d483e004e1659e63af00384c7cf03777739b6f6ef3189  /data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/042-artifact-check-android-debug.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/043-staging-android-debug.log"
+    },
+    {
+      "kind": "android-execution",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 1311 property-tail checks; eleven opaque pointer offsets across nine kinds, independent occupied prefixes, actual preceding phases and atomic closure validation; bool and complete containers excluded\n",
+      "log": "build/property-values-validation/20260912T145248Z/044-android-execution-android-debug.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "android-debug",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "Displaying notes found in: .note.android.ident\n  Owner                Data size \tDescription\n  Android              0x00000084\tNT_ANDROID_TYPE_IDENT\n   description data: 1b 00 00 00 72 32 39 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 34 32 30 36 38 36 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n\nDisplaying notes found in: .note.gnu.build-id\n  Owner                Data size \tDescription\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: 906f8135795217a8ce5d49e85ddebf2d150582fe\n",
+      "log": "build/property-values-validation/20260912T145248Z/045-symbols-android-debug.log"
+    },
+    {
+      "kind": "push",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_values",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_values: 1 file pushed, 0 skipped. 142.2 MB/s (9806624 bytes in 0.066s)\n",
+      "log": "build/property-values-validation/20260912T145248Z/046-push-android-debug.log"
+    },
+    {
+      "kind": "artifact-check",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "9a68ec64e0de7c657e4986da00d761a487b1709a19ec0b2a7368d25e0300af09  /data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_values\n",
+      "log": "build/property-values-validation/20260912T145248Z/047-artifact-check-android-debug.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/048-staging-android-debug.log"
+    },
+    {
+      "kind": "android-execution",
+      "config": "android-debug",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-debug/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 357 owned Bool/FieldPath checks; independent metadata and bounded reads, no engine execution\n",
+      "log": "build/property-values-validation/20260912T145248Z/049-android-execution-android-debug.log"
+    },
+    {
+      "kind": "configure",
+      "config": "android-release",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DANDUEPROBER_SANITIZERS=OFF",
+        "-DCMAKE_TOOLCHAIN_FILE=/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/build/cmake/android.toolchain.cmake",
+        "-DANDROID_ABI=arm64-v8a",
+        "-DANDROID_PLATFORM=android-27",
+        "-DANDROID_STL=c++_static"
+      ],
+      "exit_code": 0,
+      "output": "-- The C compiler identification is Clang 21.0.0\n-- The CXX compiler identification is Clang 21.0.0\n-- Detecting C compiler ABI info\n-- Detecting C compiler ABI info - done\n-- Check for working C compiler: /opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang - skipped\n-- Detecting C compile features\n-- Detecting C compile features - done\n-- Detecting CXX compiler ABI info\n-- Detecting CXX compiler ABI info - done\n-- Check for working CXX compiler: /opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++ - skipped\n-- Detecting CXX compile features\n-- Detecting CXX compile features - done\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD\n-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Failed\n-- Looking for pthread_create in pthreads\n-- Looking for pthread_create in pthreads - not found\n-- Looking for pthread_create in pthread\n-- Looking for pthread_create in pthread - not found\n-- Check if compiler accepts -pthread\n-- Check if compiler accepts -pthread - yes\n-- Found Threads: TRUE\n-- Configuring done (2.6s)\n-- Generating done (0.1s)\n-- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release\n",
+      "log": "build/property-values-validation/20260912T145248Z/050-configure-android-release.log"
+    },
+    {
+      "kind": "build",
+      "config": "android-release",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release",
+        "--target",
+        "andueprober_properties",
+        "andueprober_property_tails",
+        "andueprober_property_values",
+        "header_PropertyValues_hpp",
+        "header_Agent_h",
+        "-j",
+        "3"
+      ],
+      "exit_code": 0,
+      "output": "[1/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Export.cpp.o\n[2/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Commands.cpp.o\n[3/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Core.cpp.o\n[4/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Engine.cpp.o\n[5/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Evidence.cpp.o\n[6/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Probe.cpp.o\n[7/30] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Reflection.cpp.o\n[8/30] Linking CXX static library libAndUEProberCore.a\n[9/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Names.cpp.o\n[10/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Discovery.cpp.o\n[11/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Relations.cpp.o\n[12/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Structs.cpp.o\n[13/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Classes.cpp.o\n[14/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Functions.cpp.o\n[15/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Fields.cpp.o\n[16/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Properties.cpp.o\n[17/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/ObjectFlags.cpp.o\n[18/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Enums.cpp.o\n[19/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyTails.cpp.o\n[20/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyContext.cpp.o\n[21/30] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyValues.cpp.o\n[22/30] Linking CXX static library libAndUEProberProbe.a\n[23/30] Building CXX object tests/CMakeFiles/andueprober_properties.dir/properties.cpp.o\n[24/30] Building CXX object tests/CMakeFiles/andueprober_property_values.dir/property_values.cpp.o\n[25/30] Building CXX object tests/CMakeFiles/header_Agent_h.dir/header_Agent_h.cpp.o\n[26/30] Linking CXX executable tests/andueprober_properties\n[27/30] Linking CXX executable tests/andueprober_property_values\n[28/30] Building CXX object tests/CMakeFiles/header_PropertyValues_hpp.dir/header_PropertyValues_hpp.cpp.o\n[29/30] Building CXX object tests/CMakeFiles/andueprober_property_tails.dir/property_tails.cpp.o\n[30/30] Linking CXX executable tests/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/051-build-android-release.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "mkdir",
+        "-p",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/052-staging-android-release.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "android-release",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "Displaying notes found in: .note.android.ident\n  Owner                Data size \tDescription\n  Android              0x00000084\tNT_ANDROID_TYPE_IDENT\n   description data: 1b 00 00 00 72 32 39 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 34 32 30 36 38 36 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n\nDisplaying notes found in: .note.gnu.build-id\n  Owner                Data size \tDescription\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: ff0e0d591625590a288e610ce80fc2331bf2fe7e\n",
+      "log": "build/property-values-validation/20260912T145248Z/053-symbols-android-release.log"
+    },
+    {
+      "kind": "push",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_properties",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_properties: 1 file pushed, 0 skipped. 174.4 MB/s (11600648 bytes in 0.063s)\n",
+      "log": "build/property-values-validation/20260912T145248Z/054-push-android-release.log"
+    },
+    {
+      "kind": "artifact-check",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "828c28f45eaeaf1b0f0eda264e6dbe9252f2759a5b15a72a28b7f43b333cded4  /data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_properties\n",
+      "log": "build/property-values-validation/20260912T145248Z/055-artifact-check-android-release.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/056-staging-android-release.log"
+    },
+    {
+      "kind": "android-execution",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_properties"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 673 FProperty scalar checks; independent containing-value bounds, four typed fields, validated FField dependencies and immutable publication; containers and enum metadata not exercised\n",
+      "log": "build/property-values-validation/20260912T145248Z/057-android-execution-android-release.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "android-release",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "Displaying notes found in: .note.android.ident\n  Owner                Data size \tDescription\n  Android              0x00000084\tNT_ANDROID_TYPE_IDENT\n   description data: 1b 00 00 00 72 32 39 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 34 32 30 36 38 36 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n\nDisplaying notes found in: .note.gnu.build-id\n  Owner                Data size \tDescription\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: 1c497ce522483f5677df511f6391611103bc1130\n",
+      "log": "build/property-values-validation/20260912T145248Z/058-symbols-android-release.log"
+    },
+    {
+      "kind": "push",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_tails",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_tails: 1 file pushed, 0 skipped. 167.2 MB/s (13157448 bytes in 0.075s)\n",
+      "log": "build/property-values-validation/20260912T145248Z/059-push-android-release.log"
+    },
+    {
+      "kind": "artifact-check",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "cf76d4321d435f61f447e77499a5a6813993893e84d200a2a6d2d1f0e67a8048  /data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_tails\n",
+      "log": "build/property-values-validation/20260912T145248Z/060-artifact-check-android-release.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/061-staging-android-release.log"
+    },
+    {
+      "kind": "android-execution",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_tails"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 1311 property-tail checks; eleven opaque pointer offsets across nine kinds, independent occupied prefixes, actual preceding phases and atomic closure validation; bool and complete containers excluded\n",
+      "log": "build/property-values-validation/20260912T145248Z/062-android-execution-android-release.log"
+    },
+    {
+      "kind": "symbols",
+      "config": "android-release",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "Displaying notes found in: .note.android.ident\n  Owner                Data size \tDescription\n  Android              0x00000084\tNT_ANDROID_TYPE_IDENT\n   description data: 1b 00 00 00 72 32 39 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 31 34 32 30 36 38 36 35 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00\n\nDisplaying notes found in: .note.gnu.build-id\n  Owner                Data size \tDescription\n  GNU                  0x00000014\tNT_GNU_BUILD_ID (unique build ID bitstring)\n    Build ID: 1016437c7a0fd1540349da749beb8920183608fc\n",
+      "log": "build/property-values-validation/20260912T145248Z/063-symbols-android-release.log"
+    },
+    {
+      "kind": "push",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_values",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "/Users/ddd/Developer/AndUEProber/build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_values: 1 file pushed, 0 skipped. 177.9 MB/s (12653280 bytes in 0.068s)\n",
+      "log": "build/property-values-validation/20260912T145248Z/064-push-android-release.log"
+    },
+    {
+      "kind": "artifact-check",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "b17d1ba464c81308b19e8b366ee3894bf9d0f7530946ca1cfdfd6307baeb4e4e  /data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_values\n",
+      "log": "build/property-values-validation/20260912T145248Z/065-artifact-check-android-release.log"
+    },
+    {
+      "kind": "staging",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "",
+      "log": "build/property-values-validation/20260912T145248Z/066-staging-android-release.log"
+    },
+    {
+      "kind": "android-execution",
+      "config": "android-release",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-property-values-20260912T145248Z/android-release/andueprober_property_values"
+      ],
+      "exit_code": 0,
+      "output": "PASS: 357 owned Bool/FieldPath checks; independent metadata and bounded reads, no engine execution\n",
+      "log": "build/property-values-validation/20260912T145248Z/067-android-execution-android-release.log"
+    }
+  ],
+  "artifacts": {
+    "build/property-values-validation/20260912T145248Z/000-device-read-.log": {
+      "sha256": "fa0f8d65f4c60fa99871d6096f3209bf0f960cf7ba3a822b19acb9c3b9da89e2",
+      "bytes": 7
+    },
+    "build/property-values-validation/20260912T145248Z/001-device-read-.log": {
+      "sha256": "a4b2c5db15348c29451e18b8307e5ef81625ea638e807935f39ceaa8d9ac7758",
+      "bytes": 3
+    },
+    "build/property-values-validation/20260912T145248Z/002-device-read-.log": {
+      "sha256": "7c83cb36dc071bc799a0bf3e6ab5e00d3ea8ebbe14c728d3ccbe2b78760d91ed",
+      "bytes": 85
+    },
+    "build/property-values-validation/20260912T145248Z/003-device-read-.log": {
+      "sha256": "25ac87b7309b7946b51c32e824793ff48b56b735efa16875cf33e4ba67523d91",
+      "bytes": 5
+    },
+    "build/property-values-validation/20260912T145248Z/004-device-read-.log": {
+      "sha256": "5121ae59314a84da7b4d9587374398f1afa2000b243b3e54f491adefaac54f92",
+      "bytes": 8
+    },
+    "build/property-values-validation/20260912T145248Z/005-toolchain-.log": {
+      "sha256": "9e2032657b821ca15fdf749298148b08afc4d86fe8a6f709a8459318fa1c018f",
+      "bytes": 90
+    },
+    "build/property-values-validation/20260912T145248Z/006-toolchain-.log": {
+      "sha256": "abf148723dce5bca87f773682e1acb4c7849188b7b6e0a07215609901139f527",
+      "bytes": 158
+    },
+    "build/property-values-validation/20260912T145248Z/007-toolchain-.log": {
+      "sha256": "36f111e9df40d06d1411748dfca38c4eb7694a1b5b913f258c4726e926998dfe",
+      "bytes": 368
+    },
+    "build/property-values-validation/20260912T145248Z/008-configure-host-debug.log": {
+      "sha256": "3e88a551827be49e11f557d18d1d8c74753b90f8ff7d31e2554025f1e5496dac",
+      "bytes": 840
+    },
+    "build/property-values-validation/20260912T145248Z/009-build-host-debug.log": {
+      "sha256": "117b4a5bf142f6434722bca7d2879d85a596558386bede242fe2042a31bd6ba4",
+      "bytes": 2525
+    },
+    "build/property-values-validation/20260912T145248Z/host-debug/CMakeCache.txt": {
+      "sha256": "e0b07435d92ece269f470fd879bfb034374a3e3aebc421aaf933e901e122ac97",
+      "bytes": 19292
+    },
+    "build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_properties": {
+      "sha256": "c383f71068d786c65d12d14f1c3de0c58560661b1af4adcca55153175bd550b5",
+      "bytes": 2100408
+    },
+    "build/property-values-validation/20260912T145248Z/010-symbols-host-debug.log": {
+      "sha256": "6df21125f288bd04c9d27c743f32e84b57c8e9819d50c123da2b6b4361ecea7c",
+      "bytes": 174
+    },
+    "build/property-values-validation/20260912T145248Z/011-host-execution-host-debug.log": {
+      "sha256": "ebab2a894e15b5db862a39cacef39d52e688beedf13adbc4d7794475dfd83fe3",
+      "bytes": 191
+    },
+    "build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_tails": {
+      "sha256": "320343cd5d72add984726f97c0c60664987a9ddf193ebad4b82e9cc712c11dc6",
+      "bytes": 2205688
+    },
+    "build/property-values-validation/20260912T145248Z/012-symbols-host-debug.log": {
+      "sha256": "0a8d2f919407fb3ff75013808578093cb387e8b4bf3989c3f1972bc5eea525c8",
+      "bytes": 178
+    },
+    "build/property-values-validation/20260912T145248Z/013-host-execution-host-debug.log": {
+      "sha256": "e8cd13d3498d09b425b66901c1ec01939a689d2c143ea3c6d8b54ca5895302f7",
+      "bytes": 206
+    },
+    "build/property-values-validation/20260912T145248Z/host-debug/tests/andueprober_property_values": {
+      "sha256": "805546fbd48efb0dc1c0bb4c477b3f071a16a42e8dffce23e6b60ac560d48ca5",
+      "bytes": 2104920
+    },
+    "build/property-values-validation/20260912T145248Z/014-symbols-host-debug.log": {
+      "sha256": "330e4306207e6e27cd351f0cbda248897ec0a68470ec85efc633533355d89688",
+      "bytes": 179
+    },
+    "build/property-values-validation/20260912T145248Z/015-host-execution-host-debug.log": {
+      "sha256": "c3902595911c739694353cf98428706be039436e5fe8f068fce340dee914c733",
+      "bytes": 99
+    },
+    "build/property-values-validation/20260912T145248Z/016-configure-host-release.log": {
+      "sha256": "434d634990a8679ee690e4551ba205fe00b8e1dab9388646809f08219db3b50b",
+      "bytes": 842
+    },
+    "build/property-values-validation/20260912T145248Z/017-build-host-release.log": {
+      "sha256": "cb2f70f78061752d8aee03e76c7127601d854d81444c5f57c6641b805752f7b1",
+      "bytes": 2525
+    },
+    "build/property-values-validation/20260912T145248Z/host-release/CMakeCache.txt": {
+      "sha256": "b59172534aa53634f64561a74eaa65a7208774539ddb3848dcfc9574d7e60ad8",
+      "bytes": 19302
+    },
+    "build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_properties": {
+      "sha256": "c4363f96dcf9eba0207911a145985394a02a1ec830868d8b70d0ceb60fa6fc60",
+      "bytes": 478600
+    },
+    "build/property-values-validation/20260912T145248Z/018-symbols-host-release.log": {
+      "sha256": "a9db4a905ff0f35212ccdafad1c14a53f276395f458d17789d4758f28c19c497",
+      "bytes": 176
+    },
+    "build/property-values-validation/20260912T145248Z/019-host-execution-host-release.log": {
+      "sha256": "ebab2a894e15b5db862a39cacef39d52e688beedf13adbc4d7794475dfd83fe3",
+      "bytes": 191
+    },
+    "build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_tails": {
+      "sha256": "45fcf476aa3d60ddfd9d7aaf7721708b67b11ac4afcc8b08d9ccbb9445a5a6b6",
+      "bytes": 534824
+    },
+    "build/property-values-validation/20260912T145248Z/020-symbols-host-release.log": {
+      "sha256": "27b83e9d7a45b42c699fcaca41e378ee612163d5c43670e870b2dd43ff89554f",
+      "bytes": 180
+    },
+    "build/property-values-validation/20260912T145248Z/021-host-execution-host-release.log": {
+      "sha256": "e8cd13d3498d09b425b66901c1ec01939a689d2c143ea3c6d8b54ca5895302f7",
+      "bytes": 206
+    },
+    "build/property-values-validation/20260912T145248Z/host-release/tests/andueprober_property_values": {
+      "sha256": "1d9a1fcc783e1b5f209d14e19a1342b6c7aa96ad4609f8977e1a5c83b7392d71",
+      "bytes": 508888
+    },
+    "build/property-values-validation/20260912T145248Z/022-symbols-host-release.log": {
+      "sha256": "112547b5a338b181e6d1d0d4e70a1470b420472951fd02f978ef4901e176bc3f",
+      "bytes": 181
+    },
+    "build/property-values-validation/20260912T145248Z/023-host-execution-host-release.log": {
+      "sha256": "c3902595911c739694353cf98428706be039436e5fe8f068fce340dee914c733",
+      "bytes": 99
+    },
+    "build/property-values-validation/20260912T145248Z/024-configure-host-sanitizers.log": {
+      "sha256": "b6a6b3b85f2342235021a2fb992aef833e7bcbccae00dfaaa98d981792fc4fe5",
+      "bytes": 845
+    },
+    "build/property-values-validation/20260912T145248Z/025-build-host-sanitizers.log": {
+      "sha256": "cb2f70f78061752d8aee03e76c7127601d854d81444c5f57c6641b805752f7b1",
+      "bytes": 2525
+    },
+    "build/property-values-validation/20260912T145248Z/host-sanitizers/CMakeCache.txt": {
+      "sha256": "c04ccc865e3fdabfe62c45b619650fe7ed8f2e2da3003524e15924858611e87d",
+      "bytes": 19311
+    },
+    "build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_properties": {
+      "sha256": "0cff7340fefd749db6206b7d24b1883d44e207a689ce7d75f0d739dfc8e9640e",
+      "bytes": 7835784
+    },
+    "build/property-values-validation/20260912T145248Z/026-symbols-host-sanitizers.log": {
+      "sha256": "2894d9e60e2671c21570e204848b4963f617be0b9c6769ce24e92388e607ea42",
+      "bytes": 179
+    },
+    "build/property-values-validation/20260912T145248Z/027-host-execution-host-sanitizers.log": {
+      "sha256": "ebab2a894e15b5db862a39cacef39d52e688beedf13adbc4d7794475dfd83fe3",
+      "bytes": 191
+    },
+    "build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_tails": {
+      "sha256": "b129c402d67fe24511170c8744b4814d09e961f2abc47e16f1f47da6748b7b35",
+      "bytes": 8549080
+    },
+    "build/property-values-validation/20260912T145248Z/028-symbols-host-sanitizers.log": {
+      "sha256": "8590eda6ed9718c10c73163a64bc3e2b44b09e134fcc32dbda3764aeef63fd10",
+      "bytes": 183
+    },
+    "build/property-values-validation/20260912T145248Z/029-host-execution-host-sanitizers.log": {
+      "sha256": "e8cd13d3498d09b425b66901c1ec01939a689d2c143ea3c6d8b54ca5895302f7",
+      "bytes": 206
+    },
+    "build/property-values-validation/20260912T145248Z/host-sanitizers/tests/andueprober_property_values": {
+      "sha256": "ac9b8eba03b93aaff920b795ccf26d1d61ac2cb333a7f274eb4fc6fd279290bb",
+      "bytes": 8228008
+    },
+    "build/property-values-validation/20260912T145248Z/030-symbols-host-sanitizers.log": {
+      "sha256": "deb0db71b814621d0f116749203bb6a39fa86e883b2fd90b26fcc616bab49c1c",
+      "bytes": 184
+    },
+    "build/property-values-validation/20260912T145248Z/031-host-execution-host-sanitizers.log": {
+      "sha256": "c3902595911c739694353cf98428706be039436e5fe8f068fce340dee914c733",
+      "bytes": 99
+    },
+    "build/property-values-validation/20260912T145248Z/032-configure-android-debug.log": {
+      "sha256": "ebd5c2777aa0ce5838af955fbd4b3d3ecc9f319a2b532f642b0eb626d1be352f",
+      "bytes": 1309
+    },
+    "build/property-values-validation/20260912T145248Z/033-build-android-debug.log": {
+      "sha256": "e3d55ea0f469d875d14466b0995a2afc5eb6863f50ac917a95a9c067174f8f6e",
+      "bytes": 2525
+    },
+    "build/property-values-validation/20260912T145248Z/android-debug/CMakeCache.txt": {
+      "sha256": "e846fd01fffc02ea9797fc6464ddd383925eccc3d6d308ef92fdbf1c1b01c446",
+      "bytes": 22529
+    },
+    "build/property-values-validation/20260912T145248Z/034-staging-android-debug.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_properties": {
+      "sha256": "f0db10ebe08bca2d28234ae6bcac50600e41b3c77de06ee407ce56070b9caf0e",
+      "bytes": 9146272
+    },
+    "build/property-values-validation/20260912T145248Z/035-symbols-android-debug.log": {
+      "sha256": "5ce014a6767b4d297bfb6a5e2f85094e9cbb75a6fa5a557a2ce8ca3c028f7dee",
+      "bytes": 792
+    },
+    "build/property-values-validation/20260912T145248Z/036-push-android-debug.log": {
+      "sha256": "60f5778ede18d298acd085fc4c912e263a4e298742b1ee7623f2eecde269c7e4",
+      "bytes": 190
+    },
+    "build/property-values-validation/20260912T145248Z/037-artifact-check-android-debug.log": {
+      "sha256": "edc9d6edd5b4b37d6e61a28a41e9a40a228769b5fcd124f73fa87e52d17fe52d",
+      "bytes": 164
+    },
+    "build/property-values-validation/20260912T145248Z/038-staging-android-debug.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/039-android-execution-android-debug.log": {
+      "sha256": "ebab2a894e15b5db862a39cacef39d52e688beedf13adbc4d7794475dfd83fe3",
+      "bytes": 191
+    },
+    "build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_tails": {
+      "sha256": "8f7e6a85737d59e7d91d483e004e1659e63af00384c7cf03777739b6f6ef3189",
+      "bytes": 9856200
+    },
+    "build/property-values-validation/20260912T145248Z/040-symbols-android-debug.log": {
+      "sha256": "56cb0cfdd8889c439dd60662dc9612b6fe889359a06b0af3ecb2f9f1e5415985",
+      "bytes": 792
+    },
+    "build/property-values-validation/20260912T145248Z/041-push-android-debug.log": {
+      "sha256": "0f87406793b86518f222c5cb8f3b658254d3ed4e3885c320b791f1bc7c2ee327",
+      "bytes": 194
+    },
+    "build/property-values-validation/20260912T145248Z/042-artifact-check-android-debug.log": {
+      "sha256": "d92388525e42b6d9616414b3c8793af1074af96ca06a81b4ae02cf7e31e532b5",
+      "bytes": 168
+    },
+    "build/property-values-validation/20260912T145248Z/043-staging-android-debug.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/044-android-execution-android-debug.log": {
+      "sha256": "e8cd13d3498d09b425b66901c1ec01939a689d2c143ea3c6d8b54ca5895302f7",
+      "bytes": 206
+    },
+    "build/property-values-validation/20260912T145248Z/android-debug/tests/andueprober_property_values": {
+      "sha256": "9a68ec64e0de7c657e4986da00d761a487b1709a19ec0b2a7368d25e0300af09",
+      "bytes": 9806624
+    },
+    "build/property-values-validation/20260912T145248Z/045-symbols-android-debug.log": {
+      "sha256": "5e6a38665a841e34386e8f9337af41abe52baafed0da6b5074eddbcd53b9afbd",
+      "bytes": 792
+    },
+    "build/property-values-validation/20260912T145248Z/046-push-android-debug.log": {
+      "sha256": "862363e753c44c9e34fbf6388d5b7c0f01b39473dc2d3593486e4169a54af26d",
+      "bytes": 195
+    },
+    "build/property-values-validation/20260912T145248Z/047-artifact-check-android-debug.log": {
+      "sha256": "d6966f9da22022fb5cf1846f4a6dacd7027c8cf7cd7c5c0f535db8b288dee4a9",
+      "bytes": 169
+    },
+    "build/property-values-validation/20260912T145248Z/048-staging-android-debug.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/049-android-execution-android-debug.log": {
+      "sha256": "c3902595911c739694353cf98428706be039436e5fe8f068fce340dee914c733",
+      "bytes": 99
+    },
+    "build/property-values-validation/20260912T145248Z/050-configure-android-release.log": {
+      "sha256": "c6f25e19e8f0f49598c3eb71976536d7ced80a113470bcc10bca218efea36555",
+      "bytes": 1311
+    },
+    "build/property-values-validation/20260912T145248Z/051-build-android-release.log": {
+      "sha256": "99cfa6067ed513dcd00250d3bfb65e5829177ce1991f878a70bd5084381c2d0d",
+      "bytes": 2525
+    },
+    "build/property-values-validation/20260912T145248Z/android-release/CMakeCache.txt": {
+      "sha256": "67258759d4c6d13452095a8b157e5da86d98cba2e123d7148f34e4455b4b19dc",
+      "bytes": 22539
+    },
+    "build/property-values-validation/20260912T145248Z/052-staging-android-release.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_properties": {
+      "sha256": "828c28f45eaeaf1b0f0eda264e6dbe9252f2759a5b15a72a28b7f43b333cded4",
+      "bytes": 11600648
+    },
+    "build/property-values-validation/20260912T145248Z/053-symbols-android-release.log": {
+      "sha256": "07b3dcdcca15dd48b5fde22eb2d9320ff5b57fefef85680c7893ea5743397f3c",
+      "bytes": 792
+    },
+    "build/property-values-validation/20260912T145248Z/054-push-android-release.log": {
+      "sha256": "c3e016e8b5281139d64a01ddb46d1f8a7f022cc5364d94a0c121a8dc860b74d8",
+      "bytes": 193
+    },
+    "build/property-values-validation/20260912T145248Z/055-artifact-check-android-release.log": {
+      "sha256": "3a0809cec577f0d3c54eeb1252fba5863c3f94973ba5874f8f41c5ebbcd5c1c3",
+      "bytes": 166
+    },
+    "build/property-values-validation/20260912T145248Z/056-staging-android-release.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/057-android-execution-android-release.log": {
+      "sha256": "ebab2a894e15b5db862a39cacef39d52e688beedf13adbc4d7794475dfd83fe3",
+      "bytes": 191
+    },
+    "build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_tails": {
+      "sha256": "cf76d4321d435f61f447e77499a5a6813993893e84d200a2a6d2d1f0e67a8048",
+      "bytes": 13157448
+    },
+    "build/property-values-validation/20260912T145248Z/058-symbols-android-release.log": {
+      "sha256": "29b67a14545357a224c1bcd8e5b041829c40da6415794ee57d0328676d487162",
+      "bytes": 792
+    },
+    "build/property-values-validation/20260912T145248Z/059-push-android-release.log": {
+      "sha256": "c9d799e6b05c054164a69dcd2c9204a75b5c8d2f757f7b2fdca466619db6ffc4",
+      "bytes": 197
+    },
+    "build/property-values-validation/20260912T145248Z/060-artifact-check-android-release.log": {
+      "sha256": "c709ba74c41036bbd42d91bb265556b6ad88a2c4dc1be7e7c528560c4f69e937",
+      "bytes": 170
+    },
+    "build/property-values-validation/20260912T145248Z/061-staging-android-release.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/062-android-execution-android-release.log": {
+      "sha256": "e8cd13d3498d09b425b66901c1ec01939a689d2c143ea3c6d8b54ca5895302f7",
+      "bytes": 206
+    },
+    "build/property-values-validation/20260912T145248Z/android-release/tests/andueprober_property_values": {
+      "sha256": "b17d1ba464c81308b19e8b366ee3894bf9d0f7530946ca1cfdfd6307baeb4e4e",
+      "bytes": 12653280
+    },
+    "build/property-values-validation/20260912T145248Z/063-symbols-android-release.log": {
+      "sha256": "a2f2805b2c1777e581c986cb127d96cc9693215c085903abce3cb9e131cad28b",
+      "bytes": 792
+    },
+    "build/property-values-validation/20260912T145248Z/064-push-android-release.log": {
+      "sha256": "74eb050c06f26dd13eb9ba786bc8ccba14b6094e639dc0b0eb0c3f7f558cd275",
+      "bytes": 198
+    },
+    "build/property-values-validation/20260912T145248Z/065-artifact-check-android-release.log": {
+      "sha256": "c9689240513a9c6c678d29622def21d3dbc5e02ab4dd1f1844cb8330e93d7ab8",
+      "bytes": 171
+    },
+    "build/property-values-validation/20260912T145248Z/066-staging-android-release.log": {
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "bytes": 0
+    },
+    "build/property-values-validation/20260912T145248Z/067-android-execution-android-release.log": {
+      "sha256": "c3902595911c739694353cf98428706be039436e5fe8f068fce340dee914c733",
+      "bytes": 99
+    }
+  },
+  "host": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit",
+    "architecture": "arm64"
+  },
+  "android": {
+    "ndk": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK",
+    "abi": "arm64-v8a",
+    "api_target": 27,
+    "stl": "c++_static",
+    "serial": "3B163600WKV00000",
+    "model": "PLQ110",
+    "api": "36",
+    "fingerprint": "OnePlus/PLQ110/OP6113L1:16/BP2A.250605.015/B.12c47b6_f0e766_ee7ff8:user/release-keys",
+    "page_size": "4096",
+    "architecture": "aarch64",
+    "fixture_directory": "/data/local/tmp/andueprober-property-values-20260912T145248Z"
+  },
+  "unverified": [
+    "Actual UE metadata layouts and engine integration",
+    "Other page sizes, API levels and hardening configurations",
+    "LSan on this macOS host; ASan/UBSan do not establish leak-freedom"
+  ],
+  "counts": {
+    "android-execution": 6,
+    "artifact-check": 6,
+    "build": 5,
+    "configure": 5,
+    "device-read": 5,
+    "host-execution": 9,
+    "push": 6,
+    "staging": 8,
+    "symbols": 15,
+    "toolchain": 3
+  },
+  "fixture": "andueprober_properties",
+  "evidence_archive": "build/property-values-validation/20260912T145248Z/verification.json"
+}

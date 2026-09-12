@@ -1,0 +1,2 @@
+["/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/andueprober_engine", "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/libandueprober_engine_module.dylib"]
+PASS: 135 engine shim/executor/FString checks; real owned DSO calls and allocator release; no UE engine invocation

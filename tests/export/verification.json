@@ -1,0 +1,458 @@
+{
+  "format_version": 1,
+  "date": "2026-09-12",
+  "traceability": [
+    "R09",
+    "R10",
+    "R12",
+    "R13",
+    "C04",
+    "E05",
+    "E06"
+  ],
+  "source_base_commit": "3304244255c662d5896556c32573de6ad776e751",
+  "source_state": "modified working tree; final source hashes below, no immutable producer revision transition",
+  "source_sha256": {
+    "include/andueprober/Core.hpp": "9ca1f3432307ebb29e12a38f4031a1510e7b3f03fff78e63fda37cc29c34c28e",
+    "include/andueprober/Export.hpp": "cfa6ef5459eeb324b8fadb6099ea118ddb1fe5eff0f0e02afe1ad27351b7de7a",
+    "source/Core/Core.cpp": "efcdcdd84090c7698a0fabe9a1adc8e79dff1f79c37832710a0c044278035df1",
+    "source/Core/Export.cpp": "e0f3640cf8dae71e6989fb967b14ad35b20a2d18d7028c83f5aa1ddd25d26ceb",
+    "tests/export_limits.cpp": "f9248a2a7bcf7e174a15477efcba08884d6992ed81ea93e981daf98f755d0638",
+    "tests/contracts.cpp": "b760d0c652222e05ce82c9fd83e1ed6c488e52280f7a0da2c4aa85661e630c0a",
+    "tests/names.cpp": "48358b814713947f8a826d31baf27f13fd55b5136a971ae266283672605246cb",
+    "source/Probe/Names.cpp": "9d3a12f1393bdc19c66c8f8c9729dcb65a84436c789008ae7c03ac2317319f67",
+    "include/andueprober/Names.hpp": "877b9b5db9b0dbc9a4cf7902ca8064c030489313c9567aec527d7c1ce8767e2d",
+    "tests/sdk_generator.cpp": "7cacd2353d5e4823c341890844cfa03d116ef0327f2cc82f740c0b3099461d41",
+    "tests/compile_sdk.cmake": "583e6db5878006614d4f4388c9e676358f999fdf769eac9e317d9394653e54e0",
+    "misc/sdk_smoke/CMakeLists.txt": "0f5bdfc08c3488f1e3d68f1247f0ddb51434c2da620aaf3dfb6f348fbef74287",
+    "misc/sdk_smoke/Demo.cpp": "329a616da4b5f6313fe36a26c6b288f3ee2d103ee474cc2829180837a682f9c8",
+    "external/AndUEDumper/AndUEDumper/src/SDKCoreGen.hpp": "aa4f9dd41f1938c47d4deb0b049154f7ea7d7ba71ced9e2990b67699f7217406",
+    "tests/export_interruption.cpp": "650d3c5603ce71838f9f8bdb600dbe1f5cc7a4a7c557eef9c498f3790f42e89c"
+  },
+  "scope": "Production Core frozen-snapshot file publication using owned temporary directories; no UE engine, full reflection SDK or power-loss experiment",
+  "host": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit",
+    "architecture": "arm64"
+  },
+  "android": {
+    "serial": "3B163600WKV00000",
+    "model": "OnePlus PLQ110",
+    "android_version": "16",
+    "api_level": 36,
+    "page_size": 4096,
+    "ndk": "29.0.14206865",
+    "abi": "arm64-v8a",
+    "native_api_target": 27,
+    "stl": "c++_static",
+    "owned_directory": "/data/local/tmp/andueprober-reflection-20260912",
+    "hardening": "NDK defaults; no independent BTI/PAC/CFI/MTE configuration validation"
+  },
+  "configurations": [
+    {
+      "name": "host-debug",
+      "compiled": true,
+      "runtime": "passed",
+      "export_checks": 231,
+      "build_options": {
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "ON",
+        "CMAKE_BUILD_TYPE:STRING": "Debug",
+        "CMAKE_CXX_COMPILER:FILEPATH": "/usr/bin/c++",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-debug/tests/andueprober_export_limits",
+        "sha256": "7d70c08f383b81dea4d967975057874e09f5c765942fe0a522912f691dd7dfe4",
+        "bytes": 3597704,
+        "symbols": "matching unstripped artifact",
+        "uuid": "5D095F71-6015-39C3-9DC2-05AAF2AE212B"
+      },
+      "runtime_log": {
+        "path": "tests/export/evidence/host-debug.log",
+        "sha256": "b3627b8cede70c357e8b77695416aaff7a12fc4c4d12be472a149a06c72a5984"
+      },
+      "build_log": {
+        "path": "tests/export/evidence/host-debug-build.log",
+        "sha256": "d1aa250a180518993021918b5dee402d5cb593501266178c11b2d3a1e0393bf1"
+      },
+      "test_seam": "Owned fixture performs real fsync and close syscalls, then injects late cancellation, delayed return or directory close errors. Other operations use the real filesystem.",
+      "complementary_ctest": [
+        "andueprober.contracts",
+        "andueprober.export_interruption",
+        "andueprober.names",
+        "andueprober.generated_sdk_compile",
+        "andueprober.reflection",
+        "andueprober.allocation_failure"
+      ],
+      "generated_sdk_artifacts": [
+        {
+          "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-debug/tests/generated-sdk/build-chunked/sdk_smoke_exec",
+          "sha256": "549475003d01aa69669f2ff1529eb7fdb095c70feb8fa3f69ea0996b0f9f9ef7",
+          "bytes": 34688,
+          "symbols": "matching unstripped artifact",
+          "uuid": "F1708D16-0606-3A91-A3EF-3BE3D90C5C1D"
+        },
+        {
+          "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-debug/tests/generated-sdk/build-flat/sdk_smoke_exec",
+          "sha256": "98f341cea1fc63562bbd1678b56a1a5abb53f9c82a42ba0a0c87dd5b3a914437",
+          "bytes": 34624,
+          "symbols": "matching unstripped artifact",
+          "uuid": "59ED2523-C8AC-3670-9FE2-51C94AB8A1FD"
+        }
+      ],
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      },
+      "generated_build_graph_sha256": "ac0bdc563e7a8626c8350959af5ab4c78bd1cf258bb71841dd2978021e73bf90",
+      "generated_cache_sha256": "8fee1c636431127d9cd1d2207b37822a5e845dfe8d95b4779d470307465a8178",
+      "generated_sdk_source_sha256": {
+        "tests/generated-sdk/chunked/SDK_A/Basic.cpp": "a4449625e84071801b245b0e8b440e964e829cd160a3b843105e01de46f60367",
+        "tests/generated-sdk/chunked/SDK_A/OwnedSmoke.cpp": "6e789fe049457162ef0c83f687e0e456d63941fad2492cdb07133895dc1af1d1",
+        "tests/generated-sdk/chunked/SDK_A/SDK.hpp": "43d44e11f5793548798b97b5bf92208d0b513574366930d28acbfbac8c139414",
+        "tests/generated-sdk/chunked/SDK_A/UEAssert.h": "a717135a93d4a09d67b161e80270aa5da71d3fcd9bc6c2b8f833b3d1090503d9",
+        "tests/generated-sdk/flat/SDK_A/Basic.cpp": "a4449625e84071801b245b0e8b440e964e829cd160a3b843105e01de46f60367",
+        "tests/generated-sdk/flat/SDK_A/OwnedSmoke.cpp": "1ad341a57f05090ba13cab4ec41c7a8d5e74ab51303383a558930549af37d1f4",
+        "tests/generated-sdk/flat/SDK_A/SDK.hpp": "ddf42563b8977c6f159dc304fa90eb25c91d6efad0057d9e7228e2bfb7ad81df",
+        "tests/generated-sdk/flat/SDK_A/UEAssert.h": "a717135a93d4a09d67b161e80270aa5da71d3fcd9bc6c2b8f833b3d1090503d9"
+      }
+    },
+    {
+      "name": "android-debug",
+      "compiled": true,
+      "runtime": "passed",
+      "export_checks": 231,
+      "build_options": {
+        "ANDROID_ABI:UNINITIALIZED": "arm64-v8a",
+        "ANDROID_PLATFORM:UNINITIALIZED": "27",
+        "ANDROID_STL:UNINITIALIZED": "c++_static",
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Debug",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-debug/tests/andueprober_export_limits",
+        "sha256": "02d2a187f36e36529aa9190a2f1567fc127610024bcd59883b0066321aa4b71b",
+        "bytes": 9821656,
+        "symbols": "matching unstripped artifact",
+        "build_id": "937a762313970ce7dae3b2b306668d54fb0780a2"
+      },
+      "runtime_log": {
+        "path": "tests/export/evidence/android-debug.log",
+        "sha256": "e86deb2f95939798de87e9af59f6da6fc1e843be3631de1d76174e655230328b"
+      },
+      "build_log": {
+        "path": "tests/export/evidence/android-debug-build.log",
+        "sha256": "2d696048c71c95c82b7593047f5948597c932fbdd051807fb1e81d6d17a85c6d"
+      },
+      "test_seam": "Owned fixture performs real fsync and close syscalls, then injects late cancellation, delayed return or directory close errors. Other operations use the real filesystem.",
+      "complementary": [
+        {
+          "fixture": "andueprober_contracts",
+          "exit_code": 0,
+          "executable": {
+            "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-debug/tests/andueprober_contracts",
+            "sha256": "31330cc60f193e9805924273e87d900ba0d70907d13a481a3e4f47f4254f131d",
+            "bytes": 10157816,
+            "symbols": "matching unstripped artifact",
+            "build_id": "8e03cede0eb24fe942290e2ecb193123fb41b2ac"
+          },
+          "runtime_log": {
+            "path": "tests/export/evidence/android-debug-andueprober_contracts.log",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "fixture": "andueprober_names",
+          "exit_code": 0,
+          "executable": {
+            "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-debug/tests/andueprober_names",
+            "sha256": "2b258c4b15f700ec3fa8f36f318ed01f279162516f9bb96fcad7a49944ff78a8",
+            "bytes": 4881024,
+            "symbols": "matching unstripped artifact",
+            "build_id": "8e826093829678172640bd7689c86eebb888ec83"
+          },
+          "runtime_log": {
+            "path": "tests/export/evidence/android-debug-andueprober_names.log",
+            "sha256": "4cf510750b6a79a2fcb0c040d849519246052051e16315620c800f79593a91ac"
+          }
+        }
+      ],
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      },
+      "generated_build_graph_sha256": "b71db8583f5128f2fd2d5ebc2b103fb75944ad77ac2b50e7ceb70a90d03a50b4",
+      "generated_cache_sha256": "661e36ef48065e0e36a9039c976ce1f62b4dd986e3aab6e003d37ca41ed6a0ea"
+    },
+    {
+      "name": "host-release",
+      "compiled": true,
+      "runtime": "passed",
+      "export_checks": 231,
+      "build_options": {
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Release",
+        "CMAKE_CXX_COMPILER:FILEPATH": "/usr/bin/c++",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_export_limits",
+        "sha256": "499a945442851557680e6450e06e012fab178406d517fcc5de2e8da9a31576d6",
+        "bytes": 234872,
+        "symbols": "matching unstripped artifact",
+        "uuid": "9197803A-9C6C-3BF0-9F54-EE1FAE64D39F"
+      },
+      "runtime_log": {
+        "path": "tests/export/evidence/host-release.log",
+        "sha256": "a09de19464493251fbd9f790b59ad988f7383162eb6f4348e12448c67c807950"
+      },
+      "build_log": {
+        "path": "tests/export/evidence/host-release-build.log",
+        "sha256": "edd8a6dde3dc3fe39b3b2478bf7757659f6d14f712b4dd28e3299da2c63d4188"
+      },
+      "test_seam": "Owned fixture performs real fsync and close syscalls, then injects late cancellation, delayed return or directory close errors. Other operations use the real filesystem.",
+      "complementary_ctest": [
+        "andueprober.contracts",
+        "andueprober.export_interruption",
+        "andueprober.names",
+        "andueprober.generated_sdk_compile",
+        "andueprober.reflection",
+        "andueprober.allocation_failure"
+      ],
+      "generated_sdk_artifacts": [
+        {
+          "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/build-chunked/sdk_smoke_exec",
+          "sha256": "549475003d01aa69669f2ff1529eb7fdb095c70feb8fa3f69ea0996b0f9f9ef7",
+          "bytes": 34688,
+          "symbols": "matching unstripped artifact",
+          "uuid": "F1708D16-0606-3A91-A3EF-3BE3D90C5C1D"
+        },
+        {
+          "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/build-flat/sdk_smoke_exec",
+          "sha256": "98f341cea1fc63562bbd1678b56a1a5abb53f9c82a42ba0a0c87dd5b3a914437",
+          "bytes": 34624,
+          "symbols": "matching unstripped artifact",
+          "uuid": "59ED2523-C8AC-3670-9FE2-51C94AB8A1FD"
+        }
+      ],
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      },
+      "generated_build_graph_sha256": "ca99f7b824d3ab1de784d1775b919d00ce5d5330e24c65fdccdd6328229ae724",
+      "generated_cache_sha256": "d5d636d085dd473d680cef85b3efc13fd337effac6309d48bc3a08bdcb466cdf",
+      "generated_sdk_source_sha256": {
+        "tests/generated-sdk/chunked/SDK_A/Basic.cpp": "a4449625e84071801b245b0e8b440e964e829cd160a3b843105e01de46f60367",
+        "tests/generated-sdk/chunked/SDK_A/OwnedSmoke.cpp": "6e789fe049457162ef0c83f687e0e456d63941fad2492cdb07133895dc1af1d1",
+        "tests/generated-sdk/chunked/SDK_A/SDK.hpp": "43d44e11f5793548798b97b5bf92208d0b513574366930d28acbfbac8c139414",
+        "tests/generated-sdk/chunked/SDK_A/UEAssert.h": "a717135a93d4a09d67b161e80270aa5da71d3fcd9bc6c2b8f833b3d1090503d9",
+        "tests/generated-sdk/flat/SDK_A/Basic.cpp": "a4449625e84071801b245b0e8b440e964e829cd160a3b843105e01de46f60367",
+        "tests/generated-sdk/flat/SDK_A/OwnedSmoke.cpp": "1ad341a57f05090ba13cab4ec41c7a8d5e74ab51303383a558930549af37d1f4",
+        "tests/generated-sdk/flat/SDK_A/SDK.hpp": "ddf42563b8977c6f159dc304fa90eb25c91d6efad0057d9e7228e2bfb7ad81df",
+        "tests/generated-sdk/flat/SDK_A/UEAssert.h": "a717135a93d4a09d67b161e80270aa5da71d3fcd9bc6c2b8f833b3d1090503d9"
+      }
+    },
+    {
+      "name": "android-release",
+      "compiled": true,
+      "runtime": "passed",
+      "export_checks": 231,
+      "build_options": {
+        "ANDROID_ABI:UNINITIALIZED": "arm64-v8a",
+        "ANDROID_PLATFORM:UNINITIALIZED": "27",
+        "ANDROID_STL:UNINITIALIZED": "c++_static",
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Release",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-release/tests/andueprober_export_limits",
+        "sha256": "a73f5947d601056eebe61b203d5ea029428093308515aa653bd1b745b4c7147e",
+        "bytes": 9067768,
+        "symbols": "matching unstripped artifact",
+        "build_id": "5d1a8e41e5c75dc853ab299cb8fa1abd60df7b89"
+      },
+      "runtime_log": {
+        "path": "tests/export/evidence/android-release.log",
+        "sha256": "e86deb2f95939798de87e9af59f6da6fc1e843be3631de1d76174e655230328b"
+      },
+      "build_log": {
+        "path": "tests/export/evidence/android-release-build.log",
+        "sha256": "753c91496a2c6f3d0bf72bd99b3aaeab006e56db6a9fdee43e725fac46ba154d"
+      },
+      "test_seam": "Owned fixture performs real fsync and close syscalls, then injects late cancellation, delayed return or directory close errors. Other operations use the real filesystem.",
+      "complementary": [
+        {
+          "fixture": "andueprober_contracts",
+          "exit_code": 0,
+          "executable": {
+            "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-release/tests/andueprober_contracts",
+            "sha256": "be610032d528bf52ded390441648489072e93a5d77447cf0cc16a661d5630393",
+            "bytes": 9438768,
+            "symbols": "matching unstripped artifact",
+            "build_id": "3b2f2cee61b5ab903298e1cb3f8410d2e5581672"
+          },
+          "runtime_log": {
+            "path": "tests/export/evidence/android-release-andueprober_contracts.log",
+            "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855"
+          }
+        },
+        {
+          "fixture": "andueprober_names",
+          "exit_code": 0,
+          "executable": {
+            "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-release/tests/andueprober_names",
+            "sha256": "8d0689bf8bbcb38b7183d508cfb469419e54b8341c49c2a4f1cd766b61e31510",
+            "bytes": 4702688,
+            "symbols": "matching unstripped artifact",
+            "build_id": "dce5250a2c6b22fe5a0040ad534e1ca43d7609e9"
+          },
+          "runtime_log": {
+            "path": "tests/export/evidence/android-release-andueprober_names.log",
+            "sha256": "4cf510750b6a79a2fcb0c040d849519246052051e16315620c800f79593a91ac"
+          }
+        }
+      ],
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      },
+      "generated_build_graph_sha256": "65f46e317f4dd27c053b60588308f03cc9420ced2fc46cb9a74ef6b9617a25fc",
+      "generated_cache_sha256": "7381fed128330c74f36dc377eb2bf300ba13df71e3e060534cd0912723f1594c"
+    }
+  ],
+  "executed_contracts": [
+    "Exact and exhausted file/count/total/path/session/metadata bounds precede filesystem operations",
+    "Actual encoded JSON expansion is bounded; empty payloads are accepted",
+    "Unicode scalar UTF-8 validation rejects malformed metadata and filenames; embedded metadata NUL is escaped and payload bytes remain unrestricted",
+    "All seven operation callbacks throwing are converted to Internal; the previous successful export remains byte-identical",
+    "Cancellation interrupts bounded partial writes and prevents publication after the Publish callback",
+    "Cancellation or deadline arriving during the final real directory fsync retracts the completion marker after syscall return",
+    "Failed marker retraction sets completionUncertain and remains a failed result even if the marker is visible",
+    "Canonical staging aliases and symbolic-link completion markers are rejected",
+    "Production pinned SDKCoreGen flat and chunked owned array-subset outputs compile as real host C++ programs",
+    "Actual child-process _exit at partial-write, staged, published-directory and visible-marker boundaries preserves previous output and releases the root lock for a subsequent successful publication; visible marker remains a presence-only result",
+    "Directory close failures return Io; a failed close during completion-marker retraction sets completionUncertain even when the marker rename succeeded"
+  ],
+  "unverified": [
+    "Full reflection-to-dumper adapter and an owned UE application full generated SDK",
+    "Crash/power-loss durability and interrupted kernel filesystem operations",
+    "Untrusted concurrent filesystem mutation; callers must own and serialize the output root",
+    "Other OS/filesystem/device/page-size and hardening configurations"
+  ],
+  "interruption_configurations": [
+    {
+      "name": "debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 90,
+      "child_process_boundaries": 4,
+      "sanitizers": "AddressSanitizer and UndefinedBehaviorSanitizer",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-debug/tests/andueprober_export_interruption",
+        "sha256": "14387958f8aec0f06befc6db1ae8a7722702209eff92e433f475f79e0cc0b92c",
+        "bytes": 2512368,
+        "symbols": "matching unstripped artifact",
+        "uuid": "AD019102-F4DB-3AF4-9170-5FC97BFAE3F7"
+      },
+      "logs": {
+        "runtime": {
+          "path": "tests/export/evidence/interruption-debug-runtime.log",
+          "sha256": "b3627b8cede70c357e8b77695416aaff7a12fc4c4d12be472a149a06c72a5984"
+        },
+        "build": {
+          "path": "tests/export/evidence/interruption-debug-build.log",
+          "sha256": "d1aa250a180518993021918b5dee402d5cb593501266178c11b2d3a1e0393bf1"
+        }
+      },
+      "scope": "Actual fork and _exit inside production exporter; no C++ destructors run in interrupted child; no syscall replacement"
+    },
+    {
+      "name": "release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 90,
+      "child_process_boundaries": 4,
+      "sanitizers": "none",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_export_interruption",
+        "sha256": "554aeaa108f6ecd7993dd73ac6f58a4d4b595e5e5ce114261a2e9a9afaa420de",
+        "bytes": 148320,
+        "symbols": "matching unstripped artifact",
+        "uuid": "F0B24080-45CD-3BB9-9682-8FC897CC147F"
+      },
+      "logs": {
+        "runtime": {
+          "path": "tests/export/evidence/interruption-release-runtime.log",
+          "sha256": "a09de19464493251fbd9f790b59ad988f7383162eb6f4348e12448c67c807950"
+        },
+        "build": {
+          "path": "tests/export/evidence/interruption-release-build.log",
+          "sha256": "edd8a6dde3dc3fe39b3b2478bf7757659f6d14f712b4dd28e3299da2c63d4188"
+        }
+      },
+      "scope": "Actual fork and _exit inside production exporter; no C++ destructors run in interrupted child; no syscall replacement"
+    },
+    {
+      "name": "android-debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 90,
+      "child_process_boundaries": 4,
+      "sanitizers": "none",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-debug/tests/andueprober_export_interruption",
+        "sha256": "7ad30a8d06c333bcc78beeeed5524fd3b1e0b31621181790c54ef81e57b8386b",
+        "bytes": 9247840,
+        "symbols": "matching unstripped artifact",
+        "build_id": "5e99a363292a01effd7f4dd5ee7eab371d5c3da5"
+      },
+      "logs": {
+        "runtime": {
+          "path": "tests/export/evidence/interruption-android-debug-runtime.log",
+          "sha256": "5fc97a6be319576bf634b4736caada71ef0950e43e5dca43b81ab7dddcb8ab0a"
+        },
+        "build": {
+          "path": "tests/export/evidence/interruption-android-debug-build.log",
+          "sha256": "2d696048c71c95c82b7593047f5948597c932fbdd051807fb1e81d6d17a85c6d"
+        }
+      },
+      "scope": "Actual fork and _exit inside production exporter; no C++ destructors run in interrupted child; no syscall replacement"
+    },
+    {
+      "name": "android-release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 90,
+      "child_process_boundaries": 4,
+      "sanitizers": "none",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-release/tests/andueprober_export_interruption",
+        "sha256": "441291f89cc6c97f82f971014bcdebcbbfdf654e4991fc611766a5b747398142",
+        "bytes": 8460768,
+        "symbols": "matching unstripped artifact",
+        "build_id": "4bad07cbe554f3e76eae6da8f40aa67ddd658575"
+      },
+      "logs": {
+        "runtime": {
+          "path": "tests/export/evidence/interruption-android-release-runtime.log",
+          "sha256": "5fc97a6be319576bf634b4736caada71ef0950e43e5dca43b81ab7dddcb8ab0a"
+        },
+        "build": {
+          "path": "tests/export/evidence/interruption-android-release-build.log",
+          "sha256": "753c91496a2c6f3d0bf72bd99b3aaeab006e56db6a9fdee43e725fac46ba154d"
+        }
+      },
+      "scope": "Actual fork and _exit inside production exporter; no C++ destructors run in interrupted child; no syscall replacement"
+    }
+  ],
+  "source_consistent": true
+}

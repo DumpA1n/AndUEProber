@@ -10,12 +10,6 @@ class PUBGMHDProfile : public IGameProfileAndroid
 public:
     PUBGMHDProfile() = default;
 
-    bool ArchSupprted() const override
-    {
-        auto e_machine = GetUnrealELF().header().e_machine;
-        return e_machine == EM_AARCH64;
-    }
-
     std::string GetAppName() const override
     {
         return "PUBGMHD";
@@ -41,29 +35,6 @@ public:
         return false;
     }
 
-    bool IsFNamePassedByValue() const override
-    {
-        return true;
-    }
-
-    uintptr_t GetGUObjectArrayPtr() const override
-    {
-        if (uintptr_t a = FindGUObjectArrayViaFinishDestroy())
-            return a;
-
-        std::string ida_pattern = "12 40 B9 ? 3E 40 B9 ? ? ? 6B ? ? ? 54 ? ? ? ? ? ? ? 91";
-        const int step = 0xf;
-
-        PATTERN_MAP_TYPE map_type = isEmulator() ? PATTERN_MAP_TYPE::ANY_R : PATTERN_MAP_TYPE::ANY_X;
-
-        return Arm64::DecodeADRL(findIdaPattern(map_type, ida_pattern, step));
-    }
-
-    uintptr_t GetNamesPtr() const override
-    {
-        return GetUnrealELF().base();
-    }
-
     UE_Offsets *GetOffsets() const override
     {
         struct FFixedUObjectArray   // = ObjObjects (single inline chunk, flat-read)
@@ -87,7 +58,7 @@ public:
         if (!once)
         {
             once = true;
-            offsets.Config.IsUsingFNamePool = true; // never use
+            offsets.Config.IsUsingFNamePool = true; // Custom names require an explicit resolver contract.
             offsets.FUObjectArray.ObjObjects = offsetof(FUObjectArray, ObjObjects);
             offsets.TUObjectArray.Objects = offsetof(FFixedUObjectArray, Objects);
             offsets.TUObjectArray.NumElements = offsetof(FFixedUObjectArray, NumElements);
@@ -96,12 +67,4 @@ public:
         return &offsets;
     }
 
-    std::string GetNameByID(int32_t id) const override
-    {
-        if (FindFNameToString())
-        {
-            return GetNameByID_ViaToString(id);
-        }
-        return IGameProfile::GetNameByID(id);
-    }
 };

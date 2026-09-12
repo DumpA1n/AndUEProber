@@ -1,0 +1,6 @@
+@PACKAGE_INIT@
+set(AndUEProberImGui_UPSTREAM_VERSION "1.92.2b")
+set(AndUEProberImGui_SOURCE_REVISION "45acd5e0e82f4c954432533ae9985ff0e1aad6d5")
+include("${CMAKE_CURRENT_LIST_DIR}/AndUEProberImGuiTargets.cmake")
+set(AndUEProberImGui_Core_FOUND TRUE)
+check_required_components(AndUEProberImGui)

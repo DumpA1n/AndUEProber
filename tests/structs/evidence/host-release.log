@@ -1,0 +1,77 @@
+["ctest", "--test-dir", "/Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release", "--no-tests=error", "--output-on-failure", "-V", "-R", "^andueprober\\.(evidence|evidence_phases|structs|classes|functions|object_flags)$"]
+UpdateCTestConfiguration  from :/Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/DartConfiguration.tcl
+Test project /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 5
+    Start  5: andueprober.evidence
+
+5: Test command: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests/andueprober_evidence
+5: Working Directory: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests
+5: Test timeout computed to be: 10000000
+5: PASS: 12 successive evidence traversal allocation failures
+5: PASS: 50 bounded evidence closure checks
+1/6 Test  #5: andueprober.evidence .............   Passed    2.11 sec
+test 6
+    Start  6: andueprober.evidence_phases
+
+6: Test command: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests/andueprober_evidence_phases
+6: Working Directory: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests
+6: Test timeout computed to be: 10000000
+6: PASS: 139 actual phase evidence closure checks
+2/6 Test  #6: andueprober.evidence_phases ......   Passed    0.60 sec
+test 17
+    Start 17: andueprober.structs
+
+17: Test command: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests/andueprober_structs
+17: Working Directory: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests
+17: Test timeout computed to be: 10000000
+17: PASS: 319 complete Phase 2 struct checks; independent compiled anchors, bounded reads, reports, versions and immutable sessions; no engine calls
+3/6 Test #17: andueprober.structs ..............   Passed    0.59 sec
+test 18
+    Start 18: andueprober.classes
+
+18: Test command: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests/andueprober_classes
+18: Working Directory: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests
+18: Test timeout computed to be: 10000000
+18: PASS: 382 complete Phase 3 class checks; independent uint64/CDO metadata, Phase 1/2 dependencies, bounded reads and immutable sessions; no engine calls
+4/6 Test #18: andueprober.classes ..............   Passed    0.54 sec
+test 19
+    Start 19: andueprober.functions
+
+19: Test command: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests/andueprober_functions
+19: Working Directory: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests
+19: Test timeout computed to be: 10000000
+19: PASS: 865 complete Phase 4 function checks; independent typed metadata, bounded reads, disjoint fields, Phase 1/2 dependencies and immutable sessions; native functions never called
+5/6 Test #19: andueprober.functions ............   Passed    0.60 sec
+test 24
+    Start 24: andueprober.object_flags
+
+24: Test command: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests/andueprober_object_flags
+24: Working Directory: /Users/ddd/Developer/AndUEProber/build/evidence-validation/20260912T145248Z/host-release/tests
+24: Test timeout computed to be: 10000000
+24: PASS: 191 object flag checks; explicit uint32 metadata, actual Phase 1 evidence, unique bounded reads, prefix exclusion and strict overrides
+6/6 Test #24: andueprober.object_flags .........   Passed    0.54 sec
+
+The following tests passed:
+	andueprober.evidence
+	andueprober.evidence_phases
+	andueprober.structs
+	andueprober.classes
+	andueprober.functions
+	andueprober.object_flags
+
+100% tests passed out of 6
+
+Label Time Summary:
+C04    =   0.54 sec*proc (1 test)
+E05    =   4.99 sec*proc (6 tests)
+R09    =   4.99 sec*proc (6 tests)
+R13    =   4.99 sec*proc (6 tests)
+R18    =   4.99 sec*proc (6 tests)
+
+Total Test time (real) =   5.00 sec

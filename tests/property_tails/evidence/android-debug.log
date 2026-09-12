@@ -1,0 +1,3 @@
+
+COMMAND ["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-tail-closure-20260912/android-debug/andueprober_property_tails"]
+PASS: 1311 property-tail checks; eleven opaque pointer offsets across nine kinds, independent occupied prefixes, actual preceding phases and atomic closure validation; bool and complete containers excluded

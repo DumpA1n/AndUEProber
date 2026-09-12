@@ -1,0 +1,44 @@
+[0/1] Re-running CMake...
+-- Configuring done (0.2s)
+-- Generating done (0.1s)
+-- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/export-limits-android-debug
+[1/2] Cleaning all built files...
+Cleaning... 33 files.
+[1/38] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Export.cpp.o
+[2/38] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Commands.cpp.o
+[3/38] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Core.cpp.o
+[4/38] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Engine.cpp.o
+[5/38] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Evidence.cpp.o
+[6/38] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Reflection.cpp.o
+[7/38] Linking CXX static library libAndUEProberCore.a
+[8/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Probe.cpp.o
+[9/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Names.cpp.o
+[10/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Discovery.cpp.o
+[11/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Relations.cpp.o
+[12/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Structs.cpp.o
+[13/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Classes.cpp.o
+[14/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Functions.cpp.o
+[15/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Fields.cpp.o
+[16/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Properties.cpp.o
+[17/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/ObjectFlags.cpp.o
+[18/38] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Enums.cpp.o
+[19/38] Linking CXX static library libAndUEProberProbe.a
+[20/38] Building CXX object tests/CMakeFiles/andueprober_contracts.dir/contracts.cpp.o
+[21/38] Building CXX object tests/CMakeFiles/andueprober_export_limits.dir/export_limits.cpp.o
+[22/38] Building CXX object tests/CMakeFiles/andueprober_export_interruption.dir/export_interruption.cpp.o
+[23/38] Building CXX object tests/CMakeFiles/andueprober_allocation_failure.dir/allocation_failure.cpp.o
+[24/38] Building CXX object tests/CMakeFiles/andueprober_reflection.dir/reflection.cpp.o
+[25/38] Building CXX object tests/CMakeFiles/andueprober_names.dir/names.cpp.o
+[26/38] Linking CXX executable tests/andueprober_contracts
+[27/38] Linking CXX executable tests/andueprober_export_limits
+[28/38] Linking CXX executable tests/andueprober_export_interruption
+[29/38] Linking CXX executable tests/andueprober_reflection
+[30/38] Building CXX object tests/CMakeFiles/andueprober_object_flags.dir/object_flags.cpp.o
+[31/38] Building CXX object tests/CMakeFiles/header_Reflection_hpp.dir/header_Reflection_hpp.cpp.o
+[32/38] Building CXX object tests/CMakeFiles/andueprober_enums.dir/enums.cpp.o
+[33/38] Linking CXX executable tests/andueprober_allocation_failure
+[34/38] Linking CXX executable tests/andueprober_names
+[35/38] Linking CXX executable tests/andueprober_object_flags
+[36/38] Building CXX object tests/CMakeFiles/header_ObjectFlags_hpp.dir/header_ObjectFlags_hpp.cpp.o
+[37/38] Linking CXX executable tests/andueprober_enums
+[38/38] Building CXX object tests/CMakeFiles/header_Enums_hpp.dir/header_Enums_hpp.cpp.o

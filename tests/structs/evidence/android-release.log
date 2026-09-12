@@ -1,0 +1,2 @@
+["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-evidence-20260912T145933Z/android-release-structs"]
+PASS: 319 complete Phase 2 struct checks; independent compiled anchors, bounded reads, reports, versions and immutable sessions; no engine calls

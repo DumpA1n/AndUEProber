@@ -1,0 +1,1274 @@
+{
+  "format_version": 1,
+  "date": "2026-09-12",
+  "traceability": [
+    "R09",
+    "R10",
+    "R11",
+    "R18",
+    "C04",
+    "E05"
+  ],
+  "scope": "Real compiled CompiledUtf16V1 functions in an owned DSO through production Core binding/executor/UTF-16 code; does not invoke a UE engine",
+  "source_base_commit": "3304244255c662d5896556c32573de6ad776e751",
+  "source_state": "modified working tree; selected compiled inputs compared before and after execution",
+  "source_sha256": {
+    "CMakeLists.txt": "9f1cf4cd9f03b50361c26b1253f2ada9cd9df364cba4a6a24f88252fe1caef49",
+    "cmake/AndUEProberConfig.cmake.in": "d5cbe63b352a13212dd81982677e015b137ad1e32c20468f6b41f11fb4f4c287",
+    "cmake/AndUEProberImGuiConfig.cmake.in": "9e70626c58fac3f8ece3874acd7d721a266f02691f3d46cb64d93f1d57bb3772",
+    "cmake/BuildInfo.hpp.in": "0c78014cab2384b1c36b462053d512d2242bdaf378103fbb1f05b7a0731e335b",
+    "cmake/CheckImGuiVersion.cpp": "16dfafb9a3e5489be701216c91222c15ce2592ee85cdbd012b29aef9e202133f",
+    "cmake/DumperEmitter.cmake": "eb502f5b62f47e8a4aed2c59aae95ad8730d4bdc543a83d611a6c5d9a73ab255",
+    "cmake/ImGuiDependency.cmake": "55d576f7f0b612a86f26c589dbf78e1aa9a4bc8ab98354272913e959bc919c8e",
+    "include/andueprober/Agent.h": "9e4c38fe9db937ec55c74b0b93dc3a6cf2ecc8fec5f8cfa635a37679d2584791",
+    "include/andueprober/Classes.hpp": "7df0549f2418cfb72e505dc5a567c1be0a75e996b9a20f8084cb2ac22793e4f2",
+    "include/andueprober/Commands.hpp": "3cf3f2418d0f2a6048261e4df5c0c37a3efcd365716877bb4a34ccb73f3c8a34",
+    "include/andueprober/Core.hpp": "9ca1f3432307ebb29e12a38f4031a1510e7b3f03fff78e63fda37cc29c34c28e",
+    "include/andueprober/Discovery.hpp": "14d85fe73eef9041ad6960a693e6cc47dc1df8185ad6beaa2cecd6a260cba568",
+    "include/andueprober/DumperAdapter.hpp": "b62ab20bee10d7ff09985aa53c4554a0943a9370391e2b3af8fa898123658715",
+    "include/andueprober/Engine.hpp": "71eb594f3b654352742b04f88038694e72e6023480e240d36cb7b24baad0b2ad",
+    "include/andueprober/Enums.hpp": "3f062fc0e0f1436c744106a5f9cdf6b4247f12f0e99e062ee019d71857928743",
+    "include/andueprober/Evidence.hpp": "e96d5a674b33478e43ef4d784ffc800a784446b8728955ee6b00b4fba0bfce8b",
+    "include/andueprober/Export.hpp": "cfa6ef5459eeb324b8fadb6099ea118ddb1fe5eff0f0e02afe1ad27351b7de7a",
+    "include/andueprober/Fields.hpp": "9f93c57109f1f0f218a0b3f6bacac094e6840fe15198a81d3d338b71620b4895",
+    "include/andueprober/Functions.hpp": "151b963c7969be11d32d2e2d842dec1577dad36cc7270ee98ef230bdf98a6654",
+    "include/andueprober/Inspector.hpp": "661c29bff4b8e50703f6efeb5641cf74389315d2aaef82eaeaf24c9737ae7569",
+    "include/andueprober/Names.hpp": "877b9b5db9b0dbc9a4cf7902ca8064c030489313c9567aec527d7c1ce8767e2d",
+    "include/andueprober/ObjectFlags.hpp": "c3797002ee5dc262086cf05de3b06ea691f7732e2d9fb5cc7aba8c7df4d79544",
+    "include/andueprober/Probe.hpp": "0b540e555a6b4f223dc8666440b12153d6ce8dd41f0535edb3d9e21c059843ab",
+    "include/andueprober/ProcessMemory.hpp": "d0304b98cc8281508b9b577733faaa80bb29e405b8b14b07e58e08c80836fa7c",
+    "include/andueprober/Properties.hpp": "17b0cb367461a28d584aca3144ebc44a86a5698ab0ac783da25087ad362a8323",
+    "include/andueprober/PropertyTails.hpp": "1e26a31e30918f4d5b2191ca539d89c615de7b914d5d4d44dea26abc01b88324",
+    "include/andueprober/PropertyValues.hpp": "c9cd202cb4466a4654758694b9e9cf03abfddafddc3ad0894c3ba5b56e0dc94c",
+    "include/andueprober/Reflection.hpp": "e99247db3031fe00e2d87158b738c9da1c9bb64eb94b2e3af84a271fdba47d92",
+    "include/andueprober/Relations.hpp": "114ac7a3b4a8ca60099620f576e87258c209fbe8562e5065afae9edd3251ab0d",
+    "include/andueprober/Structs.hpp": "7b53cb5e0b1775ad69a6292c68bc7e06ab95e134c8d43e9d2060ba39a8242304",
+    "source/Core/Commands.cpp": "027859ee0ec4e720bd95eca83aeb9dafed8b97417806ecfdd665d6c2c8c2c573",
+    "source/Core/Core.cpp": "efcdcdd84090c7698a0fabe9a1adc8e79dff1f79c37832710a0c044278035df1",
+    "source/Core/Engine.cpp": "1c19f83d06da777e44a385703160862004d7eaeef8a04c68e15a34888758bc02",
+    "source/Core/Evidence.cpp": "e2a5abeba39461e9c6c31077627e0c5657d3959bd8aa596afa3a0ed26320bd5e",
+    "source/Core/Export.cpp": "e0f3640cf8dae71e6989fb967b14ad35b20a2d18d7028c83f5aa1ddd25d26ceb",
+    "source/Core/Reflection.cpp": "ffdcebdac8fe48d5d2915bdb2e589b2c15b60d12a186e1e49937015094fd8dd3",
+    "tests/CMakeLists.txt": "8ba8dc869f79fb8f9acbff436c508428629c6be3f79e88b04f33d732a4cbd291",
+    "tests/engine/Fixture.hpp": "48f0cf24e7783bd887a84882ec861d5ccb0c38069abb877c07aa4cbb16a6618b",
+    "tests/engine/Module.cpp": "01910c36ef6f9e12c47667d1fe73c4fc21321c9e3f8f71e4dddce2320b1f0d6b",
+    "tests/engine.cpp": "391eedb08500a3c24887448580851bc6bb59a6a68070d68cf9a0ec5bc8ce797f"
+  },
+  "host": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit",
+    "architecture": "arm64"
+  },
+  "android": {
+    "ndk": "29.0.14206865",
+    "abi": "arm64-v8a",
+    "native_api_target": 27,
+    "stl": "c++_static",
+    "serial": "3B163600WKV00000",
+    "model": "OnePlus PLQ110",
+    "android_version": "16",
+    "api_level": 36,
+    "page_size": 4096,
+    "owned_directory": "/data/local/tmp/andueprober-engine-20260912T145248Z",
+    "hardening": "NDK defaults; no separate BTI/PAC/CFI/MTE options or validation; no pointer normalization, signal recovery, process dumpability or page-permission changes",
+    "fingerprint": "OnePlus/PLQ110/OP6113L1:16/BP2A.250605.015/B.12c47b6_f0e766_ee7ff8:user/release-keys"
+  },
+  "configurations": [
+    {
+      "name": "host-debug",
+      "build_type": "Debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 135,
+      "production_boundary_replacement": false,
+      "sanitizers": "none",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/andueprober_engine",
+        "sha256": "09f335dd0480ca1908e8b62eae6b7aba5760a63efedd50837591c7fc93214e3e",
+        "bytes": 917632,
+        "symbols": "matching unstripped artifact",
+        "uuid": "D2BD16B5-147F-3B3E-85F8-DFCCFE084625"
+      },
+      "module": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/libandueprober_engine_module.dylib",
+        "sha256": "5e1d0424b19318a41b32c1879c4d864bc1d4806019ccc18642dd0ebe95277851",
+        "bytes": 53936,
+        "symbols": "matching unstripped artifact",
+        "uuid": "1C0AE0D0-3186-3AE6-A8F1-224F4F72F892"
+      },
+      "runtime_log": "tests/engine/evidence/host-debug.log",
+      "runtime_log_sha256": "9fac6c2b42f16a02247526dfb6f76a4154225d0aec9ddebe3aa3206b942806ec",
+      "build_log": "tests/engine/evidence/host-debug-build.log",
+      "build_log_sha256": "d253c76689c48e8d42724704a7a25839d31b29a81d1bed3af1c9c69c1b1eb45c",
+      "build_options": {
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_ADAPTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_EMITTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_TESTS:BOOL": "ON",
+        "ANDUEPROBER_IMGUI_TARGET:STRING": "",
+        "ANDUEPROBER_MEMORY_SOURCE_DIR:PATH": "",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "ANDUEPROBER_WITH_PROCESS_MEMORY:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Debug",
+        "CMAKE_CXX_COMPILER:FILEPATH": "/usr/bin/c++",
+        "CMAKE_CXX_FLAGS:STRING": "",
+        "CMAKE_CXX_FLAGS_DEBUG:STRING": "-g",
+        "CMAKE_CXX_FLAGS_MINSIZEREL:STRING": "-Os -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE:STRING": "-O3 -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING": "-O2 -g -DNDEBUG",
+        "CMAKE_CXX_COMPILER-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL": "1"
+      },
+      "generated_artifacts": {
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/CMakeCache.txt": "94a601ac52fcc48e163c2de3e5be8ac7882766317bf121a57bdf41deeed87df0",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/build.ninja": "8dcded060a838a7da9378ed712f8f78b48e60485cdf2869d6e7cb4550bae6a05",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/compile_commands.json": "fb7e78ba28e85e5a8d5b472d038114c528e3bb52c0a5396a5747e292ab2f1edd"
+      },
+      "execution": {
+        "name": "host-debug-runtime",
+        "command": [
+          "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/andueprober_engine",
+          "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/libandueprober_engine_module.dylib"
+        ],
+        "exit_code": 0,
+        "seconds": 3.342,
+        "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-runtime.log",
+        "log_sha256": "9fac6c2b42f16a02247526dfb6f76a4154225d0aec9ddebe3aa3206b942806ec"
+      }
+    },
+    {
+      "name": "host-release",
+      "build_type": "Release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 135,
+      "production_boundary_replacement": false,
+      "sanitizers": "none",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/andueprober_engine",
+        "sha256": "6825245dc86d8799c96f3d4e3833840a036a4d9bc5e76d911ea68a053f7e131b",
+        "bytes": 176032,
+        "symbols": "matching unstripped artifact",
+        "uuid": "FE40CA91-5350-3EE0-B2EE-51A85B104A92"
+      },
+      "module": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/libandueprober_engine_module.dylib",
+        "sha256": "4ea61b94000cba93938cdd7fb9c08ceb84b3facec44ce195fe8556e264b2b6b2",
+        "bytes": 51216,
+        "symbols": "matching unstripped artifact",
+        "uuid": "58CECF2A-135B-3EA7-A439-E4C105F99470"
+      },
+      "runtime_log": "tests/engine/evidence/host-release.log",
+      "runtime_log_sha256": "f8039ab3e36009ed441d213ca804ccf42c8bef88663f6a515613156284c27ef7",
+      "build_log": "tests/engine/evidence/host-release-build.log",
+      "build_log_sha256": "834f260d9726fd2576e60fc398b11dc75db80552811d1161acf3d54f00db2d54",
+      "build_options": {
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_ADAPTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_EMITTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_TESTS:BOOL": "ON",
+        "ANDUEPROBER_IMGUI_TARGET:STRING": "",
+        "ANDUEPROBER_MEMORY_SOURCE_DIR:PATH": "",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "ANDUEPROBER_WITH_PROCESS_MEMORY:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Release",
+        "CMAKE_CXX_COMPILER:FILEPATH": "/usr/bin/c++",
+        "CMAKE_CXX_FLAGS:STRING": "",
+        "CMAKE_CXX_FLAGS_DEBUG:STRING": "-g",
+        "CMAKE_CXX_FLAGS_MINSIZEREL:STRING": "-Os -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE:STRING": "-O3 -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING": "-O2 -g -DNDEBUG",
+        "CMAKE_CXX_COMPILER-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL": "1"
+      },
+      "generated_artifacts": {
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/CMakeCache.txt": "1495a9abb3ae7ff114d613c745a5b7f7dc0944b07b4ed53a6564baf4ffb7108f",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/build.ninja": "d9124dd9e9ac63e70af47c8b04135f6f68e7ee36556e21aa19d40ec574721fe6",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/compile_commands.json": "52d202c578836283cec7a40807f1de09b1d7805dd393abf56d064db1ec9c06e1"
+      },
+      "execution": {
+        "name": "host-release-runtime",
+        "command": [
+          "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/andueprober_engine",
+          "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/libandueprober_engine_module.dylib"
+        ],
+        "exit_code": 0,
+        "seconds": 1.493,
+        "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-runtime.log",
+        "log_sha256": "f8039ab3e36009ed441d213ca804ccf42c8bef88663f6a515613156284c27ef7"
+      }
+    },
+    {
+      "name": "host-sanitized",
+      "build_type": "Debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 135,
+      "production_boundary_replacement": false,
+      "sanitizers": "ASan and UBSan on executable and owned module; no macOS LeakSanitizer claim",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/andueprober_engine",
+        "sha256": "37172a60524f5dbcf6785b1528f304e7d50f5b4dd268c648582e2fca36b8b56f",
+        "bytes": 2394896,
+        "symbols": "matching unstripped artifact",
+        "uuid": "F0FC61FD-7CA0-344E-AA35-9D07BA378525"
+      },
+      "module": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/libandueprober_engine_module.dylib",
+        "sha256": "d373f08c19c422670427916912a7c56dc5c494d3df56a0fcf3335ba42f41481c",
+        "bytes": 72912,
+        "symbols": "matching unstripped artifact",
+        "uuid": "B4B7D119-C6B7-31F5-8C1A-F210BF7FA884"
+      },
+      "runtime_log": "tests/engine/evidence/host-sanitized.log",
+      "runtime_log_sha256": "921397c1f2707812a8bd244214eb9d7b055c20e3791e812d8bdfdfa92b32584d",
+      "build_log": "tests/engine/evidence/host-sanitized-build.log",
+      "build_log_sha256": "fabbd00372e4d44b2c5e9648bc9e98b6879fb20b2b69b931fb190ee2fd46e7a1",
+      "build_options": {
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_ADAPTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_EMITTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_TESTS:BOOL": "ON",
+        "ANDUEPROBER_IMGUI_TARGET:STRING": "",
+        "ANDUEPROBER_MEMORY_SOURCE_DIR:PATH": "",
+        "ANDUEPROBER_SANITIZERS:BOOL": "ON",
+        "ANDUEPROBER_WITH_PROCESS_MEMORY:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Debug",
+        "CMAKE_CXX_COMPILER:FILEPATH": "/usr/bin/c++",
+        "CMAKE_CXX_FLAGS:STRING": "",
+        "CMAKE_CXX_FLAGS_DEBUG:STRING": "-g",
+        "CMAKE_CXX_FLAGS_MINSIZEREL:STRING": "-Os -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE:STRING": "-O3 -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING": "-O2 -g -DNDEBUG",
+        "CMAKE_CXX_COMPILER-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL": "1"
+      },
+      "generated_artifacts": {
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/CMakeCache.txt": "63ff6e026c1b2a061ed43b399a510033817e29d5fe5129a14b60f5efe375ac30",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/build.ninja": "fbb9e81ac8c0aa66606796731f2b5697e8aba5ad7a707f45152bae00884e0bc3",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/compile_commands.json": "f5ca5706979abdbc5be115e4e29859a6c7e37dad1c70a4375c6003aa963cece3"
+      },
+      "execution": {
+        "name": "host-sanitized-runtime",
+        "command": [
+          "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/andueprober_engine",
+          "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/libandueprober_engine_module.dylib"
+        ],
+        "exit_code": 0,
+        "seconds": 1.991,
+        "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-runtime.log",
+        "log_sha256": "921397c1f2707812a8bd244214eb9d7b055c20e3791e812d8bdfdfa92b32584d",
+        "environment": {
+          "ASAN_OPTIONS": "detect_leaks=0:halt_on_error=1",
+          "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+        }
+      }
+    },
+    {
+      "name": "android-debug",
+      "build_type": "Debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 144,
+      "production_boundary_replacement": false,
+      "sanitizers": "none",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/tests/andueprober_engine",
+        "sha256": "85332920d696443fcfd2f71f906cf0c16fffe2e14a1892b3de749c31007f1c76",
+        "bytes": 7858848,
+        "symbols": "matching unstripped artifact",
+        "build_id": "eedd3e71aca1bfca5dc6f87a8f04d317bd38d396",
+        "device_path": "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/andueprober_engine",
+        "device_sha256": "85332920d696443fcfd2f71f906cf0c16fffe2e14a1892b3de749c31007f1c76"
+      },
+      "module": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/tests/libandueprober_engine_module.so",
+        "sha256": "18a2d9bab35069fbabd9d10346cb0ddaaab964fd17259f567bc83afea4fe28e3",
+        "bytes": 1853320,
+        "symbols": "matching unstripped artifact",
+        "build_id": "7e78c3fcd032772cf0c6e34ee4d632a5c6e90c2f",
+        "device_path": "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/libandueprober_engine_module.so",
+        "device_sha256": "18a2d9bab35069fbabd9d10346cb0ddaaab964fd17259f567bc83afea4fe28e3"
+      },
+      "runtime_log": "tests/engine/evidence/android-debug.log",
+      "runtime_log_sha256": "cb35946fbc91da6b19e9560d87ba5db928dd2c62da96b3e740d8fb0b9b3aadac",
+      "build_log": "tests/engine/evidence/android-debug-build.log",
+      "build_log_sha256": "7db95ad7a62b9283628d2a926282e73e94821f95ffa4a24b199aaa66933ceed8",
+      "build_options": {
+        "ANDROID_ABI:UNINITIALIZED": "arm64-v8a",
+        "ANDROID_PLATFORM:UNINITIALIZED": "android-27",
+        "ANDROID_STL:UNINITIALIZED": "c++_static",
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_ADAPTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_EMITTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_TESTS:BOOL": "ON",
+        "ANDUEPROBER_IMGUI_TARGET:STRING": "",
+        "ANDUEPROBER_MEMORY_SOURCE_DIR:PATH": "",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "ANDUEPROBER_WITH_PROCESS_MEMORY:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Debug",
+        "CMAKE_CXX_COMPILER_AR:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar",
+        "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang-scan-deps",
+        "CMAKE_CXX_COMPILER_RANLIB:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ranlib",
+        "CMAKE_CXX_FLAGS:STRING": "",
+        "CMAKE_CXX_FLAGS_DEBUG:STRING": "",
+        "CMAKE_CXX_FLAGS_MINSIZEREL:STRING": "-Os -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE:STRING": "",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING": "-O2 -g -DNDEBUG",
+        "CMAKE_TOOLCHAIN_FILE:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/build/cmake/android.toolchain.cmake",
+        "CMAKE_CXX_COMPILER_AR-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_COMPILER_RANLIB-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL": "1"
+      },
+      "generated_artifacts": {
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/CMakeCache.txt": "15bec37482ca780775b60c3641f95c3131e9f7d0a69a3a12096c5551541beeb3",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/build.ninja": "db40a655c28648bb7f3d906515a43f2ea0cb8ba832fca500d0685447f4b11774",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/compile_commands.json": "4c5c33db5c1d0c11d29a391aa77894c49453294278c86bdfe6611b738b5670cc"
+      },
+      "execution": {
+        "name": "android-debug-runtime",
+        "command": [
+          "adb",
+          "-s",
+          "3B163600WKV00000",
+          "shell",
+          "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/andueprober_engine",
+          "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/libandueprober_engine_module.so"
+        ],
+        "exit_code": 0,
+        "seconds": 0.095,
+        "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-runtime.log",
+        "log_sha256": "cb35946fbc91da6b19e9560d87ba5db928dd2c62da96b3e740d8fb0b9b3aadac"
+      }
+    },
+    {
+      "name": "android-release",
+      "build_type": "Release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 144,
+      "production_boundary_replacement": false,
+      "sanitizers": "none",
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/tests/andueprober_engine",
+        "sha256": "41f6a188badae197fc24467c06a11a8ea4ba0fd7a86a5274f67c7b70457e7060",
+        "bytes": 7335512,
+        "symbols": "matching unstripped artifact",
+        "build_id": "7e087a6c78008e38cfadf9dc5856dc56aeb286e0",
+        "device_path": "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/andueprober_engine",
+        "device_sha256": "41f6a188badae197fc24467c06a11a8ea4ba0fd7a86a5274f67c7b70457e7060"
+      },
+      "module": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/tests/libandueprober_engine_module.so",
+        "sha256": "b67af88c019108e3a0433ce97735803e8c9c53e38b4e4b7429ecad07baed1c6d",
+        "bytes": 1825208,
+        "symbols": "matching unstripped artifact",
+        "build_id": "d00095024d3728ebcb96e4f2c491bb7f6f099709",
+        "device_path": "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/libandueprober_engine_module.so",
+        "device_sha256": "b67af88c019108e3a0433ce97735803e8c9c53e38b4e4b7429ecad07baed1c6d"
+      },
+      "runtime_log": "tests/engine/evidence/android-release.log",
+      "runtime_log_sha256": "b3850d8f86fe6e7d291f1f592ebff701a502a39a168574516c8b585a7f8e4d95",
+      "build_log": "tests/engine/evidence/android-release-build.log",
+      "build_log_sha256": "9fd9f586a8e0c98b56e73d81cd0458bcc9d69c81c4f6a469da7eb946d6bd0b0c",
+      "build_options": {
+        "ANDROID_ABI:UNINITIALIZED": "arm64-v8a",
+        "ANDROID_PLATFORM:UNINITIALIZED": "android-27",
+        "ANDROID_STL:UNINITIALIZED": "c++_static",
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_ADAPTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_DUMPER_EMITTER:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_TESTS:BOOL": "ON",
+        "ANDUEPROBER_IMGUI_TARGET:STRING": "",
+        "ANDUEPROBER_MEMORY_SOURCE_DIR:PATH": "",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "ANDUEPROBER_WITH_PROCESS_MEMORY:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Release",
+        "CMAKE_CXX_COMPILER_AR:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ar",
+        "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang-scan-deps",
+        "CMAKE_CXX_COMPILER_RANLIB:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-ranlib",
+        "CMAKE_CXX_FLAGS:STRING": "",
+        "CMAKE_CXX_FLAGS_DEBUG:STRING": "",
+        "CMAKE_CXX_FLAGS_MINSIZEREL:STRING": "-Os -DNDEBUG",
+        "CMAKE_CXX_FLAGS_RELEASE:STRING": "",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO:STRING": "-O2 -g -DNDEBUG",
+        "CMAKE_TOOLCHAIN_FILE:FILEPATH": "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/build/cmake/android.toolchain.cmake",
+        "CMAKE_CXX_COMPILER_AR-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_COMPILER_CLANG_SCAN_DEPS-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_COMPILER_RANLIB-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_DEBUG-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_MINSIZEREL-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELEASE-ADVANCED:INTERNAL": "1",
+        "CMAKE_CXX_FLAGS_RELWITHDEBINFO-ADVANCED:INTERNAL": "1"
+      },
+      "generated_artifacts": {
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/CMakeCache.txt": "b82aadaaae1b132d6ce46b64adf8e5f310afe845d32934d9f7dc4c013eecec65",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/build.ninja": "400478fcdf382643e388a6427e93d8b7471d2003765d25c59ac72067d53abb1a",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/compile_commands.json": "57b6a3e9146c1d4b9ea6b3bfde8b36430ddea938a8b220ca790da522035029fc"
+      },
+      "execution": {
+        "name": "android-release-runtime",
+        "command": [
+          "adb",
+          "-s",
+          "3B163600WKV00000",
+          "shell",
+          "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/andueprober_engine",
+          "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/libandueprober_engine_module.so"
+        ],
+        "exit_code": 0,
+        "seconds": 0.095,
+        "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-runtime.log",
+        "log_sha256": "b3850d8f86fe6e7d291f1f592ebff701a502a39a168574516c8b585a7f8e4d95"
+      }
+    }
+  ],
+  "executed_contracts": [
+    "Absent owner, unknown signature, wrong module allocator, stale identity/layout/generation and excessive output bounds reject before invocation",
+    "One binding permits one invocation owner and prevents recursive invocation",
+    "Native invocation and paired allocation/release execute on the attached owner",
+    "Successful, empty and surrogate-pair UTF-16 output converts to owned UTF-8",
+    "Same-path or same-device/inode multiple normal linker instances are rejected; Android FORCE_LOAD executes both-instance refusal and unique-instance recovery",
+    "Wrong pointers, capacity/count corruption, missing terminator and malformed surrogate sequences produce no partial output",
+    "Invocation errors and C++ exceptions release exactly the recorded allocation",
+    "Queue overflow, queued task cancellation and executor cancellation are observable",
+    "Owner and callback waits reject Busy; concurrent drain waits for native return and queued object lease destruction",
+    "Cancellation during invocation or allocator release and generation invalidation discard late output",
+    "Deadline crossing during native invocation discards output after matching release",
+    "Binding preserves a real normal-linker reference after the caller closes its reference; completion releases request leases; module can unload; new binding generation increases on reload",
+    "Returned result values do not permit mutation of stored completion state"
+  ],
+  "production_consumer": "DumperBridge unknown/custom text layout admission uses EngineSignature::Unknown and no binding, preserving Unsupported. No production game profile registers a compiled text shim.",
+  "unverified": [
+    "Actual UE engine signatures, objects, allocators and game-thread integration",
+    "Raw engine FString ownership transfer; this API requires a compiled copy shim",
+    "Manually mapped modules or external unmapping/modification",
+    "DSO unloading while accepted native calls remain active",
+    "Apple binding concurrent with other module load/unload operations; integration must serialize those operations",
+    "Other operating systems or Android devices/page sizes",
+    "Independently enabled BTI/PAC/CFI/MTE and Android ThreadSanitizer"
+  ],
+  "timestamp_utc": "20260912T145248Z",
+  "source_scope": "All Core implementation and public headers, CMake graph, and owned engine fixture sources. Runtime coverage is confined to the compiled shim and executor contracts listed below; other Core archive members and public headers are supporting compilation inputs.",
+  "commands": [
+    {
+      "name": "cmake",
+      "command": [
+        "cmake",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.037,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/cmake.log",
+      "log_sha256": "e348c5d15fe64877857f408d92448d01bab87fab31e6e0ed1021b65c27736656"
+    },
+    {
+      "name": "ninja",
+      "command": [
+        "ninja",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.016,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/ninja.log",
+      "log_sha256": "84146d41579f712309a075ebdd0e57681bbd8f2c6e0746751e8253e30023adca"
+    },
+    {
+      "name": "host-compiler",
+      "command": [
+        "c++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.133,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-compiler.log",
+      "log_sha256": "fbfe86bacef80ad9ba267e1e97ada19553089fb78d96088837e8380a5303837d"
+    },
+    {
+      "name": "android-compiler",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++",
+        "--version"
+      ],
+      "exit_code": 0,
+      "seconds": 0.061,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-compiler.log",
+      "log_sha256": "426756bfc4e9d1e331efa54068ebf2e0a40c88975499b19827b16e3d86a547d7"
+    },
+    {
+      "name": "device-properties",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "getprop"
+      ],
+      "exit_code": 0,
+      "seconds": 0.067,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/device-properties.log",
+      "log_sha256": "b2ce8a9c896871baa4a8d193317e2c6fd3a2e7bc0392102f6a99636efc6dc738"
+    },
+    {
+      "name": "device-pages",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "getconf",
+        "PAGESIZE"
+      ],
+      "exit_code": 0,
+      "seconds": 0.058,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/device-pages.log",
+      "log_sha256": "1a2830b23ee6e0eb5ef68723523f2a9d12dda80ee868dbcec646286c6d401bc2"
+    },
+    {
+      "name": "host-debug-configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_WITH_PROCESS_MEMORY=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DANDUEPROBER_SANITIZERS=OFF"
+      ],
+      "exit_code": 0,
+      "seconds": 2.164,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-configure.log",
+      "log_sha256": "be8132507770e02920ecc8b0481fa8c204ca47af9170d30850cc2d94514bfab3"
+    },
+    {
+      "name": "host-debug-build",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug",
+        "--parallel",
+        "3",
+        "--verbose",
+        "--target",
+        "andueprober_engine",
+        "andueprober_engine_module",
+        "header_Engine_hpp"
+      ],
+      "exit_code": 0,
+      "seconds": 16.299,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-build.log",
+      "log_sha256": "d253c76689c48e8d42724704a7a25839d31b29a81d1bed3af1c9c69c1b1eb45c"
+    },
+    {
+      "name": "host-debug-executable-uuid",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.042,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-executable-uuid.log",
+      "log_sha256": "3f640a7ad4742c2573741ec0ab1148bc59055695586d7f7fa56d39235ce80012"
+    },
+    {
+      "name": "host-debug-executable-symbols",
+      "command": [
+        "nm",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.056,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-executable-symbols.log",
+      "log_sha256": "b94050bdcd931620efa0d2bb5bd4363d635373616d84068f093c258a299a7375"
+    },
+    {
+      "name": "host-debug-module-uuid",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 0.018,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-module-uuid.log",
+      "log_sha256": "da17bf179e735bee7f9c49ec3e7aa53accc9e4f299ba3bbea51c8c80df84f9a9"
+    },
+    {
+      "name": "host-debug-module-symbols",
+      "command": [
+        "nm",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 0.022,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-module-symbols.log",
+      "log_sha256": "dcc52c1191c0c204b2d9306ed4ca45e79c241ef3c13fe1bd4254588082f799f0"
+    },
+    {
+      "name": "host-debug-runtime",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/andueprober_engine",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-debug/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 3.342,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-debug-runtime.log",
+      "log_sha256": "9fac6c2b42f16a02247526dfb6f76a4154225d0aec9ddebe3aa3206b942806ec"
+    },
+    {
+      "name": "host-release-configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_WITH_PROCESS_MEMORY=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DANDUEPROBER_SANITIZERS=OFF"
+      ],
+      "exit_code": 0,
+      "seconds": 1.667,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-configure.log",
+      "log_sha256": "85317b758b3e6f9bb5c4535674d3e705b4ecb3b86ad6ab1bf6ddb7f6c81b4a7f"
+    },
+    {
+      "name": "host-release-build",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release",
+        "--parallel",
+        "3",
+        "--verbose",
+        "--target",
+        "andueprober_engine",
+        "andueprober_engine_module",
+        "header_Engine_hpp"
+      ],
+      "exit_code": 0,
+      "seconds": 21.982,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-build.log",
+      "log_sha256": "834f260d9726fd2576e60fc398b11dc75db80552811d1161acf3d54f00db2d54"
+    },
+    {
+      "name": "host-release-executable-uuid",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.034,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-executable-uuid.log",
+      "log_sha256": "f14b27e0d95fb267ed0eb013024e0ace98e4288dcff0026b876212068d6c8c87"
+    },
+    {
+      "name": "host-release-executable-symbols",
+      "command": [
+        "nm",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.038,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-executable-symbols.log",
+      "log_sha256": "3c87ab1b6500617876334a4f1883746d666c3d0d4d42f2bf7020b884d40b9eb0"
+    },
+    {
+      "name": "host-release-module-uuid",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 0.016,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-module-uuid.log",
+      "log_sha256": "a8fbd97d22ab9299ed0855e88a7674465ff07e764bfb301670be94fe48893379"
+    },
+    {
+      "name": "host-release-module-symbols",
+      "command": [
+        "nm",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 0.017,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-module-symbols.log",
+      "log_sha256": "8c5c41f604d13058f080e57358f2bd9fbcea4ea1bacc0f4659538b54d25cf7db"
+    },
+    {
+      "name": "host-release-runtime",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/andueprober_engine",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-release/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 1.493,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-release-runtime.log",
+      "log_sha256": "f8039ab3e36009ed441d213ca804ccf42c8bef88663f6a515613156284c27ef7"
+    },
+    {
+      "name": "host-sanitized-configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_WITH_PROCESS_MEMORY=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DANDUEPROBER_SANITIZERS=ON"
+      ],
+      "exit_code": 0,
+      "seconds": 1.725,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-configure.log",
+      "log_sha256": "eccfac63f23e5a7d316d804a3d9515166d3439cc039c8dae3a29824edd616a3e"
+    },
+    {
+      "name": "host-sanitized-build",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized",
+        "--parallel",
+        "3",
+        "--verbose",
+        "--target",
+        "andueprober_engine",
+        "andueprober_engine_module",
+        "header_Engine_hpp"
+      ],
+      "exit_code": 0,
+      "seconds": 17.548,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-build.log",
+      "log_sha256": "fabbd00372e4d44b2c5e9648bc9e98b6879fb20b2b69b931fb190ee2fd46e7a1"
+    },
+    {
+      "name": "host-sanitized-executable-uuid",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.022,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-executable-uuid.log",
+      "log_sha256": "2b83fb942462a0b7761029a4b16721e3fe0c3dceb97ef4953c4d2170a98669a7"
+    },
+    {
+      "name": "host-sanitized-executable-symbols",
+      "command": [
+        "nm",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.043,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-executable-symbols.log",
+      "log_sha256": "335edd6399aaff6e858fdf9d13fa529f36fb6fdabe68648040645e6dd8e4e9b7"
+    },
+    {
+      "name": "host-sanitized-module-uuid",
+      "command": [
+        "dwarfdump",
+        "--uuid",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 0.019,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-module-uuid.log",
+      "log_sha256": "912f222e3a268f9a9b2ecb2c2d93f862de93e715ac2bd9851e383cb8aef304cc"
+    },
+    {
+      "name": "host-sanitized-module-symbols",
+      "command": [
+        "nm",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 0.016,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-module-symbols.log",
+      "log_sha256": "02db75a8faf249194b0844a045d9c3edca87c12c4c0f7ad34b0bce2aa09c63ff"
+    },
+    {
+      "name": "host-sanitized-runtime",
+      "command": [
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/andueprober_engine",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/host-sanitized/tests/libandueprober_engine_module.dylib"
+      ],
+      "exit_code": 0,
+      "seconds": 1.991,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/host-sanitized-runtime.log",
+      "log_sha256": "921397c1f2707812a8bd244214eb9d7b055c20e3791e812d8bdfdfa92b32584d",
+      "environment": {
+        "ASAN_OPTIONS": "detect_leaks=0:halt_on_error=1",
+        "UBSAN_OPTIONS": "halt_on_error=1:print_stacktrace=1"
+      }
+    },
+    {
+      "name": "android-debug-configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_WITH_PROCESS_MEMORY=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_BUILD_TYPE=Debug",
+        "-DANDUEPROBER_SANITIZERS=OFF",
+        "-DCMAKE_TOOLCHAIN_FILE=/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/build/cmake/android.toolchain.cmake",
+        "-DANDROID_ABI=arm64-v8a",
+        "-DANDROID_PLATFORM=android-27",
+        "-DANDROID_STL=c++_static"
+      ],
+      "exit_code": 0,
+      "seconds": 2.512,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-configure.log",
+      "log_sha256": "573e7a078d8ad0526fe5fecb3d946fddac2b02d2befd4ed25d0e92c3d3bed1d0"
+    },
+    {
+      "name": "android-debug-build",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug",
+        "--parallel",
+        "3",
+        "--verbose",
+        "--target",
+        "andueprober_engine",
+        "andueprober_engine_module",
+        "header_Engine_hpp"
+      ],
+      "exit_code": 0,
+      "seconds": 21.599,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-build.log",
+      "log_sha256": "7db95ad7a62b9283628d2a926282e73e94821f95ffa4a24b199aaa66933ceed8"
+    },
+    {
+      "name": "android-debug-executable-symbols",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.036,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-executable-symbols.log",
+      "log_sha256": "0041e5233af72205bcfc2e9dbb75e34dd824333ad2032cf4de7c3f3428ab7635"
+    },
+    {
+      "name": "android-debug-module-symbols",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/tests/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.018,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-module-symbols.log",
+      "log_sha256": "ec4d69a1e11b42b8fd497a772f427350fca7670098caa5745318af759df6cf0e"
+    },
+    {
+      "name": "android-debug-mkdir",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "mkdir",
+        "-p",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug"
+      ],
+      "exit_code": 0,
+      "seconds": 0.032,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-mkdir.log",
+      "log_sha256": "59ef086f59ea355ae979c120d7eddf7daea43e879f211bb048f992baf194e26e"
+    },
+    {
+      "name": "android-debug-executable-push",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/tests/andueprober_engine",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.092,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-executable-push.log",
+      "log_sha256": "3dab8a312f20a92ff7e935d1d02cfdb9a8732bac1bd4a108ccaad27abdcab726"
+    },
+    {
+      "name": "android-debug-executable-device-hash",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.051,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-executable-device-hash.log",
+      "log_sha256": "e4f6192e92e208059cd8531d221c43cfce1ad74fd4e0b0b09d3c398b07c64f14"
+    },
+    {
+      "name": "android-debug-module-push",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-debug/tests/libandueprober_engine_module.so",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.048,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-module-push.log",
+      "log_sha256": "d2df5a6c595d948739934c3b8df7c8c07e0af1e297e564399a145ec6f56abad7"
+    },
+    {
+      "name": "android-debug-module-device-hash",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.039,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-module-device-hash.log",
+      "log_sha256": "d6eaf6bed616b81ab01c0bed0abe7ad5497377b5099a1583eaef4ea317fa67c3"
+    },
+    {
+      "name": "android-debug-chmod",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.044,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-chmod.log",
+      "log_sha256": "2d8a3bf024959914d32cf11f0dce68226d3311eb120f949f920adb85787855cc"
+    },
+    {
+      "name": "android-debug-runtime",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/andueprober_engine",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-debug/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.095,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-debug-runtime.log",
+      "log_sha256": "cb35946fbc91da6b19e9560d87ba5db928dd2c62da96b3e740d8fb0b9b3aadac"
+    },
+    {
+      "name": "android-release-configure",
+      "command": [
+        "cmake",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber",
+        "-B",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release",
+        "-G",
+        "Ninja",
+        "-DANDUEPROBER_BUILD_AGENT=OFF",
+        "-DANDUEPROBER_BUILD_INSPECTOR=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF",
+        "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF",
+        "-DANDUEPROBER_WITH_PROCESS_MEMORY=OFF",
+        "-DANDUEPROBER_BUILD_TESTS=ON",
+        "-DCMAKE_EXPORT_COMPILE_COMMANDS=ON",
+        "-DCMAKE_BUILD_TYPE=Release",
+        "-DANDUEPROBER_SANITIZERS=OFF",
+        "-DCMAKE_TOOLCHAIN_FILE=/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/build/cmake/android.toolchain.cmake",
+        "-DANDROID_ABI=arm64-v8a",
+        "-DANDROID_PLATFORM=android-27",
+        "-DANDROID_STL=c++_static"
+      ],
+      "exit_code": 0,
+      "seconds": 1.919,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-configure.log",
+      "log_sha256": "54eae69fac274e96eeb74486a6b3e259171dfd977b1f3b93ec2472415e3e3573"
+    },
+    {
+      "name": "android-release-build",
+      "command": [
+        "cmake",
+        "--build",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release",
+        "--parallel",
+        "3",
+        "--verbose",
+        "--target",
+        "andueprober_engine",
+        "andueprober_engine_module",
+        "header_Engine_hpp"
+      ],
+      "exit_code": 0,
+      "seconds": 27.717,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-build.log",
+      "log_sha256": "9fd9f586a8e0c98b56e73d81cd0458bcc9d69c81c4f6a469da7eb946d6bd0b0c"
+    },
+    {
+      "name": "android-release-executable-symbols",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/tests/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.037,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-executable-symbols.log",
+      "log_sha256": "dd7e85e9de9406f04c8027697f12a4c0db9adc6209bd3db8974f80f1a668d23e"
+    },
+    {
+      "name": "android-release-module-symbols",
+      "command": [
+        "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf",
+        "-n",
+        "-S",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/tests/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.029,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-module-symbols.log",
+      "log_sha256": "b7a6ecb56ad55ec5b1a9faddd7aa5b26b6c2d3788e274151a681ab29f5988a15"
+    },
+    {
+      "name": "android-release-mkdir",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "mkdir",
+        "-p",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release"
+      ],
+      "exit_code": 0,
+      "seconds": 0.061,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-mkdir.log",
+      "log_sha256": "4796d156cf18c5d506ae073be1fcaa037ed1ffef4d0570ac488363a8d77ba565"
+    },
+    {
+      "name": "android-release-executable-push",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/tests/andueprober_engine",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.098,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-executable-push.log",
+      "log_sha256": "993e1f1c40d352add7dda3a6225f5a9ca995e2dba8d8fe0f31f48cba1c664d3a"
+    },
+    {
+      "name": "android-release-executable-device-hash",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.058,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-executable-device-hash.log",
+      "log_sha256": "bd117824f5bb5938083f403532235c1e93009a024acacc0533047425f50e0bd2"
+    },
+    {
+      "name": "android-release-module-push",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "push",
+        "/Users/ddd/Developer/AndUEProber/build/engine-validation/20260912T145248Z/android-release/tests/libandueprober_engine_module.so",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.064,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-module-push.log",
+      "log_sha256": "9efdd55ec75da679d1452408d3c5a9c62eca8152e4824fc1a086124fa3cebbed"
+    },
+    {
+      "name": "android-release-module-device-hash",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "sha256sum",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.059,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-module-device-hash.log",
+      "log_sha256": "b411cc17c76c8ad1ed7637aff34e66e0642b792ae1879acd0010b2cfda8cc492"
+    },
+    {
+      "name": "android-release-chmod",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "chmod",
+        "700",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/andueprober_engine"
+      ],
+      "exit_code": 0,
+      "seconds": 0.046,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-chmod.log",
+      "log_sha256": "0139d49d2602d45e9232f752b036f616002d1f4171069b027fb9f942ca5f9fe9"
+    },
+    {
+      "name": "android-release-runtime",
+      "command": [
+        "adb",
+        "-s",
+        "3B163600WKV00000",
+        "shell",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/andueprober_engine",
+        "/data/local/tmp/andueprober-engine-20260912T145248Z/android-release/libandueprober_engine_module.so"
+      ],
+      "exit_code": 0,
+      "seconds": 0.095,
+      "log": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/android-release-runtime.log",
+      "log_sha256": "b3850d8f86fe6e7d291f1f592ebff701a502a39a168574516c8b585a7f8e4d95"
+    }
+  ],
+  "orchestration": {
+    "path": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/orchestration.py",
+    "sha256": "10c24d9626bdd8ded546a5f48f3eba85824afa3e27d69b9d06655df49d794fda"
+  },
+  "status": "passed",
+  "toolchain_inputs": {
+    "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/source.properties": "716f3518a923198cfab037abb32dc3f1b1f7e9a9dcdcda6b66be5906215d2658",
+    "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/build/cmake/android.toolchain.cmake": "dbad92d9dcfea0d32b7c5e5f82f5072d878ded5d46a5d3f1f581ea108ca7fe89",
+    "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/clang++": "2d0246e18caf53971a01d8124cd4d8a740bc6bc344d4d43b14133431d9def5b9",
+    "/opt/homebrew/Caskroom/android-ndk/29/AndroidNDK14206865.app/Contents/NDK/toolchains/llvm/prebuilt/darwin-x86_64/bin/llvm-readelf": "fcfe768d01eb33574d3f9a67795d6fc0219dc0fe57baf8e5b7df3d8f0e3c620e"
+  },
+  "source_after_sha256": {
+    "CMakeLists.txt": "9f1cf4cd9f03b50361c26b1253f2ada9cd9df364cba4a6a24f88252fe1caef49",
+    "cmake/AndUEProberConfig.cmake.in": "d5cbe63b352a13212dd81982677e015b137ad1e32c20468f6b41f11fb4f4c287",
+    "cmake/AndUEProberImGuiConfig.cmake.in": "9e70626c58fac3f8ece3874acd7d721a266f02691f3d46cb64d93f1d57bb3772",
+    "cmake/BuildInfo.hpp.in": "0c78014cab2384b1c36b462053d512d2242bdaf378103fbb1f05b7a0731e335b",
+    "cmake/CheckImGuiVersion.cpp": "16dfafb9a3e5489be701216c91222c15ce2592ee85cdbd012b29aef9e202133f",
+    "cmake/DumperEmitter.cmake": "eb502f5b62f47e8a4aed2c59aae95ad8730d4bdc543a83d611a6c5d9a73ab255",
+    "cmake/ImGuiDependency.cmake": "55d576f7f0b612a86f26c589dbf78e1aa9a4bc8ab98354272913e959bc919c8e",
+    "include/andueprober/Agent.h": "9e4c38fe9db937ec55c74b0b93dc3a6cf2ecc8fec5f8cfa635a37679d2584791",
+    "include/andueprober/Classes.hpp": "7df0549f2418cfb72e505dc5a567c1be0a75e996b9a20f8084cb2ac22793e4f2",
+    "include/andueprober/Commands.hpp": "3cf3f2418d0f2a6048261e4df5c0c37a3efcd365716877bb4a34ccb73f3c8a34",
+    "include/andueprober/Core.hpp": "9ca1f3432307ebb29e12a38f4031a1510e7b3f03fff78e63fda37cc29c34c28e",
+    "include/andueprober/Discovery.hpp": "14d85fe73eef9041ad6960a693e6cc47dc1df8185ad6beaa2cecd6a260cba568",
+    "include/andueprober/DumperAdapter.hpp": "b62ab20bee10d7ff09985aa53c4554a0943a9370391e2b3af8fa898123658715",
+    "include/andueprober/Engine.hpp": "71eb594f3b654352742b04f88038694e72e6023480e240d36cb7b24baad0b2ad",
+    "include/andueprober/Enums.hpp": "3f062fc0e0f1436c744106a5f9cdf6b4247f12f0e99e062ee019d71857928743",
+    "include/andueprober/Evidence.hpp": "e96d5a674b33478e43ef4d784ffc800a784446b8728955ee6b00b4fba0bfce8b",
+    "include/andueprober/Export.hpp": "cfa6ef5459eeb324b8fadb6099ea118ddb1fe5eff0f0e02afe1ad27351b7de7a",
+    "include/andueprober/Fields.hpp": "9f93c57109f1f0f218a0b3f6bacac094e6840fe15198a81d3d338b71620b4895",
+    "include/andueprober/Functions.hpp": "151b963c7969be11d32d2e2d842dec1577dad36cc7270ee98ef230bdf98a6654",
+    "include/andueprober/Inspector.hpp": "661c29bff4b8e50703f6efeb5641cf74389315d2aaef82eaeaf24c9737ae7569",
+    "include/andueprober/Names.hpp": "877b9b5db9b0dbc9a4cf7902ca8064c030489313c9567aec527d7c1ce8767e2d",
+    "include/andueprober/ObjectFlags.hpp": "c3797002ee5dc262086cf05de3b06ea691f7732e2d9fb5cc7aba8c7df4d79544",
+    "include/andueprober/Probe.hpp": "0b540e555a6b4f223dc8666440b12153d6ce8dd41f0535edb3d9e21c059843ab",
+    "include/andueprober/ProcessMemory.hpp": "d0304b98cc8281508b9b577733faaa80bb29e405b8b14b07e58e08c80836fa7c",
+    "include/andueprober/Properties.hpp": "17b0cb367461a28d584aca3144ebc44a86a5698ab0ac783da25087ad362a8323",
+    "include/andueprober/PropertyTails.hpp": "1e26a31e30918f4d5b2191ca539d89c615de7b914d5d4d44dea26abc01b88324",
+    "include/andueprober/PropertyValues.hpp": "c9cd202cb4466a4654758694b9e9cf03abfddafddc3ad0894c3ba5b56e0dc94c",
+    "include/andueprober/Reflection.hpp": "e99247db3031fe00e2d87158b738c9da1c9bb64eb94b2e3af84a271fdba47d92",
+    "include/andueprober/Relations.hpp": "114ac7a3b4a8ca60099620f576e87258c209fbe8562e5065afae9edd3251ab0d",
+    "include/andueprober/Structs.hpp": "7b53cb5e0b1775ad69a6292c68bc7e06ab95e134c8d43e9d2060ba39a8242304",
+    "source/Core/Commands.cpp": "027859ee0ec4e720bd95eca83aeb9dafed8b97417806ecfdd665d6c2c8c2c573",
+    "source/Core/Core.cpp": "efcdcdd84090c7698a0fabe9a1adc8e79dff1f79c37832710a0c044278035df1",
+    "source/Core/Engine.cpp": "1c19f83d06da777e44a385703160862004d7eaeef8a04c68e15a34888758bc02",
+    "source/Core/Evidence.cpp": "e2a5abeba39461e9c6c31077627e0c5657d3959bd8aa596afa3a0ed26320bd5e",
+    "source/Core/Export.cpp": "e0f3640cf8dae71e6989fb967b14ad35b20a2d18d7028c83f5aa1ddd25d26ceb",
+    "source/Core/Reflection.cpp": "ffdcebdac8fe48d5d2915bdb2e589b2c15b60d12a186e1e49937015094fd8dd3",
+    "tests/CMakeLists.txt": "8ba8dc869f79fb8f9acbff436c508428629c6be3f79e88b04f33d732a4cbd291",
+    "tests/engine/Fixture.hpp": "48f0cf24e7783bd887a84882ec861d5ccb0c38069abb877c07aa4cbb16a6618b",
+    "tests/engine/Module.cpp": "01910c36ef6f9e12c47667d1fe73c4fc21321c9e3f8f71e4dddce2320b1f0d6b",
+    "tests/engine.cpp": "391eedb08500a3c24887448580851bc6bb59a6a68070d68cf9a0ec5bc8ce797f"
+  },
+  "source_consistent": true,
+  "archive": "/Users/ddd/Developer/AndUEProber/artifacts/engine-validation/20260912T145248Z/verification.json"
+}

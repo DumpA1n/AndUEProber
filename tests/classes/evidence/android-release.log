@@ -1,0 +1,2 @@
+["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-evidence-20260912T145933Z/android-release-classes"]
+PASS: 382 complete Phase 3 class checks; independent uint64/CDO metadata, Phase 1/2 dependencies, bounded reads and immutable sessions; no engine calls

@@ -1,0 +1,15 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(AndUEProberPackageConsumer LANGUAGES C CXX)
+find_package(AndUEProber 0.2 CONFIG REQUIRED
+    COMPONENTS ${PACKAGE_COMPONENTS}
+    OPTIONAL_COMPONENTS ${PACKAGE_OPTIONAL_COMPONENTS})
+foreach(component IN LISTS PACKAGE_COMPONENTS)
+    if(NOT TARGET AndUEProber::${component})
+        message(FATAL_ERROR "The required component target was not imported: ${component}")
+    endif()
+endforeach()
+foreach(component IN LISTS PACKAGE_ABSENT_COMPONENTS)
+    if(TARGET AndUEProber::${component})
+        message(FATAL_ERROR "An unavailable component was imported: ${component}")
+    endif()
+endforeach()

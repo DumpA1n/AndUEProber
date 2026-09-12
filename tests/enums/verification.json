@@ -1,0 +1,241 @@
+{
+  "format_version": 1,
+  "date": "2026-09-12",
+  "traceability": [
+    "R09",
+    "R13",
+    "R18",
+    "C04",
+    "E05"
+  ],
+  "source_base_commit": "3304244255c662d5896556c32573de6ad776e751",
+  "source_state": "modified working tree; selected compiled component inputs compared before and after execution",
+  "source_consistent": true,
+  "source_sha256": {
+    "include/andueprober/Core.hpp": "9ca1f3432307ebb29e12a38f4031a1510e7b3f03fff78e63fda37cc29c34c28e",
+    "include/andueprober/Evidence.hpp": "e96d5a674b33478e43ef4d784ffc800a784446b8728955ee6b00b4fba0bfce8b",
+    "include/andueprober/Probe.hpp": "0b540e555a6b4f223dc8666440b12153d6ce8dd41f0535edb3d9e21c059843ab",
+    "include/andueprober/Names.hpp": "877b9b5db9b0dbc9a4cf7902ca8064c030489313c9567aec527d7c1ce8767e2d",
+    "include/andueprober/Relations.hpp": "114ac7a3b4a8ca60099620f576e87258c209fbe8562e5065afae9edd3251ab0d",
+    "include/andueprober/Structs.hpp": "7b53cb5e0b1775ad69a6292c68bc7e06ab95e134c8d43e9d2060ba39a8242304",
+    "include/andueprober/Enums.hpp": "3f062fc0e0f1436c744106a5f9cdf6b4247f12f0e99e062ee019d71857928743",
+    "source/Core/Core.cpp": "efcdcdd84090c7698a0fabe9a1adc8e79dff1f79c37832710a0c044278035df1",
+    "source/Core/Evidence.cpp": "e2a5abeba39461e9c6c31077627e0c5657d3959bd8aa596afa3a0ed26320bd5e",
+    "source/Probe/Probe.cpp": "64b9d80e2043a3507587e57cac3ceecd717fbd87badead9a144dea37733e7710",
+    "source/Probe/Names.cpp": "9d3a12f1393bdc19c66c8f8c9729dcb65a84436c789008ae7c03ac2317319f67",
+    "source/Probe/Relations.cpp": "db806e4a062dde1f3ca83e4f80274a616f06bb544c9f15590f45a6a738d61741",
+    "source/Probe/Structs.cpp": "176510704acd42dc33362e56a238c955d12d049c6ad6a0dc5e0f10e0fb63b91d",
+    "source/Probe/Enums.cpp": "c0f7f679781325961707ec6d4cc5a00da79e7cada318bb9320d42f21eecbc4f0",
+    "tests/OwnedRelations.hpp": "e26178aeba3313c3fa638387d3364edbd211cf5849cddd99974ebbe9062ac26c",
+    "tests/OwnedEnums.hpp": "3be703b1cbc9bdefe222a134964d72c682a7bdb0b633315b542daf6025d2111c",
+    "tests/enums.cpp": "712df5352bcd1025cc525509381e4d66fd73fad484657842ff945e433a43c586",
+    "tests/OwnedStructs.hpp": "e1d057791087c9801ffa47d7ad2dfea6aed7bb3ac4208584172d6ad03d5be727"
+  },
+  "scope": "Production bounded observations from independently declared owned native fixtures; no external UE compatibility claim",
+  "host": {
+    "platform": "macOS-15.7.3-arm64-arm-64bit",
+    "architecture": "arm64",
+    "sanitizers": "Debug ASan/UBSan; macOS LeakSanitizer unavailable"
+  },
+  "android": {
+    "serial": "3B163600WKV00000",
+    "model": "OnePlus PLQ110",
+    "android_version": "16",
+    "api_level": 36,
+    "page_size": 4096,
+    "abi": "arm64-v8a",
+    "native_api_target": 27,
+    "ndk": "29.0.14206865",
+    "stl": "c++_static",
+    "owned_directory": "/data/local/tmp/andueprober-reflection-20260912",
+    "hardening": "NDK defaults; separate PAC/BTI/CFI/MTE modes not validated"
+  },
+  "configurations": [
+    {
+      "name": "host-debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 260,
+      "build_options": {
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "ON",
+        "CMAKE_BUILD_TYPE:STRING": "Debug",
+        "CMAKE_CXX_COMPILER:FILEPATH": "/usr/bin/c++",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-debug/tests/andueprober_enums",
+        "sha256": "a63d1c1c171c0b5eff2d8a3d5991418c9ba5d426028883f4e399d8e457a1062f",
+        "bytes": 5818352,
+        "symbols": "matching unstripped executable",
+        "uuid": "B4D9C3E9-F5D1-3DAC-ADAC-994A8C90D86C"
+      },
+      "runtime_log": {
+        "path": "tests/enums/evidence/debug.log",
+        "sha256": "b3627b8cede70c357e8b77695416aaff7a12fc4c4d12be472a149a06c72a5984"
+      },
+      "build_log": {
+        "path": "tests/enums/evidence/debug-build.log",
+        "sha256": "d1aa250a180518993021918b5dee402d5cb593501266178c11b2d3a1e0393bf1"
+      },
+      "public_header": "Enums.hpp compiled independently",
+      "generated_build_graph_sha256": "ac0bdc563e7a8626c8350959af5ab4c78bd1cf258bb71841dd2978021e73bf90",
+      "generated_cache_sha256": "8fee1c636431127d9cd1d2207b37822a5e845dfe8d95b4779d470307465a8178",
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      }
+    },
+    {
+      "name": "host-release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 260,
+      "build_options": {
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Release",
+        "CMAKE_CXX_COMPILER:FILEPATH": "/usr/bin/c++",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_enums",
+        "sha256": "eb61305681f8d41e795b8c05b140897b9309d75df3751bb62f2a02d5ecca917a",
+        "bytes": 299328,
+        "symbols": "matching unstripped executable",
+        "uuid": "8A33C5A5-956F-3CDA-B979-7D9D5C104AF6"
+      },
+      "runtime_log": {
+        "path": "tests/enums/evidence/release.log",
+        "sha256": "a09de19464493251fbd9f790b59ad988f7383162eb6f4348e12448c67c807950"
+      },
+      "build_log": {
+        "path": "tests/enums/evidence/release-build.log",
+        "sha256": "edd8a6dde3dc3fe39b3b2478bf7757659f6d14f712b4dd28e3299da2c63d4188"
+      },
+      "public_header": "Enums.hpp compiled independently",
+      "generated_build_graph_sha256": "ca99f7b824d3ab1de784d1775b919d00ce5d5330e24c65fdccdd6328229ae724",
+      "generated_cache_sha256": "d5d636d085dd473d680cef85b3efc13fd337effac6309d48bc3a08bdcb466cdf",
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      }
+    },
+    {
+      "name": "android-debug",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 260,
+      "build_options": {
+        "ANDROID_ABI:UNINITIALIZED": "arm64-v8a",
+        "ANDROID_PLATFORM:UNINITIALIZED": "27",
+        "ANDROID_STL:UNINITIALIZED": "c++_static",
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Debug",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-debug/tests/andueprober_enums",
+        "sha256": "4b1dae5a5d006e279a68cb5b20fe6d72993b82974c21585604d5608e647e826c",
+        "bytes": 7711872,
+        "symbols": "matching unstripped executable",
+        "build_id": "2b7c737e57a3bc0fe61e8f10cb48463ae82a9cc3"
+      },
+      "runtime_log": {
+        "path": "tests/enums/evidence/android-debug.log",
+        "sha256": "1d85db197b254a7ff1f20ee6cace3395df7128fea25a76dd962899b98bd2516b"
+      },
+      "build_log": {
+        "path": "tests/enums/evidence/android-debug-build.log",
+        "sha256": "2d696048c71c95c82b7593047f5948597c932fbdd051807fb1e81d6d17a85c6d"
+      },
+      "public_header": "Enums.hpp compiled independently",
+      "generated_build_graph_sha256": "b71db8583f5128f2fd2d5ebc2b103fb75944ad77ac2b50e7ceb70a90d03a50b4",
+      "generated_cache_sha256": "661e36ef48065e0e36a9039c976ce1f62b4dd986e3aab6e003d37ca41ed6a0ea",
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      },
+      "execution": {
+        "command": [
+          "adb",
+          "-s",
+          "3B163600WKV00000",
+          "shell",
+          "/data/local/tmp/andueprober-reflection-20260912/debug/andueprober_enums"
+        ],
+        "exit_code": 0,
+        "seconds": 0.175,
+        "device_sha256": "4b1dae5a5d006e279a68cb5b20fe6d72993b82974c21585604d5608e647e826c"
+      }
+    },
+    {
+      "name": "android-release",
+      "compiled": true,
+      "runtime": "passed",
+      "checks": 260,
+      "build_options": {
+        "ANDROID_ABI:UNINITIALIZED": "arm64-v8a",
+        "ANDROID_PLATFORM:UNINITIALIZED": "27",
+        "ANDROID_STL:UNINITIALIZED": "c++_static",
+        "ANDUEPROBER_BUILD_AGENT:BOOL": "OFF",
+        "ANDUEPROBER_BUILD_INSPECTOR:BOOL": "OFF",
+        "ANDUEPROBER_SANITIZERS:BOOL": "OFF",
+        "CMAKE_BUILD_TYPE:STRING": "Release",
+        "CMAKE_CXX_FLAGS:STRING": ""
+      },
+      "executable": {
+        "path": "/Users/ddd/Developer/AndUEProber/build/export-limits-android-release/tests/andueprober_enums",
+        "sha256": "5d4bbc5b5407b1ea0cd8e5fbd4825c1982f6edfa68ad22a8bec97dbcc4b4a2ec",
+        "bytes": 8180616,
+        "symbols": "matching unstripped executable",
+        "build_id": "29e6c3026b0f36c7eb10c159148031a3687d6742"
+      },
+      "runtime_log": {
+        "path": "tests/enums/evidence/android-release.log",
+        "sha256": "1d85db197b254a7ff1f20ee6cace3395df7128fea25a76dd962899b98bd2516b"
+      },
+      "build_log": {
+        "path": "tests/enums/evidence/android-release-build.log",
+        "sha256": "753c91496a2c6f3d0bf72bd99b3aaeab006e56db6a9fdee43e725fac46ba154d"
+      },
+      "public_header": "Enums.hpp compiled independently",
+      "generated_build_graph_sha256": "65f46e317f4dd27c053b60588308f03cc9420ced2fc46cb9a74ef6b9617a25fc",
+      "generated_cache_sha256": "7381fed128330c74f36dc377eb2bf300ba13df71e3e060534cd0912723f1594c",
+      "generated_build_info": {
+        "sha256": "a1498bcb4e569af87602f81b50bcb5e5e47356f62f3d40081bb6ee11b2cae2b9",
+        "content": "#pragma once\nnamespace andueprober::build {\ninline constexpr const char* revision = \"3304244255c662d5896556c32573de6ad776e751-dirty\";\ninline constexpr const char* dumperRevision = \"5db6c1f8b4f6a7e567f8fbd0c35ddf3c3ded52d0\";\ninline constexpr const char* swapRevision = \"61e022a850ade7aa173e252a32e4c0059d2a5134\";\ninline constexpr const char* kittyRevision = \"aa128114d98cc31fbe0955e9820b91657c6cb87d\";\n}\n"
+      },
+      "execution": {
+        "command": [
+          "adb",
+          "-s",
+          "3B163600WKV00000",
+          "shell",
+          "/data/local/tmp/andueprober-reflection-20260912/release/andueprober_enums"
+        ],
+        "exit_code": 0,
+        "seconds": 0.077,
+        "device_sha256": "5d4bbc5b5407b1ea0cd8e5fbd4825c1982f6edfa68ad22a8bec97dbcc4b4a2ec"
+      }
+    }
+  ],
+  "executed_contracts": [
+    "Actual Phase 1/2 evidence followed by compiled native enum arrays in both header and entry member orders",
+    "Ordered full names, aliases, negative values and INT64_MIN/INT64_MAX use exact independent int64 metadata",
+    "Explicit array/entry shape, disjoint capacity ranges and independently declared occupied UField prefix",
+    "Corruption, name failures, overlapping storage, header bounds, overflow and ambiguous arrays reject",
+    "Final raw entry, name and header mutations, cancellation and generation changes reject before publication",
+    "Strict user overrides and transitive required/output evidence validation; unrelated stale fields do not block",
+    "Separate input/report accounting limits; repeated matching headers exhaust report budget while read budget remains"
+  ],
+  "unavailable": [
+    "Actual UE project observations and automatic independent metadata collection",
+    "Other architectures, Android API levels, page sizes and hardening modes",
+    "Full reflected SDK and engine-call integration are recorded separately and remain incomplete"
+  ]
+}

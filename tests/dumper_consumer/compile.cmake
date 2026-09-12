@@ -1,0 +1,13 @@
+execute_process(COMMAND "${CMAKE_COMMAND}" -S "${SMOKE_SOURCE}" -B "${SMOKE_BUILD}" -G Ninja
+    "-DHEADER_DIR=${HEADER_DIR}" "-DCMAKE_CXX_COMPILER=${CXX}" RESULT_VARIABLE configured)
+if(NOT configured EQUAL 0)
+    message(FATAL_ERROR "Generated typed layout configuration failed")
+endif()
+execute_process(COMMAND "${CMAKE_COMMAND}" --build "${SMOKE_BUILD}" RESULT_VARIABLE built)
+if(NOT built EQUAL 0)
+    message(FATAL_ERROR "Generated typed layout compilation failed")
+endif()
+execute_process(COMMAND "${SMOKE_BUILD}/dumper_smoke" RESULT_VARIABLE ran)
+if(NOT ran EQUAL 0)
+    message(FATAL_ERROR "Generated typed layout executable failed")
+endif()

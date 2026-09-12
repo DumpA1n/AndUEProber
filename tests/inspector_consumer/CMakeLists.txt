@@ -1,0 +1,40 @@
+cmake_minimum_required(VERSION 3.22.1)
+project(AndUEProberInspectorConsumer LANGUAGES CXX)
+
+if(INSPECTOR_IMGUI_SOURCE_DIR)
+    add_library(caller_imgui STATIC
+        ${INSPECTOR_IMGUI_SOURCE_DIR}/imgui.cpp
+        ${INSPECTOR_IMGUI_SOURCE_DIR}/imgui_draw.cpp
+        ${INSPECTOR_IMGUI_SOURCE_DIR}/imgui_tables.cpp
+        ${INSPECTOR_IMGUI_SOURCE_DIR}/imgui_widgets.cpp)
+    target_compile_features(caller_imgui PUBLIC cxx_std_20)
+    target_compile_definitions(caller_imgui PUBLIC IMGUI_DEFINE_MATH_OPERATORS)
+    target_include_directories(caller_imgui PUBLIC ${INSPECTOR_IMGUI_SOURCE_DIR})
+    if(INSPECTOR_TEST_WRONG_VERSION)
+        file(READ ${INSPECTOR_IMGUI_SOURCE_DIR}/imgui.h incompatible_header)
+        string(REPLACE "\"1.92.2b\"" "\"1.92.1\"" incompatible_header "${incompatible_header}")
+        file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/incompatible/imgui.h "${incompatible_header}")
+        target_include_directories(caller_imgui BEFORE PUBLIC ${CMAKE_CURRENT_BINARY_DIR}/incompatible)
+    endif()
+    set(ANDUEPROBER_IMGUI_TARGET caller_imgui)
+endif()
+
+if(ANDUEPROBER_SOURCE)
+    set(ANDUEPROBER_BUILD_AGENT OFF)
+    set(ANDUEPROBER_BUILD_TESTS OFF)
+    set(ANDUEPROBER_BUILD_INSPECTOR ON)
+    add_subdirectory(${ANDUEPROBER_SOURCE} andueprober)
+else()
+    find_package(AndUEProber 0.2 CONFIG REQUIRED COMPONENTS Inspector)
+endif()
+if(INSPECTOR_IMGUI_SOURCE_DIR AND TARGET AndUEProberImGuiDependency)
+    message(FATAL_ERROR "A caller ImGui target must suppress the default ImGui instance")
+endif()
+
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/header.cpp "#include <andueprober/Inspector.hpp>\n")
+add_library(inspector_header OBJECT ${CMAKE_CURRENT_BINARY_DIR}/header.cpp)
+target_link_libraries(inspector_header PRIVATE AndUEProber::Core)
+add_executable(inspector_consumer main.cpp)
+target_link_libraries(inspector_consumer PRIVATE AndUEProber::Inspector AndUEProberImGui::Binding)
+enable_testing()
+add_test(NAME andueprober.inspector_consumer COMMAND inspector_consumer)

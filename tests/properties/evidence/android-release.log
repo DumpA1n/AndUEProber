@@ -1,0 +1,3 @@
+
+COMMAND ["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-tail-closure-20260912/android-release/andueprober_properties"]
+PASS: 673 FProperty scalar checks; independent containing-value bounds, four typed fields, validated FField dependencies and immutable publication; containers and enum metadata not exercised

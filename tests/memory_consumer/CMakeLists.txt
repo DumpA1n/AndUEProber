@@ -1,0 +1,5 @@
+cmake_minimum_required(VERSION 3.22)
+project(AndUEProberMemoryConsumer LANGUAGES CXX)
+find_package(AndUEProber 0.2 CONFIG REQUIRED COMPONENTS Core Probe ProcessMemory)
+add_executable(memory_consumer ../process_memory.cpp)
+target_link_libraries(memory_consumer PRIVATE AndUEProber::ProcessMemory AndUEProber::Probe)

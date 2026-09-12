@@ -1,0 +1,137 @@
+UpdateCTestConfiguration  from :/Users/ddd/Developer/AndUEProber/build/export-limits-release/DartConfiguration.tcl
+Test project /Users/ddd/Developer/AndUEProber/build/export-limits-release
+Constructing a list of tests
+Done constructing a list of tests
+Updating test list for fixtures
+Added 0 tests to meet fixture requirements
+Checking test dependency graph...
+Checking test dependency graph end
+test 1
+    Start  1: andueprober.contracts
+
+1: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_contracts
+1: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+1: Test timeout computed to be: 10000000
+1/9 Test  #1: andueprober.contracts ...............   Passed    1.09 sec
+test 2
+    Start  2: andueprober.export_limits
+
+2: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_export_limits
+2: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+2: Test timeout computed to be: 10000000
+2: PASS: 231 export checks; bounded files/metadata/manifest, deadline, cancellation, operation and close failures, completion retraction
+2/9 Test  #2: andueprober.export_limits ...........   Passed    5.43 sec
+test 3
+    Start  3: andueprober.export_interruption
+
+3: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_export_interruption
+3: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+3: Test timeout computed to be: 10000000
+3: PASS: 90 interruption checks across 4 process-exit boundaries; marker presence does not establish durability
+3/9 Test  #3: andueprober.export_interruption .....   Passed    0.39 sec
+test 4
+    Start  4: andueprober.reflection
+
+4: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_reflection
+4: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+4: Test timeout computed to be: 10000000
+4: PASS: 94 reflection checks; actual function observations, immutable data-layout subset, declared size provenance and bounded typed schemas
+4/9 Test  #4: andueprober.reflection ..............   Passed    0.37 sec
+test 8
+    Start  8: andueprober.generated_sdk_compile
+
+8: Test command: /opt/homebrew/bin/cmake "-DGENERATOR=/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_sdk_generator" "-DOUTPUT_ROOT=/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk" "-DSMOKE_SOURCE=/Users/ddd/Developer/AndUEProber/tests/../misc/sdk_smoke" "-P" "/Users/ddd/Developer/AndUEProber/tests/compile_sdk.cmake"
+8: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+8: Test timeout computed to be: 10000000
+8: -- The CXX compiler identification is AppleClang 17.0.0.17000013
+8: -- Detecting CXX compiler ABI info
+8: -- Detecting CXX compiler ABI info - done
+8: -- Check for working CXX compiler: /usr/bin/c++ - skipped
+8: -- Detecting CXX compile features
+8: -- Detecting CXX compile features - done
+8: -- sdk_smoke: compiling 2 dumped .cpp files from /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/flat/SDK_A
+8: -- Configuring done (0.6s)
+8: -- Generating done (0.0s)
+8: -- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/build-flat
+8: [ 25%] Building CXX object CMakeFiles/sdk_smoke_objs.dir/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/flat/SDK_A/Basic.cpp.o
+8: [ 50%] Building CXX object CMakeFiles/sdk_smoke_objs.dir/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/flat/SDK_A/OwnedSmoke.cpp.o
+8: [ 75%] Building CXX object CMakeFiles/sdk_smoke_objs.dir/Demo.cpp.o
+8: [ 75%] Built target sdk_smoke_objs
+8: [100%] Linking CXX executable sdk_smoke_exec
+8: [100%] Built target sdk_smoke_exec
+8: -- The CXX compiler identification is AppleClang 17.0.0.17000013
+8: -- Detecting CXX compiler ABI info
+8: -- Detecting CXX compiler ABI info - done
+8: -- Check for working CXX compiler: /usr/bin/c++ - skipped
+8: -- Detecting CXX compile features
+8: -- Detecting CXX compile features - done
+8: -- sdk_smoke: compiling 2 dumped .cpp files from /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/chunked/SDK_A
+8: -- Configuring done (0.4s)
+8: -- Generating done (0.0s)
+8: -- Build files have been written to: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/build-chunked
+8: [ 25%] Building CXX object CMakeFiles/sdk_smoke_objs.dir/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/chunked/SDK_A/Basic.cpp.o
+8: [ 50%] Building CXX object CMakeFiles/sdk_smoke_objs.dir/Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/generated-sdk/chunked/SDK_A/OwnedSmoke.cpp.o
+8: [ 75%] Building CXX object CMakeFiles/sdk_smoke_objs.dir/Demo.cpp.o
+8: [ 75%] Built target sdk_smoke_objs
+8: [100%] Linking CXX executable sdk_smoke_exec
+8: [100%] Built target sdk_smoke_exec
+5/9 Test  #8: andueprober.generated_sdk_compile ...   Passed    6.36 sec
+test 10
+    Start 10: andueprober.allocation_failure
+
+10: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_allocation_failure
+10: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+10: Test timeout computed to be: 10000000
+10: PASS: worker allocation failures and 21 successive reflection allocation failures publish Internal without a partial snapshot
+6/9 Test #10: andueprober.allocation_failure ......   Passed    0.37 sec
+test 14
+    Start 14: andueprober.names
+
+14: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_names
+14: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+14: Test timeout computed to be: 10000000
+14: PASS: bounded names, Unicode, FName layouts, declared anchors, sessions and override invalidation; no engine calls
+7/9 Test #14: andueprober.names ...................   Passed    0.36 sec
+test 22
+    Start 22: andueprober.object_flags
+
+22: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_object_flags
+22: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+22: Test timeout computed to be: 10000000
+22: PASS: 191 object flag checks; explicit uint32 metadata, actual Phase 1 evidence, unique bounded reads, prefix exclusion and strict overrides
+8/9 Test #22: andueprober.object_flags ............   Passed    0.66 sec
+test 23
+    Start 23: andueprober.enums
+
+23: Test command: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests/andueprober_enums
+23: Working Directory: /Users/ddd/Developer/AndUEProber/build/export-limits-release/tests
+23: Test timeout computed to be: 10000000
+23: PASS: 260 enum checks; explicit array/FName/int64 metadata, actual Phase 1/2 evidence, aliases and signed boundaries
+9/9 Test #23: andueprober.enums ...................   Passed    0.55 sec
+
+The following tests passed:
+	andueprober.contracts
+	andueprober.export_limits
+	andueprober.export_interruption
+	andueprober.reflection
+	andueprober.generated_sdk_compile
+	andueprober.allocation_failure
+	andueprober.names
+	andueprober.object_flags
+	andueprober.enums
+
+100% tests passed out of 9
+
+Label Time Summary:
+C04                       =   1.21 sec*proc (2 tests)
+E05                       =   9.75 sec*proc (7 tests)
+E06                       =   7.28 sec*proc (4 tests)
+R09                       =   3.03 sec*proc (5 tests)
+R10                       =   1.44 sec*proc (2 tests)
+R11                       =   0.36 sec*proc (1 test)
+R12                       =  13.64 sec*proc (5 tests)
+R13                       =   3.39 sec*proc (6 tests)
+R18                       =   1.57 sec*proc (3 tests)
+generated-array-subset    =   6.36 sec*proc (1 test)
+
+Total Test time (real) =  15.58 sec

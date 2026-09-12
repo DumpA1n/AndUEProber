@@ -1,4 +1,5 @@
 build/
+artifacts/
 logs/
 dumps/
 .cache/

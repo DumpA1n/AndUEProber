@@ -1,0 +1,2 @@
+["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-evidence-20260912T145933Z/android-release-functions"]
+PASS: 865 complete Phase 4 function checks; independent typed metadata, bounded reads, disjoint fields, Phase 1/2 dependencies and immutable sessions; native functions never called

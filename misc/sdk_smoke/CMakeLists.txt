@@ -4,31 +4,18 @@ project(sdk_smoke LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Where the dumped SDK lives. Default matches misc/UEDump3r/<game>/SDK_A.
-# Override on the command line:
-#   cmake -S misc/sdk_smoke -B build-smoke -DSDK_A_DIR=/some/other/SDK_A
-set(SDK_A_DIR
-    "${CMAKE_CURRENT_SOURCE_DIR}/../UEDump3r/com.tencent.tmgp.dfm/SDK_A"
-    CACHE PATH "Path to the dumped SDK_A directory")
-
+set(SDK_A_DIR "" CACHE PATH "Path to generated SDK_A from an owned, versioned fixture")
 if(NOT EXISTS "${SDK_A_DIR}/SDK.hpp")
-    message(WARNING
-        "sdk_smoke: SDK.hpp not found at ${SDK_A_DIR} — re-dump the target game "
-        "or pass -DSDK_A_DIR=... pointing at a populated SDK_A. Skipping target.")
-    return()
+    message(FATAL_ERROR "SDK smoke requires an explicit SDK_A_DIR containing SDK.hpp; no generated SDK was compiled")
 endif()
 
-# Recursively pick up every .cpp the dumper emitted: Basic.cpp,
-# CoreUObject_functions.cpp, Packages/*_functions.cpp. Demo.cpp is the smoke
-# entry point — it currently only #include's SDK.hpp via __has_include and
-# defines no main(), so we build everything as an OBJECT library to validate
-# compilation without requiring a linker that resolves UE prober runtime
-# externs (FName::s_NameResolver, UObject::GObjects, ProcessEvent body, ...).
-#
-# When you pass `-j N` to the build, keep N small (4–8) — each TU pulls a
-# package header that can run several thousand lines, and a high-parallel
-# build over a few hundred TUs eats RAM linearly with N.
+# Every generated translation unit is compiled. General SDKs remain object-only
+# because their engine symbols require a separately verified runtime contract.
 file(GLOB_RECURSE SDK_SRCS CONFIGURE_DEPENDS "${SDK_A_DIR}/*.cpp")
+
+if(NOT SDK_SRCS)
+    message(FATAL_ERROR "SDK smoke requires generated source files")
+endif()
 
 add_library(sdk_smoke_objs OBJECT
     ${SDK_SRCS}
@@ -37,8 +24,7 @@ add_library(sdk_smoke_objs OBJECT
 
 target_include_directories(sdk_smoke_objs PRIVATE "${SDK_A_DIR}")
 
-# UE-shaped types break a few clang style warnings that aren't real bugs.
-# Suppress them so a clean compile stays a useful signal.
+# Generated UE headers use non-standard-layout offsetof and engine literal conventions.
 target_compile_options(sdk_smoke_objs PRIVATE
     -Wno-invalid-offsetof    # offsetof() on non-standard-layout (UE classes)
     -Wno-class-conversion    # FAllocatedString -> FString conversion ops
@@ -48,6 +34,11 @@ target_compile_options(sdk_smoke_objs PRIVATE
     -Wno-invalid-source-encoding
 )
 
-# Report the source count so the user can sanity-check the dump is whole.
+# The source count records the actual generated compilation scope.
 list(LENGTH SDK_SRCS SDK_SRCS_COUNT)
 message(STATUS "sdk_smoke: compiling ${SDK_SRCS_COUNT} dumped .cpp files from ${SDK_A_DIR}")
+
+option(SDK_SMOKE_RUN "Link an owned fixture containing its own main function" OFF)
+if(SDK_SMOKE_RUN)
+    add_executable(sdk_smoke_exec $<TARGET_OBJECTS:sdk_smoke_objs>)
+endif()

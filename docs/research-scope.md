@@ -8,12 +8,13 @@ Source anchors: [Library.cpp](../source/Library.cpp), [UEProber.cpp](../source/U
 
 | Capability | Implementation or entry | Side effects and limits |
 |---|---|---|
-| Reflection probing | Phase1–Phase6 methods | Reads native objects, interprets layouts and invokes profile name-resolution code; results are heuristic |
-| Engine invocation | ProcessEvent paths | Calls host functions; game-thread and executable-range validation are incomplete |
-| SDK export | DumperBridge and pinned AndUEDumper | Reads object/name metadata and writes files; deletes the existing package export directory first |
-| Automatic tasks | Library.cpp worker | Automatic dump after eight seconds; package-prefix BSS mprotect loop every ten milliseconds |
-| Graphics/input | Pinned AndSwapChainHook | Hooks host presentation and input; does not inherit changes from the adjacent checkout |
-| Startup | JNI_OnLoad key 1337 | Starts a detached worker; scan failure can deliberately crash; key is not authentication |
+| Reflection probing | Core/Probe configured foundation, flags, structure, class, function, field/property/opaque-subclass-pointer/declared-Bool/inline-FieldPath and enum observations | Reads and deep dependency closures are bounded; automatic metadata collection, custom names and complete container/subclass schemas remain unavailable |
+| Engine invocation | Executor, signature and allocator admission | No enabled engine invocation or trial calls without the required verified contracts |
+| SDK export | Core transactional exporter and public DumperAdapter | Frozen declared data-layout headers and observations preserve prior outputs; complete UE property/container collection and full reflected SDK export remain unavailable |
+| Agent operations | AUEP_Initialize/Start/StartIndexProbe/StartObjectFlagProbe/StartStructProbe/StartClassProbe/StartFunctionProbe/StartFieldBaseProbe/StartPropertyProbe/StartPropertyTailProbe/StartBoolPropertyProbe/StartFieldPathPropertyProbe/StartEnumProbe/StartFunctionLayoutProbe/StartInteractive/Submit/Cancel/Stop/Query | Explicit exact-package selection and a single joinable execution owner; standard paths do not enter the upstream live dumper |
+| Inspector UI | AUEP_DrawInspector, restricted command view and snapshot-only configured view | Caller-owned compatible ImGui context/frame/thread; no process reads on the drawing thread |
+| Graphics/input providers | Excluded from standard agent | Caller owns renderer and input; no automatic hook or provider installation |
+| Loading | JNI_OnLoad | Returns JNI version; reserved injector keys do not start operations |
 
 “Source present” means code is in the checkout. “Built” means a specific target compiled and linked. “Executed” requires a recorded runtime test with a target identity. These states are not interchangeable.
 
@@ -25,7 +26,7 @@ Maintained research examples should use owned fixtures. Unauthorized access, cre
 
 ## Current gaps
 
-[README](../README.md) lists unresolved correctness and lifecycle defects. Runtime target restrictions, inert loading, safe shutdown, complete export controls and a versioned owned-app demonstration are development goals where absent, not current guarantees. The repository has no claimed CVP/TAC approval or software security certificate.
+[README](../README.md) lists unresolved correctness and lifecycle defects. Exact-package selection, inert JNI loading, owned session shutdown and transactional export controls are implemented. Full Android lifecycle verification, complete UE result provenance and a versioned owned UE application demonstration remain incomplete. The repository has no claimed CVP/TAC approval or software security certificate.
 
 ## Profile identifiers
 
@@ -41,6 +42,6 @@ The following identifiers are present in first-party profiles. The table records
 | PUBG.hpp | `com.tencent.ig`, `com.rekoo.pubgm`, `com.pubg.imobile`, `com.pubg.krmobile`, `com.vng.pubgmobile` |
 | PUBGMHD.hpp | `com.tencent.tmgp.pubgmhd` |
 
-The profiles contain target-specific object/name access and ProcessEvent metadata. The identifiers are not an endorsed target list. ProcessEvent resolution for PUBGMHD remains incomplete; versioned test evidence is not supplied for the profile capability claims.
+The profiles contain target-specific data layouts and declared identifiers. First-party discovery uses the bounded provider; custom names and ProcessEvent discovery are unsupported. The identifiers are not an endorsed target list. ProcessEvent resolution for PUBGMHD remains incomplete; versioned test evidence is not supplied for the profile capability claims.
 
 `DumperBridge::GetExProfiles` constructs 33 profiles: the seven first-party definitions above plus 26 from the pinned AndUEDumper snapshot. Upstream profile classes are `PESProfile`, `DislyteProfile`, `MortalKombatProfile`, `FarlightProfile`, `TorchlightProfile`, `BlackCloverProfile`, `WutheringWavesProfile`, `RealBoxing2Profile`, `OdinValhallaProfile`, `Injustice2Profile`, `RooftopParkourProfile`, `BabyYellowProfile`, `TowerFantasyProfile`, `BladeSoulProfile`, `Lineage2Profile`, `Case2Profile`, `CenturyProfile`, `KingArthurProfile`, `NightCrowsProfile`, `HelloNeighborProfile`, `HelloNeighborNDProfile`, `SFG2Profile`, `ArkUltimateProfile`, `AuroriaProfile`, `LineageWProfile`, `RLSideswipeProfile`. Their AppID lists are defined by the pinned dependency, not by this README. No target authorization or runtime compatibility is asserted for those profiles.

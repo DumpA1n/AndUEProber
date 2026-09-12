@@ -1,0 +1,48 @@
+
+COMMAND ["cmake", "-S", "/Users/ddd/Developer/AndUEProber", "-B", "/tmp/andueprober-tail-closure-host-sanitizers", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DANDUEPROBER_BUILD_AGENT=OFF", "-DANDUEPROBER_BUILD_INSPECTOR=OFF", "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF", "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF", "-DANDUEPROBER_WITH_PROCESS_MEMORY=OFF", "-DANDUEPROBER_BUILD_TESTS=ON", "-DANDUEPROBER_SANITIZERS=ON"]
+-- The C compiler identification is AppleClang 17.0.0.17000013
+-- The CXX compiler identification is AppleClang 17.0.0.17000013
+-- Detecting C compiler ABI info
+-- Detecting C compiler ABI info - done
+-- Check for working C compiler: /usr/bin/cc - skipped
+-- Detecting C compile features
+-- Detecting C compile features - done
+-- Detecting CXX compiler ABI info
+-- Detecting CXX compiler ABI info - done
+-- Check for working CXX compiler: /usr/bin/c++ - skipped
+-- Detecting CXX compile features
+-- Detecting CXX compile features - done
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD
+-- Performing Test CMAKE_HAVE_LIBC_PTHREAD - Success
+-- Found Threads: TRUE
+-- Configuring done (1.0s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/andueprober-tail-closure-host-sanitizers
+
+COMMAND ["cmake", "--build", "/tmp/andueprober-tail-closure-host-sanitizers", "--target", "andueprober_property_tails", "andueprober_properties", "header_PropertyTails_hpp", "header_Properties_hpp", "--parallel", "3"]
+[1/26] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Export.cpp.o
+[2/26] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Commands.cpp.o
+[3/26] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Core.cpp.o
+[4/26] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Engine.cpp.o
+[5/26] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Evidence.cpp.o
+[6/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Probe.cpp.o
+[7/26] Building CXX object CMakeFiles/AndUEProberCore.dir/source/Core/Reflection.cpp.o
+[8/26] Linking CXX static library libAndUEProberCore.a
+[9/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Names.cpp.o
+[10/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Discovery.cpp.o
+[11/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Relations.cpp.o
+[12/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Structs.cpp.o
+[13/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Classes.cpp.o
+[14/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Functions.cpp.o
+[15/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Fields.cpp.o
+[16/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Properties.cpp.o
+[17/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/ObjectFlags.cpp.o
+[18/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/Enums.cpp.o
+[19/26] Building CXX object CMakeFiles/AndUEProberProbe.dir/source/Probe/PropertyTails.cpp.o
+[20/26] Linking CXX static library libAndUEProberProbe.a
+[21/26] Building CXX object tests/CMakeFiles/header_Properties_hpp.dir/header_Properties_hpp.cpp.o
+[22/26] Building CXX object tests/CMakeFiles/andueprober_properties.dir/properties.cpp.o
+[23/26] Linking CXX executable tests/andueprober_properties
+[24/26] Building CXX object tests/CMakeFiles/header_PropertyTails_hpp.dir/header_PropertyTails_hpp.cpp.o
+[25/26] Building CXX object tests/CMakeFiles/andueprober_property_tails.dir/property_tails.cpp.o
+[26/26] Linking CXX executable tests/andueprober_property_tails

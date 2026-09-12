@@ -1,0 +1,9 @@
+
+COMMAND ["cmake", "-S", "/Users/ddd/Developer/AndUEProber", "-B", "/tmp/andueprober-property-closure-host-sanitizers", "-G", "Ninja", "-DCMAKE_BUILD_TYPE=Debug", "-DANDUEPROBER_BUILD_AGENT=OFF", "-DANDUEPROBER_BUILD_INSPECTOR=OFF", "-DANDUEPROBER_BUILD_DUMPER_ADAPTER=OFF", "-DANDUEPROBER_BUILD_DUMPER_EMITTER=OFF", "-DANDUEPROBER_WITH_PROCESS_MEMORY=OFF", "-DANDUEPROBER_BUILD_TESTS=ON", "-DANDUEPROBER_SANITIZERS=ON"]
+-- Configuring done (0.1s)
+-- Generating done (0.0s)
+-- Build files have been written to: /tmp/andueprober-property-closure-host-sanitizers
+
+COMMAND ["cmake", "--build", "/tmp/andueprober-property-closure-host-sanitizers", "--target", "andueprober_fields", "andueprober_properties", "header_Fields_hpp", "header_Properties_hpp", "--parallel", "3"]
+[1/2] Building CXX object tests/CMakeFiles/header_Fields_hpp.dir/header_Fields_hpp.cpp.o
+[2/2] Building CXX object tests/CMakeFiles/header_Properties_hpp.dir/header_Properties_hpp.cpp.o

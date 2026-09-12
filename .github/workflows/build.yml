@@ -1,37 +1,84 @@
 name: Build
-
 on:
   push:
-    branches: [ main, master ]
+    branches: [main, master]
   pull_request:
-    branches: [ main, master ]
-
+    branches: [main, master]
+permissions:
+  contents: read
 jobs:
-  build:
-    runs-on: ubuntu-latest
-
+  host:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        preset: [host-debug, host-release, host-sanitizers]
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          submodules: recursive
-
-      - name: Setup Android NDK
-        uses: nttld/setup-ndk@v1
-        id: setup-ndk
-        with:
-          ndk-version: r27c
-
-      - name: Configure CMake
-        env:
-          NDK_HOME: ${{ steps.setup-ndk.outputs.ndk-path }}
-        run: cmake -B build -DCMAKE_BUILD_TYPE=Release
-
+          submodules: false
+          persist-credentials: false
+      - name: Retrieve pinned SDK generator
+        run: git -c credential.helper= submodule update --init external/AndUEDumper
+      - name: Configure
+        run: cmake --preset ${{ matrix.preset }}
       - name: Build
-        run: cmake --build build -j$(nproc)
-
-      - name: Upload artifact
-        uses: actions/upload-artifact@v4
+        run: cmake --build --preset ${{ matrix.preset }} --parallel 4
+      - name: Test production contracts and generated SDK subset
+        run: ctest --preset ${{ matrix.preset }}
+      - name: Install and consume
+        if: matrix.preset == 'host-release'
+        run: |
+          cmake --install build/host-release --prefix "${RUNNER_TEMP}/andueprober"
+          cmake -S tests/consumer -B build/installed-consumer -DCMAKE_PREFIX_PATH="${RUNNER_TEMP}/andueprober"
+          cmake --build build/installed-consumer
+          build/installed-consumer/consumer
+          cmake -S tests/consumer -B build/source-consumer -DANDUEPROBER_SOURCE="${GITHUB_WORKSPACE}"
+          cmake --build build/source-consumer
+          build/source-consumer/consumer
+  host-dumper:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
         with:
-          name: libAndUEProber
-          path: build/libAndUEProber.so
+          submodules: false
+          persist-credentials: false
+      - name: Retrieve pinned emitter sources
+        run: git -c credential.helper= submodule update --init external/AndUEDumper
+      - name: Validate source and relocated installed DumperAdapter consumers
+        run: python3 tests/verify_dumper.py
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        if: always()
+        with:
+          name: AndUEProber-host-dumper-evidence
+          path: |
+            artifacts/dumper-validation/
+            tests/dumper_emitter/verification.json
+  android:
+    runs-on: ubuntu-24.04
+    strategy:
+      matrix:
+        preset: [android-debug, android-release]
+    steps:
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262
+        with:
+          submodules: false
+          persist-credentials: false
+      - name: Retrieve pinned public dependencies
+        run: |
+          git -c credential.helper= submodule update --init
+          git -C external/AndSwapChainHook -c credential.helper= submodule update --init external/KittyMemory external/KittyMemoryEx
+      - name: Install NDK r29
+        run: sdkmanager 'ndk;29.0.14206865'
+      - name: Configure
+        run: |
+          export NDK_HOME="${ANDROID_HOME}/ndk/29.0.14206865"
+          cmake --preset ${{ matrix.preset }}
+      - name: Compile agent and owned native fixtures
+        run: cmake --build --preset ${{ matrix.preset }} --parallel 4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02
+        with:
+          name: AndUEProber-${{ matrix.preset }}-with-symbols
+          path: |
+            build/${{ matrix.preset }}/libAndUEProber.so
+            build/${{ matrix.preset }}/tests/andueprober_contracts
+            build/${{ matrix.preset }}/tests/andueprober_android_load

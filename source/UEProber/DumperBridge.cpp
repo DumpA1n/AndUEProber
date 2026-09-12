@@ -1,18 +1,18 @@
-// DumperBridge.cpp is compiled into AndUEProber with the pinned Dumper and memory headers.
-// Provides game detection + dump entry point for UEProber.
-
 #include "DumperBridge.h"
+#include "BuildInfo.hpp"
+#if ANDUEPROBER_HAS_PROCESS_MEMORY
+#include "andueprober/ProcessMemory.hpp"
+#endif
 
 #include <chrono>
 #include <string>
-#include <thread>
-#include <unordered_map>
+#include <mutex>
+#include <limits>
+#include "andueprober/Discovery.hpp"
+#include <array>
 #include <unistd.h>
 
-#include "Dumper.hpp"
-#include "UE/UEMemory.hpp"
 #include "UE/UEOffsets.hpp"
-#include "UE/UEWrappers.hpp"
 
 #include "GameProfiles/IGameProfileEx.hpp"
 
@@ -53,81 +53,96 @@
 
 #include "Utils/Logger.hpp"
 
-using namespace UEMemory;
-
 // ============================================================
-//  Bridge: expose kMgr.readMem without leaking KittyMemoryEx headers
+//  Bridge: bounded public memory reads without dependency types in the inspector
 // ============================================================
 
-ssize_t KMgrReadMem(uintptr_t address, void* buffer, size_t size)
-{
-    return kMgr.readMem(address, buffer, size);
+namespace {
+std::recursive_mutex g_AdapterMutex;
+thread_local const std::atomic<bool>* g_Cancelled = nullptr;
+thread_local andueprober::ReadBudget g_ReadBudget;
+thread_local andueprober::ModuleImage g_ModuleImage;
+thread_local andueprober::DiscoveryValue g_ObjectDiscovery;
+thread_local std::uintptr_t g_ObjectArrayAddress = 0;
+thread_local andueprober::ObjectArrayProfile g_ObjectArrayProfile;
+#if ANDUEPROBER_HAS_PROCESS_MEMORY
+thread_local std::unique_ptr<andueprober::ProcessMemory> g_Reader;
+#endif
 }
-
-size_t KMgrWriteMem(uintptr_t address, void* buffer, size_t size)
-{
-    return kMgr.writeMem(address, buffer, size);
+void ConfigureProbeOperation(const std::atomic<bool>* cancelled) {
+    g_Cancelled = cancelled;
+    g_ReadBudget = {};
+    g_ReadBudget.remainingBytes = 64 * 1024 * 1024;
+    g_ReadBudget.deadline = std::chrono::steady_clock::now() + std::chrono::seconds(30);
+    g_ReadBudget.cancelled = cancelled;
+#if ANDUEPROBER_HAS_PROCESS_MEMORY
+    if (g_Reader) g_ReadBudget.generation = g_Reader->generation();
+#endif
 }
-
-bool KMgrRead(uintptr_t address, void* buffer, size_t size)
-{
-    return kMgr.readMem(address, buffer, size) == (ssize_t)size;
+bool ProbeCancelled() {
+    return (g_Cancelled && g_Cancelled->load()) || std::chrono::steady_clock::now() >= g_ReadBudget.deadline;
 }
-
-bool KMgrIsValidPtr(uintptr_t address)
-{
-    if (!address || address < 0x10000000)
-        return false;
-    // Accept zero high bits or the configured Android tagged-pointer prefix.
-    uintptr_t highBits = address & ~(uintptr_t)0x7fffffffff;
-    return highBits == 0 || highBits == (uintptr_t)0xB400000000000000;
+void CaptureProbeIdentity(andueprober::Snapshot& snapshot) {
+#if ANDUEPROBER_HAS_PROCESS_MEMORY
+    if (g_Reader) {
+        snapshot.moduleIdentity = g_Reader->identity();
+        snapshot.generation = g_Reader->generation();
+        snapshot.layoutIdentity = andueprober::objectArrayLayoutIdentity(g_ObjectArrayProfile);
+        if (g_ObjectDiscovery.address) {
+            andueprober::Offset candidate;
+            candidate.value = static_cast<uint32_t>(*g_ObjectDiscovery.address - g_ModuleImage.loadBias);
+            candidate.validation = andueprober::Validation::Candidate;
+            candidate.origin = andueprober::Origin::Profile;
+            candidate.evidence.push_back(g_ObjectDiscovery.evidence);
+            andueprober::publishOffset(snapshot, "Module::GUObjectArray", std::move(candidate));
+        }
+    }
+#endif
 }
-
 // ============================================================
 //  Global state: matched profile for the running game
 // ============================================================
 
-static IGameProfileEx* g_ExProfile = nullptr;
-static bool g_KMgrInitialized = false;
 
-static std::vector<IGameProfileEx*>& GetExProfiles()
+static const std::vector<std::unique_ptr<IGameProfileEx>>& GetExProfiles()
 {
-    static std::vector<IGameProfileEx*> profiles = {
-        new GameProfileEx<PESProfile>(),
-        new GameProfileEx<DislyteProfile>(),
-        new GameProfileEx<MortalKombatProfile>(),
-        new GameProfileEx<FarlightProfile>(),
-        new GameProfileEx<TorchlightProfile>(),
-        new GameProfileEx<ArenaBreakoutProfile>(),
-        new GameProfileEx<BlackCloverProfile>(),
-        new GameProfileEx<WutheringWavesProfile>(),
-        new GameProfileEx<RealBoxing2Profile>(),
-        new GameProfileEx<OdinValhallaProfile>(),
-        new GameProfileEx<Injustice2Profile>(),
-        new GameProfileEx<RooftopParkourProfile>(),
-        new GameProfileEx<BabyYellowProfile>(),
-        new GameProfileEx<TowerFantasyProfile>(),
-        new GameProfileEx<BladeSoulProfile>(),
-        new GameProfileEx<Lineage2Profile>(),
-        new GameProfileEx<Case2Profile>(),
-        new GameProfileEx<CenturyProfile>(),
-        new GameProfileEx<KingArthurProfile>(),
-        new GameProfileEx<NightCrowsProfile>(),
-        new GameProfileEx<HelloNeighborProfile>(),
-        new GameProfileEx<HelloNeighborNDProfile>(),
-        new GameProfileEx<SFG2Profile>(),
-        new GameProfileEx<ArkUltimateProfile>(),
-        new GameProfileEx<AuroriaProfile>(),
-        new GameProfileEx<LineageWProfile>(),
-        new GameProfileEx<RLSideswipeProfile>(),
-        // Ex
-        new GameProfileEx<PUBGProfile>(),
-        new GameProfileEx<PUBGMHDProfile>(),
-        new GameProfileEx<DeltaForceProfile>(),
-        new GameProfileEx<NiZhanProfile>(),
-        new GameProfileEx<RocoKingdomProfile>(),
-        new GameProfileEx<ValorantProfile>(),
-    };
+    static const auto profiles = [] {
+        std::vector<std::unique_ptr<IGameProfileEx>> values;
+        values.push_back(std::make_unique<GameProfileEx<PESProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<DislyteProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<MortalKombatProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<FarlightProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<TorchlightProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<ArenaBreakoutProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<BlackCloverProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<WutheringWavesProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<RealBoxing2Profile>>());
+        values.push_back(std::make_unique<GameProfileEx<OdinValhallaProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<Injustice2Profile>>());
+        values.push_back(std::make_unique<GameProfileEx<RooftopParkourProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<BabyYellowProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<TowerFantasyProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<BladeSoulProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<Lineage2Profile>>());
+        values.push_back(std::make_unique<GameProfileEx<Case2Profile>>());
+        values.push_back(std::make_unique<GameProfileEx<CenturyProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<KingArthurProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<NightCrowsProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<HelloNeighborProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<HelloNeighborNDProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<SFG2Profile>>());
+        values.push_back(std::make_unique<GameProfileEx<ArkUltimateProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<AuroriaProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<LineageWProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<RLSideswipeProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<PUBGProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<PUBGMHDProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<DeltaForceProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<NiZhanProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<RocoKingdomProfile>>());
+        values.push_back(std::make_unique<GameProfileEx<ValorantProfile>>());
+        return values;
+    }();
     return profiles;
 }
 
@@ -135,80 +150,65 @@ static std::vector<IGameProfileEx*>& GetExProfiles()
 //  Phase 1: Detect game and prepare
 // ============================================================
 
-bool DetectAndPrepareGame(GameDetectionResult& result)
+andueprober::Status DetectAndPrepareGame(GameDetectionResult& result)
 {
+    using namespace andueprober;
+    std::lock_guard lock(g_AdapterMutex);
     result = {};
-
-    std::string sGamePackage = getprogname();
-    pid_t gamePID = getpid();
-
-    LOGI("DetectAndPrepareGame: package=%s pid=%d", sGamePackage.c_str(), gamePID);
-
-    // Initialize KittyMemoryEx for self-process reading
-    if (!g_KMgrInitialized) {
-        if (!kMgr.initialize(gamePID, EK_MEM_OP_SYSCALL, false) &&
-            !kMgr.initialize(gamePID, EK_MEM_OP_IO, false)) {
-            LOGE("Failed to initialize KittyMemoryMgr.");
-            return false;
-        }
-        g_KMgrInitialized = true;
-
-        // Enable the pointer-validator region cache to avoid reparsing /proc/<pid>/maps
-        // for each readability check on the FName lookup path.
-        kPtrValidator.setPID(kMgr.processID());
-        kPtrValidator.setUseCache(true);
-        kPtrValidator.refreshRegionCache();
-        if (kPtrValidator.cachedRegions().empty()) {
-            LOGE("kPtrValidator: refreshRegionCache 失败，cachedRegions 为空。");
-        } else {
-            LOGI("kPtrValidator: 缓存了 %zu 个 region。", kPtrValidator.cachedRegions().size());
+    g_ObjectArrayAddress = 0;
+    g_ObjectDiscovery = {};
+    g_ModuleImage = {};
+#if !ANDUEPROBER_HAS_PROCESS_MEMORY
+    return {Error::Unsupported, "Analysis requires the explicit AndSwapChainHook::Memory dependency"};
+#else
+    g_Reader.reset();
+    const std::string package = getprogname();
+    IGameProfileEx* selected = nullptr;
+    for (const auto& profile : GetExProfiles()) {
+        for (const auto& name : profile->AsGameProfile()->GetAppIDs()) {
+            if (name != package) continue;
+            if (selected) return {Error::InvalidEvidence, "Multiple profiles match the selected process"};
+            selected = profile.get();
         }
     }
-
-    // Match the current process name against profile AppIDs.
-    g_ExProfile = nullptr;
-    for (auto* ex : GetExProfiles()) {
-        auto* profile = ex->AsGameProfile();
-        for (auto& pkg : profile->GetAppIDs()) {
-            if (sGamePackage == pkg) {
-                g_ExProfile = ex;
-                LOGI("Matched profile: %s (AppID: %s)", profile->GetAppName().c_str(), pkg.c_str());
-                break;
-            }
-        }
-        if (g_ExProfile) break;
-    }
-
-    if (!g_ExProfile) {
-        LOGE("No matching profile for package: %s", sGamePackage.c_str());
-        return false;
-    }
-
-    // Get UE module base
-    auto ue_elf = g_ExProfile->AsGameProfile()->GetUnrealELF();
-    if (!ue_elf.isValid()) {
-        LOGE("Couldn't find a valid UE ELF in process maps.");
-        g_ExProfile = nullptr;
-        return false;
-    }
-
-    result.UEBaseAddress = ue_elf.base();
-    LOGI("UE Base: %p", (void*)result.UEBaseAddress);
-
-    // Call the profile's GetGUObjectArrayPtr to get GObjects address
-    result.GUObjectArrayPtr = g_ExProfile->PublicGetGUObjectArrayPtr();
-    if (result.GUObjectArrayPtr == 0) {
-        LOGE("GetGUObjectArrayPtr returned 0.");
-        g_ExProfile = nullptr;
-        return false;
-    }
-    LOGI("GUObjectArrayPtr: %p (offset: 0x%lX)",
-         (void*)result.GUObjectArrayPtr,
-         result.GUObjectArrayPtr - result.UEBaseAddress);
-
+    if (!selected) return {Error::Unsupported, "No bounded profile is configured for this process"};
+    if (!selected->SupportsBoundedDiscovery()) return {Error::Unsupported, "The matched upstream profile has no bounded discovery provider"};
+    auto reader = std::make_unique<ProcessMemory>();
+    const std::array<std::string, 2> moduleNames{"libUE4.so", "libUnreal.so"};
+    auto status = reader->openByName(moduleNames, g_ReadBudget);
+    if (!status) return status;
+    ModuleImage image;
+    status = readModuleImage(*reader, reader->elfAddress(), reader->loadBias(), reader->identity(), g_ReadBudget, image);
+    if (!status) return status;
+    DiscoveryValue discovery;
+    status = selected->DiscoverObjectArray(*reader, image, g_ReadBudget, discovery);
+    if (!status) return status;
+    if (!discovery.address || *discovery.address < image.loadBias || *discovery.address - image.loadBias > UINT32_MAX)
+        return {Error::InvalidEvidence, "The object-array candidate requires a bounded module-relative address"};
+    result.UEBaseAddress = image.loadBias;
+    result.GUObjectArrayPtr = *discovery.address;
+    auto* profileOffsets = selected->AsGameProfile()->GetOffsets();
+    if (!profileOffsets) return {Error::InvalidEvidence, "The profile has no data-only object-array layout"};
     // Read Objects pointer from FUObjectArray
-    UE_Offsets* profileOffsets = g_ExProfile->AsGameProfile()->GetOffsets();
+    if (profileOffsets->FUObjectArray.ObjObjects > std::numeric_limits<uintptr_t>::max() - result.GUObjectArrayPtr)
+        return {Error::InvalidEvidence, "The profile object-array layout exceeds its bounds"};
     uintptr_t objObjectsAddr = result.GUObjectArrayPtr + profileOffsets->FUObjectArray.ObjObjects;
+    for (auto field : {profileOffsets->TUObjectArray.Objects, profileOffsets->TUObjectArray.NumElements,
+        profileOffsets->TUObjectArray.MaxElements, profileOffsets->TUObjectArray.NumChunks,
+        profileOffsets->TUObjectArray.MaxChunks, profileOffsets->FUObjectItem.Object, profileOffsets->FUObjectItem.Size})
+        if (field > 4096) return {Error::InvalidEvidence, "The profile object-array layout exceeds its bounds"};
+    if (profileOffsets->TUObjectArray.Objects > std::numeric_limits<uintptr_t>::max() - objObjectsAddr ||
+        profileOffsets->TUObjectArray.NumElementsPerChunk > 1024 * 1024) return {Error::InvalidEvidence, "The profile object-array layout exceeds its bounds"};
+    g_ObjectArrayAddress = objObjectsAddr;
+    g_ObjectArrayProfile.identity = selected->AsGameProfile()->GetAppName() + "@" + andueprober::build::dumperRevision;
+    g_ObjectArrayProfile.objects = profileOffsets->TUObjectArray.Objects;
+    g_ObjectArrayProfile.count = profileOffsets->TUObjectArray.NumElements;
+    g_ObjectArrayProfile.capacity = profileOffsets->TUObjectArray.MaxElements;
+    g_ObjectArrayProfile.chunkCount = profileOffsets->TUObjectArray.NumChunks;
+    g_ObjectArrayProfile.chunkCapacity = profileOffsets->TUObjectArray.MaxChunks;
+    g_ObjectArrayProfile.itemObject = profileOffsets->FUObjectItem.Object;
+    g_ObjectArrayProfile.itemStride = profileOffsets->FUObjectItem.Size;
+    g_ObjectArrayProfile.elementsPerChunk = profileOffsets->TUObjectArray.NumElementsPerChunk;
     result.ObjectsFieldAddr = objObjectsAddr + profileOffsets->TUObjectArray.Objects;
     LOGI("Objects field addr: %p (offset: 0x%lX)",
          (void*)result.ObjectsFieldAddr, result.ObjectsFieldAddr - result.UEBaseAddress);
@@ -216,254 +216,27 @@ bool DetectAndPrepareGame(GameDetectionResult& result)
     result.NumElementsPerChunk = static_cast<int32_t>(profileOffsets->TUObjectArray.NumElementsPerChunk);
     LOGI("TUObjectArray: elementsPerChunk=%d", result.NumElementsPerChunk);
 
-    result.DecryptFNameAddr = g_ExProfile->PublicGetDecryptFNameAddr();
-    if (result.DecryptFNameAddr)
-        LOGI("DecryptFName: %p", (void*)result.DecryptFNameAddr);
-
-    // Bring up the profile's UEVars (FNamePool / GNames) now so name resolution
-    // works during probing. The base IGameProfile::GetNameByID path reads
-    // _UEVars.NamesPtr, which is otherwise only initialized by UEDumper::Init at
-    // dump time — leaving probe-time lookups empty. That (not the FName layout)
-    // is why ProbeNamePrivate found no "Object" candidate on FNamePool profiles
-    // like WutheringWaves. Custom profiles (NiZhan/DeltaForce) override
-    // GetNameByID with a self-contained decrypt call, so they were unaffected.
-    {
-        UEVarsInitStatus st = g_ExProfile->AsGameProfile()->InitUEVars();
-        if (st == UEVarsInitStatus::SUCCESS)
-            LOGI("InitUEVars OK — probe-time name resolution ready.");
-        else
-            LOGE("InitUEVars failed (%s); probe-time names may be empty.",
-                 UEVars::InitStatusToStr(st).c_str());
+    uint32_t count = 0;
+    status = readObjectCount(*reader, g_ObjectArrayAddress, g_ObjectArrayProfile, g_ReadBudget, count);
+    if (!status) return status;
+    if (count) {
+        uintptr_t first = 0;
+        status = readObjectAt(*reader, g_ObjectArrayAddress, g_ObjectArrayProfile, 0, g_ReadBudget, first);
+        if (!status) return status;
     }
-
-    result.GameName = g_ExProfile->AsGameProfile()->GetAppName();
-    result.PackageName = sGamePackage;
+    discovery.evidence.samples = count ? 1 : 0;
+    discovery.evidence.sampleIdentities.push_back("observed-object-count:" + std::to_string(count));
+    discovery.evidence.sampleIdentities.push_back("object-array-layout:" + objectArrayLayoutIdentity(g_ObjectArrayProfile));
+    g_Reader = std::move(reader);
+    g_ModuleImage = std::move(image);
+    g_ObjectDiscovery = std::move(discovery);
+    result.GameName = selected->AsGameProfile()->GetAppName();
+    result.PackageName = package;
     result.Success = true;
-
-    return true;
+    return {};
+#endif
 }
 
-// ============================================================
-//  FName resolution via matched profile
-// ============================================================
-
-std::string ProfileGetNameByID(int32_t id)
-{
-    if (!g_ExProfile)
-        return "";
-
-    return g_ExProfile->PublicGetNameByID(id);
-}
-
-FNameLayout ProfileGetFNameLayout()
-{
-    FNameLayout l;
-    if (!g_ExProfile)
-        return l;
-
-    const UE_Offsets* off = g_ExProfile->AsGameProfile()->GetOffsets();
-    l.comparisonOffset = static_cast<int32_t>(off->FName.ComparisonIndex);
-    l.numberOffset  = off->Config.isUsingOutlineNumberName  ? -1 : static_cast<int32_t>(off->FName.Number);
-    l.displayOffset = off->Config.isUsingCasePreservingName ? static_cast<int32_t>(off->FName.DisplayIndex) : -1;
-    l.size = static_cast<int32_t>(off->FName.Size);
-    return l;
-}
-
-void* BridgeGetObjectByIndex(int32_t index)
-{
-    UE_UObjectArray* arr = UEWrappers::GetObjects();
-    return arr ? arr->GetObjectPtr(index) : nullptr;
-}
-
-int32_t BridgeGetObjectNum()
-{
-    UE_UObjectArray* arr = UEWrappers::GetObjects();
-    return arr ? arr->GetNumElements() : 0;
-}
-
-bool ProfileFindProcessEvent(uint8_t* uObject, uintptr_t* pe_address_out, int* pe_index_out)
-{
-    if (!g_ExProfile)
-        return false;
-
-    return g_ExProfile->AsGameProfile()->findProcessEvent(uObject, pe_address_out, pe_index_out);
-}
-
-// ============================================================
-//  Phase 2: Dump with probed offsets
-// ============================================================
-
-void StartDumpWithProbedOffsets(
-    const ProbedOffsets& offsets,
-    std::atomic<EDumpStatus>& status,
-    std::string& outError,
-    std::string& outDir)
-{
-    if (status.load() == EDumpStatus::Running)
-        return;
-
-    if (!g_ExProfile) {
-        outError = "No matched profile. Call DetectAndPrepareGame first.";
-        status.store(EDumpStatus::Failed);
-        return;
-    }
-
-    status.store(EDumpStatus::Running);
-    outError.clear();
-    outDir.clear();
-
-    // Build UE_Offsets from probed values, starting from the profile's base offsets
-    UE_Offsets probedUEOffsets = *g_ExProfile->AsGameProfile()->GetOffsets();
-
-    // Override with probed values (only non-zero)
-    if (offsets.objFlags)      probedUEOffsets.UObject.ObjectFlags = offsets.objFlags;
-    if (offsets.objIndex)      probedUEOffsets.UObject.InternalIndex = offsets.objIndex;
-    if (offsets.objClass)      probedUEOffsets.UObject.ClassPrivate = offsets.objClass;
-    if (offsets.objName)       probedUEOffsets.UObject.NamePrivate = offsets.objName;
-    if (offsets.objOuter)      probedUEOffsets.UObject.OuterPrivate = offsets.objOuter;
-
-    if (offsets.fieldNext)     probedUEOffsets.UField.Next = offsets.fieldNext;
-
-    if (offsets.uenumNames)  probedUEOffsets.UEnum.Names = offsets.uenumNames;
-
-    if (offsets.structSuper)     probedUEOffsets.UStruct.SuperStruct = offsets.structSuper;
-    if (offsets.structChildren)  probedUEOffsets.UStruct.Children = offsets.structChildren;
-    if (offsets.structChildProps) probedUEOffsets.UStruct.ChildProperties = offsets.structChildProps;
-    if (offsets.structSize)      probedUEOffsets.UStruct.PropertiesSize = offsets.structSize;
-
-    if (offsets.uclassCastFlags)     probedUEOffsets.UClass.CastFlags     = offsets.uclassCastFlags;
-    if (offsets.uclassDefaultObject) probedUEOffsets.UClass.DefaultObject = offsets.uclassDefaultObject;
-
-    if (offsets.funcFlags)     probedUEOffsets.UFunction.EFunctionFlags = offsets.funcFlags;
-    if (offsets.funcNumParams) probedUEOffsets.UFunction.NumParams = offsets.funcNumParams;
-    if (offsets.funcParamSize) probedUEOffsets.UFunction.ParamSize = offsets.funcParamSize;
-    if (offsets.funcFunc)      probedUEOffsets.UFunction.Func = offsets.funcFunc;
-
-    if (offsets.ffieldClass) probedUEOffsets.FField.ClassPrivate = offsets.ffieldClass;
-    if (offsets.ffieldNext)  probedUEOffsets.FField.Next = offsets.ffieldNext;
-    if (offsets.ffieldName)  probedUEOffsets.FField.NamePrivate = offsets.ffieldName;
-    if (offsets.ffieldFlags) probedUEOffsets.FField.FlagsPrivate = offsets.ffieldFlags;
-    if (offsets.ffieldOwner) probedUEOffsets.FField.Owner = offsets.ffieldOwner;
-
-    if (offsets.fpropArrayDim) probedUEOffsets.FProperty.ArrayDim = offsets.fpropArrayDim;
-    if (offsets.fpropElemSize) probedUEOffsets.FProperty.ElementSize = offsets.fpropElemSize;
-    if (offsets.fpropFlags)    probedUEOffsets.FProperty.PropertyFlags = offsets.fpropFlags;
-    if (offsets.fpropOffset)   probedUEOffsets.FProperty.Offset_Internal = offsets.fpropOffset;
-    if (offsets.fpropSize)     probedUEOffsets.FProperty.Size = offsets.fpropSize;
-    if (offsets.fpropSubBase) {
-        probedUEOffsets.FProperty.SubPropertyBase = offsets.fpropSubBase;
-        // Cascade fallback for FEnumProperty when S6's dedicated probe didn't
-        // confirm UnderlyingType / Enum (e.g. no FEnumProperty exists in the
-        // GObjects window). Assumes standard order (UnderlyingType first, Enum
-        // at +8); explicit fenumUnderlying / fenumEnum below take precedence
-        // and override this for games whose layout is reversed.
-        probedUEOffsets.FEnumProperty.UnderlyingType = offsets.fpropSubBase;
-        probedUEOffsets.FEnumProperty.Enum = offsets.fpropSubBase + sizeof(void *);
-    }
-    if (offsets.fenumUnderlying) probedUEOffsets.FEnumProperty.UnderlyingType = offsets.fenumUnderlying;
-    if (offsets.fenumEnum)       probedUEOffsets.FEnumProperty.Enum = offsets.fenumEnum;
-
-    // Per-subclass container tail offsets. Written AFTER SubPropertyBase so the
-    // more-specific value wins. Dumper synthesize + runtime getters both prefer
-    // these when non-zero, falling back to SubPropertyBase otherwise.
-    if (offsets.farrayInner) probedUEOffsets.FArrayProperty.Inner       = offsets.farrayInner;
-    if (offsets.fsetElement) probedUEOffsets.FSetProperty.ElementProp   = offsets.fsetElement;
-    if (offsets.fmapKey)     probedUEOffsets.FMapProperty.KeyProp       = offsets.fmapKey;
-    if (offsets.fmapValue)   probedUEOffsets.FMapProperty.ValueProp     = offsets.fmapValue;
-
-    // Apply probed offsets to the matched Ex profile
-    g_ExProfile->SetProbedOffsets(probedUEOffsets);
-
-    // Capture references
-    auto& dumpStatus = status;
-    auto& dumpError  = outError;
-    auto& dumpOutDir = outDir;
-
-    std::thread([&dumpStatus, &dumpError, &dumpOutDir]() {
-        std::string sGamePackage = getprogname();
-
-        std::string sOutDirectory = KittyUtils::Android::getExternalStorage();
-        sOutDirectory += "/Android/data/";
-        sOutDirectory += sGamePackage;
-        sOutDirectory += "/files";
-
-        std::string sDumpDir = sOutDirectory + "/UEDump3r";
-        std::string sDumpGameDir = sDumpDir + "/" + sGamePackage;
-        IOUtils::delete_directory(sDumpGameDir);
-
-        if (IOUtils::mkdir_recursive(sDumpGameDir, 0777) == -1) {
-            dumpError = "Couldn't create output directory: " + sDumpGameDir;
-            dumpStatus.store(EDumpStatus::Failed);
-            return;
-        }
-
-        UEDumper uEDumper{};
-
-        uEDumper.setDumpExeInfoNotify([](bool bFinished) {
-            if (!bFinished) LOGI("Dumping Executable Info...");
-        });
-        uEDumper.setDumpNamesInfoNotify([](bool bFinished) {
-            if (!bFinished) LOGI("Dumping Names Info...");
-        });
-        uEDumper.setDumpObjectsInfoNotify([](bool bFinished) {
-            if (!bFinished) LOGI("Dumping Objects Info...");
-        });
-        uEDumper.setDumpOffsetsInfoNotify([](bool bFinished) {
-            if (!bFinished) LOGI("Dumping Offsets Info...");
-        });
-        uEDumper.setObjectsProgressCallback([](const SimpleProgressBar&) {
-            static bool once = false;
-            if (!once) { once = true; LOGI("Gathering UObjects...."); }
-        });
-        uEDumper.setDumpProgressCallback([](const SimpleProgressBar& bar) {
-            static bool once = false;
-            if (!once) { once = true; LOGI("Dumping...."); }
-            bar.print();
-        });
-
-        bool dumpSuccess = false;
-        std::unordered_map<std::string, BufferFmt> dumpbuffersMap;
-        auto dmpStart = std::chrono::steady_clock::now();
-
-        LOGI("Initializing Dumper with probed offsets...");
-        if (uEDumper.Init(g_ExProfile->AsGameProfile())) {
-            dumpSuccess = uEDumper.Dump(&dumpbuffersMap);
-        }
-
-        if (!dumpSuccess || dumpbuffersMap.empty()) {
-            std::string err = uEDumper.GetLastError();
-            dumpError = err.empty() ? "Dump failed." : err;
-            dumpStatus.store(EDumpStatus::Failed);
-            return;
-        }
-
-        LOGI("Saving Files...");
-        for (const auto& it : dumpbuffersMap) {
-            if (!it.first.empty()) {
-                std::string path = KittyUtils::String::fmt("%s/%s", sDumpGameDir.c_str(), it.first.c_str());
-                // Buffer keys may carry subdirectories (e.g. "SDK_A/Basic.hpp",
-                // "SDK_B/Engine_classes.hpp"). writeBufferToFile won't create
-                // missing parent dirs, so do it here.
-                size_t lastSlash = path.find_last_of('/');
-                if (lastSlash != std::string::npos) {
-                    std::string parent = path.substr(0, lastSlash);
-                    if (parent != sDumpGameDir) {
-                        IOUtils::mkdir_recursive(parent, 0777);
-                    }
-                }
-                it.second.writeBufferToFile(path);
-            }
-        }
-
-        auto dmpEnd = std::chrono::steady_clock::now();
-        std::chrono::duration<float, std::milli> dmpDurationMS = (dmpEnd - dmpStart);
-
-        if (!uEDumper.GetLastError().empty())
-            LOGI("Dump Status: %s", uEDumper.GetLastError().c_str());
-        LOGI("Dump Duration: %.2fms", dmpDurationMS.count());
-        LOGI("Dump Location: %s", sDumpGameDir.c_str());
-
-        dumpOutDir = sDumpGameDir;
-        dumpStatus.store(EDumpStatus::Success);
-    }).detach();
+andueprober::Status FullSdkExportAdmission() {
+    return {andueprober::Error::Unsupported, "Full SDK export requires complete property and container schemas; the available adapter emits only declared data layouts"};
 }

@@ -1,0 +1,1 @@
+PASS: 90 interruption checks across 4 process-exit boundaries; marker presence does not establish durability

@@ -1,0 +1,3 @@
+
+COMMAND ["adb", "-s", "3B163600WKV00000", "shell", "/data/local/tmp/andueprober-property-closure-20260912/android-release/andueprober_fields"]
+PASS: 730 FField base checks; five independent fields, explicit SeparateBoolean owner, physical name-pool identity and immutable publication; property/container metadata not exercised
