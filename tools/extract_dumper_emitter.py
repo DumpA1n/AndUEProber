@@ -7,12 +7,12 @@ import json
 from pathlib import Path
 import subprocess
 
-REVISION = "28c90cc9cd348d8738531ae7795fb23a7ff4a60c"
+REVISION = "771376ba2969cf520113050882ae2167963e9de9"
 INPUTS = {
     "LICENSE": "6ad5720f2b9b0f5670438cf7feb7552c7103668fe21fa67a0409af2a2c9c7b95",
     "deps/fmt/LICENSE": "07580f2a3b35709ce703d523f447b242f6dfec7582a8c0df102c7fa2849375f8",
-    "AndUEDumper/src/UPackageGenerator.cpp": "787a18ff03b0684274b2392e41030ab93c3354a408ab15ff0529375cfa8cd298",
-    "AndUEDumper/src/UPackageGenerator.hpp": "07968a1ed5126044c5557082fc02fabe7695fe70238362f2a7673898f02b7b6d",
+    "AndUEDumper/src/UPackageGenerator.cpp": "8590becd90771fd41e77871406803d0ded315b891f62d53d1a17cc512eaa556c",
+    "AndUEDumper/src/UPackageGenerator.hpp": "95f5f866b2502b79eacbe368c7cd0f249d91649ddecd8d53b3e9596b7e08f180",
     "deps/fmt/format.h": "f6515852b0b0375fb05d27d27cd386da4c6aff40a4fb9232413f604c8c49b6d8",
     "deps/fmt/base.h": "b0d52ef9d0f7203100eeee451056938e11536894feff6f99a6566497d6f40d4b",
     "deps/fmt/format-inl.h": "02f79502fc57326bbafec8f07c2b664ac0bcb83cb444ee464359dba83c10c36f",

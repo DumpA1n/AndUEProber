@@ -1,3 +1,4 @@
+#include "SDKIdentifiers.hpp"
 #include "SDKMathNames.hpp"
 
 #include <cstdio>
@@ -26,6 +27,21 @@ void check(bool condition, const char *label)
 
 int main()
 {
+    check(SDKIdentifiers::Sanitize("1PCharacter") == "_1PCharacter",
+          "identifiers beginning with digits are prefixed");
+    check(SDKIdentifiers::Sanitize("NULL") == "NULL_", "system macro names are suffixed");
+    check(SDKIdentifiers::Sanitize("value-name") == "value_name", "punctuation is sanitized");
+    check(SDKIdentifiers::IsUsableType("struct TArray<struct UObject*>"),
+          "nested reflected container type is accepted");
+    check(!SDKIdentifiers::IsUsableType("struct *"), "anonymous elaborated pointer type is rejected");
+    check(!SDKIdentifiers::IsUsableType("struct TArray<struct *>"),
+          "invalid nested reflected type is rejected");
+    check(!SDKIdentifiers::IsUsableType("struct TArray<>"), "empty template type is rejected");
+    std::unordered_set<std::string> identifiers;
+    check(SDKIdentifiers::MakeUnique("Disable", identifiers) == "Disable", "first identifier is preserved");
+    check(SDKIdentifiers::MakeUnique("Disable", identifiers) == "Disable_2",
+          "duplicate identifier receives a stable suffix");
+
     std::vector<Member> rotator{{"float", "pitch"}, {"float", "Yaw"}, {"float", "roll"}};
     check(SDKMathNames::Canonicalize("FRotator", rotator), "mixed-case rotator fields are recognized");
     check(rotator[0].Name == "Pitch" && rotator[1].Name == "Yaw" && rotator[2].Name == "Roll",
