@@ -131,15 +131,16 @@ struct ObjectAnchor {
     std::string identity;
 };
 
-andueprober::Status collectObjects(std::size_t maximum, const std::function<bool(const ObjectAnchor&)>& accept,
-    std::vector<ObjectAnchor>& result) {
+andueprober::Status collectObjects(std::size_t maximumExamined, std::size_t maximumAccepted,
+    const std::function<bool(const ObjectAnchor&)>& accept, std::vector<ObjectAnchor>& result) {
     result.clear();
+    if (!maximumAccepted) return {andueprober::Error::InvalidArgument, "Object collection requires a positive result bound"};
     auto* objects = UEWrappers::GetObjects();
     if (!objects) return {andueprober::Error::InvalidEvidence, "The reflection object registry is unavailable"};
     const auto count = objects->GetNumElements();
     if (count <= 1 || count > 16 * 1024 * 1024)
         return {andueprober::Error::InvalidEvidence, "The reflection object count is outside the bounded range"};
-    const auto examined = std::min<std::size_t>(static_cast<std::size_t>(count), maximum);
+    const auto examined = std::min<std::size_t>(static_cast<std::size_t>(count), maximumExamined);
     for (std::size_t index = 1; index < examined; ++index) {
         if (ProbeCancelled()) return {andueprober::Error::Cancelled, "Object collection cancelled"};
         auto pointer = objects->GetObjectPtr(static_cast<std::int32_t>(index));
@@ -152,7 +153,10 @@ andueprober::Status collectObjects(std::size_t maximum, const std::function<bool
         anchor.className = object.GetClass().GetName();
         if (!validText(anchor.name) || !validText(anchor.className)) continue;
         anchor.identity = anchor.className + ":" + anchor.name + "#" + std::to_string(index);
-        if (accept(anchor)) result.push_back(std::move(anchor));
+        if (accept(anchor)) {
+            result.push_back(std::move(anchor));
+            if (result.size() == maximumAccepted) break;
+        }
     }
     if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
     return {};
@@ -506,7 +510,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
 
     if (phase == 1) {
         std::vector<ObjectAnchor> anchors;
-        auto status = collectObjects(65536, [&](const ObjectAnchor& anchor) {
+        auto status = collectObjects(65536, 8, [&](const ObjectAnchor& anchor) {
             std::int32_t observed = -1;
             if (auto read = readValue(anchor.address + offsets->UObject.InternalIndex, observed); !read) return false;
             return observed == static_cast<std::int32_t>(anchor.index);
@@ -524,7 +528,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             if (auto published = publish(name, value, samples); !published) return published;
     } else if (phase == 2) {
         std::vector<ObjectAnchor> anchors;
-        auto status = collectObjects(131072, [](const ObjectAnchor& anchor) {
+        auto status = collectObjects(131072, 64, [](const ObjectAnchor& anchor) {
             return anchor.className == "Class" || anchor.className == "ScriptStruct" ||
                 anchor.className == "Function" || anchor.className == "BlueprintGeneratedClass";
         }, anchors);
@@ -546,7 +550,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                 detail += "; " + anchors[index].identity;
             if (anchors.empty()) {
                 std::vector<ObjectAnchor> observed;
-                if (auto collected = collectObjects(256, [](const ObjectAnchor&) { return true; }, observed); !collected)
+                if (auto collected = collectObjects(256, 8, [](const ObjectAnchor&) { return true; }, observed); !collected)
                     return collected;
                 for (std::size_t index = 0; index < std::min<std::size_t>(observed.size(), 8); ++index)
                     detail += "; observed=" + observed[index].identity;
@@ -562,7 +566,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             if (auto published = publish(name, value, samples); !published) return published;
     } else if (phase == 3) {
         std::vector<ObjectAnchor> anchors;
-        auto status = collectObjects(131072, [](const ObjectAnchor& anchor) {
+        auto status = collectObjects(131072, 64, [](const ObjectAnchor& anchor) {
             return anchor.className == "Class" || anchor.className == "BlueprintGeneratedClass";
         }, anchors);
         if (!status) return status;
@@ -583,7 +587,8 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         if (auto status = publish("UClass::ClassDefaultObject", offsets->UClass.DefaultObject, samples); !status) return status;
     } else if (phase == 4) {
         std::vector<ObjectAnchor> anchors;
-        auto status = collectObjects(196608, [](const ObjectAnchor& anchor) { return anchor.className == "Function"; }, anchors);
+        auto status = collectObjects(196608, 128,
+            [](const ObjectAnchor& anchor) { return anchor.className == "Function"; }, anchors);
         if (!status) return status;
         std::vector<ObjectAnchor> valid;
         const auto returnOffset = offsets->UFunction.ParamSize + sizeof(std::uint16_t);
@@ -616,7 +621,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         std::vector<PropertyAnchor> properties;
         std::set<std::uintptr_t> seen;
         std::vector<ObjectAnchor> structures;
-        auto status = collectObjects(1024 * 1024, [](const ObjectAnchor& anchor) {
+        auto status = collectObjects(1024 * 1024, 4096, [](const ObjectAnchor& anchor) {
             return anchor.className == "Class" || anchor.className == "ScriptStruct" ||
                 anchor.className == "Function" || anchor.className == "BlueprintGeneratedClass" ||
                 anchor.className == "Enum";
@@ -830,8 +835,11 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                         valid = readValue(value + classOffset, fieldClass) &&
                             propertyClassesByAddress.contains(fieldClass);
                     } else if (valid) {
-                        const auto object = structuresByAddress.find(value);
-                        valid = object != structuresByAddress.end() && object->second->className == "Enum";
+                        std::uintptr_t objectClass = 0;
+                        if (!readValue(value + offsets->UObject.ClassPrivate, objectClass)) valid = false;
+                        const auto classObject = structuresByAddress.find(objectClass);
+                        valid = valid && classObject != structuresByAddress.end() &&
+                            classObject->second->className == "Class" && classObject->second->name == "Enum";
                     }
                     if (!valid) continue;
                     if (found != UINTPTR_MAX && found != candidate)
@@ -890,7 +898,8 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             if (auto published = tailPublish(name, value, boolIdentities); !published) return published;
     } else {
         std::vector<ObjectAnchor> enums;
-        auto status = collectObjects(196608, [](const ObjectAnchor& anchor) { return anchor.className == "Enum"; }, enums);
+        auto status = collectObjects(196608, 64,
+            [](const ObjectAnchor& anchor) { return anchor.className == "Enum"; }, enums);
         if (!status) return status;
         std::vector<ObjectAnchor> valid;
         for (const auto& anchor : enums) {
@@ -906,7 +915,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         if (auto published = publish("UEnum::Names", offsets->UEnum.Names, samples); !published) return published;
 
         std::vector<ObjectAnchor> objects;
-        status = collectObjects(8192, [](const ObjectAnchor&) { return true; }, objects);
+        status = collectObjects(8192, 512, [](const ObjectAnchor&) { return true; }, objects);
         if (!status) return status;
         std::uintptr_t address = 0; int index = -1; ObjectAnchor selected;
         for (const auto& object : objects) {

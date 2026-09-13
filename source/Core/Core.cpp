@@ -37,8 +37,10 @@ Status readExact(MemoryReader& reader, std::uintptr_t address, std::span<std::by
     if (budget.cancelled && budget.cancelled->load()) return {Error::Cancelled, "Read cancelled during provider execution"};
     if (std::chrono::steady_clock::now() >= budget.deadline) return {Error::DeadlineExceeded, "Read deadline exceeded during provider execution"};
     if (reader.generation() != budget.generation) return {Error::StaleIdentity, "Module generation changed during read"};
-    if (result.error != Error::None) return {result.error, "Memory provider rejected the read; system error " + std::to_string(result.systemError)};
-    if (result.transferred != out.size()) return {Error::ShortRead, "Memory provider returned a short read"};
+    const auto range = " at address " + std::to_string(address) + " for " + std::to_string(out.size()) + " bytes";
+    if (result.error != Error::None)
+        return {result.error, "Memory provider rejected the read" + range + "; system error " + std::to_string(result.systemError)};
+    if (result.transferred != out.size()) return {Error::ShortRead, "Memory provider returned a short read" + range};
     return {};
 }
 

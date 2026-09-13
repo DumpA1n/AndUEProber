@@ -10,6 +10,7 @@ struct OwnedDiscovery final : andueprober::MemoryReader {
     std::uint64_t epoch = 7;
     std::size_t reads = 0;
     andueprober::Error failure = andueprober::Error::None;
+    std::uintptr_t unreadableStart = 0, unreadableEnd = 0;
     std::function<void(std::uintptr_t)> onRead;
     OwnedDiscovery() {
         put(0, 0x464c457f, 4); put(4, 0x010102, 3);
@@ -34,6 +35,10 @@ struct OwnedDiscovery final : andueprober::MemoryReader {
         put(0x3608, 0x1a000000, 4); put(0x360c, 0x1b000000, 4);
         adrp(0x3610, 0x1c00, 13);
         put(0x3614, 0x91000000u | (0xc00u << 10) | (13u << 5) | 13u, 4);
+        put(0x1c10, 2, 4); put(0x1c14, 4, 4); put(0x1c18, 1, 4);
+        put(0x1c20, base + 0x1e00, 8); put(0x1c38, 2 * 65536, 4);
+        put(0x1e00, base + 0x2200, 8);
+        put(0x2200 + 24, base + 0x2800, 8); put(0x2800, base + 0x3000, 8);
         put(0x3700, 0x370000c8, 4);
         adrp(0x3704, 0x1d00, 15);
         put(0x3708, 0x91000000u | (0xd00u << 10) | (15u << 5) | 15u, 4);
@@ -71,6 +76,9 @@ struct OwnedDiscovery final : andueprober::MemoryReader {
         ++reads;
         if (onRead) onRead(address);
         if (failure != andueprober::Error::None) return {0, failure, 13};
+        if (unreadableStart < unreadableEnd && address < unreadableEnd &&
+            destination.size() > unreadableStart - std::min(unreadableStart, address))
+            return {0, andueprober::Error::PermissionDenied};
         if (address < base || address - base > bytes.size() || destination.size() > bytes.size() - (address - base))
             return {0, andueprober::Error::Unmapped};
         std::memcpy(destination.data(), bytes.data() + address - base, destination.size());

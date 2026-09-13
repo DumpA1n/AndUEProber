@@ -85,7 +85,25 @@ Status scan(MemoryReader& reader, const ModuleImage& module, bool executable, st
             const auto primary = std::min<std::size_t>(4096, range.size - offset - width + 1);
             const auto count = primary + width - 1;
             auto status = readExact(reader, range.start + offset, std::span(bytes).first(count), budget);
-            if (!status) return status;
+            if (!status) {
+                if (status.code != Error::PermissionDenied && status.code != Error::Unmapped) return status;
+                const auto address = range.start + offset;
+                const auto pageBytes = std::min<std::size_t>(4096 - (address & 4095), range.size - offset);
+                if (pageBytes >= width) {
+                    status = readExact(reader, address, std::span(bytes).first(pageBytes), budget);
+                    if (status) {
+                        const auto clippedPrimary = pageBytes - width + 1;
+                        for (std::size_t i = 0; i < clippedPrimary; i += alignment) {
+                            status = visit(address + i, bytes.data() + i);
+                            if (!status) return status;
+                        }
+                    } else if (status.code != Error::PermissionDenied && status.code != Error::Unmapped) {
+                        return status;
+                    }
+                }
+                offset += pageBytes;
+                continue;
+            }
             for (std::size_t i = 0; i < primary; i += alignment) {
                 status = visit(range.start + offset + i, bytes.data() + i);
                 if (!status) return status;

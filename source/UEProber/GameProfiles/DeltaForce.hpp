@@ -3,6 +3,8 @@
 #include <cstddef>
 #include <cstdint>
 #include <array>
+#include <limits>
+#include <span>
 #include <string>
 
 #include "IGameProfileAndroid.hpp"
@@ -42,6 +44,7 @@ public:
         andueprober::DiscoveryValue& value) const override
     {
         auto status = FindGUObjectArrayViaFinishDestroy(reader, module, budget, value);
+        if (status) status = ValidateObjectArrayCandidate(reader, module, budget, value);
         if (status || status.code != andueprober::Error::InvalidEvidence) return status;
 
         const std::array firstPattern{
@@ -60,6 +63,7 @@ public:
             std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0xff}};
         status = andueprober::findAddressFromAarch64Pattern(
             reader, module, firstPattern, firstMask, 16, budget, value);
+        if (status) status = ValidateObjectArrayCandidate(reader, module, budget, value);
         if (status || status.code != andueprober::Error::InvalidEvidence) return status;
 
         const std::array secondPattern{
@@ -76,8 +80,10 @@ public:
             std::byte{0}, std::byte{0}, std::byte{0}, std::byte{0xff},
             std::byte{0xff}, std::byte{0xff}, std::byte{0xff}, std::byte{0xff},
             std::byte{0xff}, std::byte{0xff}, std::byte{0xff}, std::byte{0xff}};
-        return andueprober::findAddressFromAarch64Pattern(
+        status = andueprober::findAddressFromAarch64Pattern(
             reader, module, secondPattern, secondMask, 8, budget, value);
+        if (!status) return status;
+        return ValidateObjectArrayCandidate(reader, module, budget, value);
     }
 
     andueprober::Status DiscoverNamePool(andueprober::MemoryReader& reader,
@@ -153,6 +159,75 @@ public:
                 (sizeof(int32_t) * 3) + (sizeof(void *) * 4);
         }
         return &offsets;
+    }
+
+private:
+    template<class T>
+    static andueprober::Status ReadValue(andueprober::MemoryReader& reader, std::uintptr_t address,
+        andueprober::ReadBudget& budget, T& value)
+    {
+        return andueprober::readExact(reader, address,
+            std::as_writable_bytes(std::span(&value, std::size_t{1})), budget);
+    }
+
+    andueprober::Status ValidateObjectArrayCandidate(andueprober::MemoryReader& reader,
+        const andueprober::ModuleImage& module, andueprober::ReadBudget& budget,
+        andueprober::DiscoveryValue& value) const
+    {
+        using andueprober::Error;
+        if (!value.address) return {Error::InvalidEvidence, "Delta Force object-array discovery produced no address"};
+        const auto* offsets = GetOffsets();
+        if (!offsets || offsets->FUObjectArray.ObjObjects > 4096 || offsets->TUObjectArray.Objects > 4096 ||
+            offsets->TUObjectArray.NumElements > 4096 || offsets->TUObjectArray.MaxElements > 4096 ||
+            offsets->TUObjectArray.NumChunks > 4096 || offsets->TUObjectArray.MaxChunks > 4096 ||
+            offsets->FUObjectItem.Size < sizeof(void*) || offsets->FUObjectItem.Size > 256)
+            return {Error::InvalidEvidence, "Delta Force object-array layout is outside bounded limits"};
+        bool insideModule = false;
+        for (const auto& range : module.ranges)
+            if (range.readable && *value.address >= range.start && *value.address - range.start < range.size) {
+                insideModule = true;
+                break;
+            }
+        if (!insideModule || offsets->FUObjectArray.ObjObjects >
+            std::numeric_limits<std::uintptr_t>::max() - *value.address)
+            return {Error::InvalidEvidence, "Delta Force object-array candidate is outside the selected module"};
+        const auto objectsArray = *value.address + offsets->FUObjectArray.ObjObjects;
+        std::int32_t maxChunks = 0, count = 0, chunks = 0, capacity = 0;
+        std::uintptr_t chunkTable = 0;
+        if (auto status = ReadValue(reader, objectsArray + offsets->TUObjectArray.MaxChunks, budget, maxChunks); !status)
+            return status;
+        if (auto status = ReadValue(reader, objectsArray + offsets->TUObjectArray.NumElements, budget, count); !status)
+            return status;
+        if (auto status = ReadValue(reader, objectsArray + offsets->TUObjectArray.NumChunks, budget, chunks); !status)
+            return status;
+        if (auto status = ReadValue(reader, objectsArray + offsets->TUObjectArray.MaxElements, budget, capacity); !status)
+            return status;
+        if (auto status = ReadValue(reader, objectsArray + offsets->TUObjectArray.Objects, budget, chunkTable); !status)
+            return status;
+        constexpr std::int32_t maximumChunks = 4096;
+        constexpr std::int32_t maximumObjects = 64 * 1024 * 1024;
+        if (maxChunks <= 0 || maxChunks > maximumChunks || chunks <= 0 || chunks > maxChunks ||
+            count <= 1 || capacity < count || capacity > maximumObjects || !chunkTable)
+            return {Error::InvalidEvidence, "Delta Force object-array candidate has incoherent bounds"};
+        std::uintptr_t firstChunk = 0;
+        auto status = ReadValue(reader, chunkTable, budget, firstChunk);
+        if (!status) return status;
+        if (!firstChunk || offsets->FUObjectItem.Size >
+            std::numeric_limits<std::uintptr_t>::max() - firstChunk || offsets->FUObjectItem.Object >
+            std::numeric_limits<std::uintptr_t>::max() - firstChunk - offsets->FUObjectItem.Size)
+            return {Error::InvalidEvidence, "Delta Force object-array candidate has no first chunk"};
+        std::uintptr_t object = 0;
+        status = ReadValue(reader, firstChunk + offsets->FUObjectItem.Size + offsets->FUObjectItem.Object,
+            budget, object);
+        if (!status) return status;
+        std::uintptr_t vtable = 0;
+        if (!object || !(status = ReadValue(reader, object, budget, vtable)) || !vtable)
+            return status ? andueprober::Status{Error::InvalidEvidence,
+                "Delta Force object-array candidate has no readable indexed object"} : status;
+        value.evidence.sampleIdentities.push_back("validated-object-count:" + std::to_string(count));
+        value.evidence.sampleIdentities.push_back("validated-object-capacity:" + std::to_string(capacity));
+        value.evidence.samples = value.evidence.sampleIdentities.size();
+        return {};
     }
 
 protected:

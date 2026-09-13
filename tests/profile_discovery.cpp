@@ -43,12 +43,16 @@ int main() {
     profile.BindRuntime(memory.base + 0x1900, memory.base + 0x2900);
     CHECK(profile.GetGUObjectArrayPtr() == memory.base + 0x1900 && profile.GetNamesPtr() == memory.base + 0x2900);
     memory.failure = andueprober::Error::None;
-    memory.put(0xff0, 0, 2);
     GameProfileEx<DeltaForceProfile> deltaForce;
     CHECK(deltaForce.DiscoverObjectArray(memory, module, budget, value));
     CHECK(value.address == memory.base + 0x1c00);
     CHECK(deltaForce.DiscoverNamePool(memory, module, budget, value));
     CHECK(value.address == memory.base + 0x1a00);
+    memory.unreadableStart = memory.base + 0x4000;
+    memory.unreadableEnd = memory.base + 0x5000;
+    CHECK(deltaForce.DiscoverNamePool(memory, module, budget, value));
+    CHECK(value.address == memory.base + 0x1a00);
+    memory.unreadableStart = memory.unreadableEnd = 0;
     ExposedDeltaForce decoder;
     const std::string expected = "Object";
     memory.put(0x2000, expected.size() << 6, 2);
