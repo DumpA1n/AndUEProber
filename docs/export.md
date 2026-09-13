@@ -80,6 +80,7 @@ cmake --build build/export-check --target andueprober_export_limits
 ctest --test-dir build/export-check -R '^andueprober.export_limits$' --output-on-failure
 ```
 
-Frozen observation export is implemented. A complete bounded reflection-to-dumper
-adapter and an owned UE application's full generated SDK remain separate
-acceptance gates; a successful generic file publication does not close them.
+Frozen observation export and live reflection-to-SDK publication are implemented.
+Generic publication contracts, adapter fixtures, and exact-target SDK generation
+remain separate acceptance gates. The recorded target execution and full generated
+SDK compilation are identified in `docs/verification.json`.

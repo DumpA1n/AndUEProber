@@ -1,25 +1,24 @@
 {
-  "schemaVersion": 4,
+  "schemaVersion": 5,
   "recordedDate": "2026-09-13",
-  "scope": "Functional migration acceptance for the exact source and target identities recorded below. Synthetic, owned-fixture, compiled, and actual-target results are distinguished explicitly.",
+  "scope": "Functional migration acceptance for the exact source, dependency, device, target, module, and generated-output identities recorded below. Build, fixture, actual-target, publication, and generated-code results are distinguished explicitly.",
   "acceptance": {
-    "automaticSixPhaseDiscovery": "blocked-on-current-target-runtime-memory-permissions",
-    "reflectionCollectionAndSdkPublication": "not-executed-on-current-target-version",
-    "generatedTargetSdkCompilation": "not-executed-no-current-target-sdk",
-    "processEventDiscovery": "not-executed-on-current-target-version",
+    "automaticSixPhaseDiscovery": "passed-on-recorded-target",
+    "reflectionCollectionAndSdkPublication": "passed-on-recorded-target",
+    "generatedTargetSdkCompilation": "passed-on-recorded-target",
+    "processEventDiscovery": "passed-on-recorded-target",
     "processEventInvocation": "not-enabled",
     "inspectorInteraction": "passed-on-owned-android-fixtures"
   },
   "source": {
     "originalAndUEProber": "3304244255c662d5896556c32573de6ad776e751",
     "migrationBaselineAndUEProber": "e66488ed1fd1277d6d679a927cfda7fcd90942e7",
-    "executedAndUEProber": "89b3204c27cb42b05384fe33b85938f77b530077",
-    "functionalMigrationAndUEProber": "9e97b5bc792d83895b9133b918c593c104da9ec2",
-    "AndUEDumper": "3f4eaba87756e39ebfb0d88609deb572ab5f6a50",
+    "executedAndUEProber": "39f9d8f55bd905bdbfaedff9ac1030feca8f24ff",
+    "AndUEDumper": "771376ba2969cf520113050882ae2167963e9de9",
     "selectedMemorySource": {
       "path": "/Users/ddd/Developer/AndSwapChainHook",
-      "revision": "4ff6235c8a19d0b4f76b0499e82c2121e58d7932",
-      "sourceFingerprint": "bcc0171299b9c7db56b238b4c6a5e538158d16197ee3596814e26bca14c06579"
+      "revision": "4bfe046cc91d2bffdc90d03d17173ec00dc0dd96",
+      "dependencyIdentity": "4bfe046cc91d2bffdc90d03d17173ec00dc0dd96;working-tree-memory-source-sha256:b883e631f22c50123797b3aa05a2e3912e7e1ecacff4ec7a98ebc6e88afb3618"
     },
     "pinnedAndSwapChainHookGitlink": "61e022a850ade7aa173e252a32e4c0059d2a5134",
     "KittyMemoryEx": "aa128114d98cc31fbe0955e9820b91657c6cb87d",
@@ -33,6 +32,7 @@
     "abi": "arm64-v8a",
     "androidPlatform": "android-27",
     "ndk": "29.0.14206865",
+    "ndkSourcePropertiesSha256": "716f3518a923198cfab037abb32dc3f1b1f7e9a9dcdcda6b66be5906215d2658",
     "clang": "21.0.0",
     "options": {
       "ANDUEPROBER_BUILD_AGENT": true,
@@ -45,23 +45,16 @@
     "artifacts": {
       "andueprober_target_runner": {
         "path": "build/android-analysis-release/andueprober_target_runner",
-        "sha256": "2fd96635ba3caffc1eca14db47dc55ea0653ca7b72aa0bfa3ba6345d1cfd9ea6"
+        "sha256": "68102aa83a300cb1aa9e31e7fb5150fe2477760762e8f77f5fc1f0eaa1047e04",
+        "gnuBuildId": "9468ab2bd0315940d8c5536b941afc643d518c1f",
+        "format": "ELF64 AArch64 PIE with matching debug information"
       },
       "analysisReleaseAgent": {
         "path": "build/android-analysis-release/libAndUEProber.so",
-        "sha256": "7858f3c7348e90afe6d7fe4d35aca929578eb55828c154ea6997848e7153ef5f"
-      },
-      "analysisReleaseProfileFixture": {
-        "path": "build/android-analysis-release/tests/andueprober_profile_discovery",
-        "sha256": "6ed7ff95e440cfa355676f7480a28b4ba8d786b8dece2de767a06e36e3b044e7"
-      },
-      "defaultReleaseAgent": {
-        "path": "build/android-release/libAndUEProber.so",
-        "sha256": "473c2fde845e951095d9f8398cb9ca8efe5ea6434e90a7c81e84487ab37fbb10"
-      },
-      "defaultReleaseCommandsFixture": {
-        "path": "build/android-release/tests/andueprober_android_commands",
-        "sha256": "88fac15d76d688be06b913c6acfd4ceaa2b133fb56f379849670ac6217639702"
+        "sha256": "3cfb78783504ff32df318d860ef4b5ce81ae65ce7866ac688700ca8aa981a6d3",
+        "gnuBuildId": "290254517dab1444423915e61cb4998099fbbe37",
+        "format": "ELF64 AArch64 shared object with matching debug information",
+        "apiSymbolsVerified": true
       }
     }
   },
@@ -113,88 +106,180 @@
     "gnuBuildId": "2cdcd1a90870be747f3090993b73383359c17f47",
     "sha256": "387cd911a67eca1069bd5e4c874bce5dfb14823ca75f55f1ae7c43a09f2f1441",
     "identity": "/data/app/~~n3r1ClURZ2UpRaNLvuZ4bw==/com.tencent.tmgp.dfm-tE0gQSyHcDBDnak5d1Z-Kg==/lib/arm64/libUE4.so#gnu-build-id:2cdcd1a90870be747f3090993b73383359c17f47;pid-start:40882625",
-    "runtimeMappingsAtFailure": [
+    "relevantMappings": [
       "0x7625883000-0x7625eef000 rw-p libUE4.so",
       "0x7625eef000-0x7626d9e000 -w-p [anon:.bss]",
       "0x7626d9e000-0x7626d9f000 rw-p [anon:.bss]"
     ]
   },
   "actualTargetExecution": {
-    "command": "/data/local/tmp/auep-validation-v2207-89b3204/andueprober_target_runner 26979 com.tencent.tmgp.dfm /data/local/tmp/auep-dfm-v2207-89b3204",
-    "resultCode": 4,
-    "error": "Memory provider rejected the read at address 507454123288 for 8 bytes; system error 0",
-    "generation": 0,
+    "command": "/data/local/tmp/auep-validation-v2207-39f9d8f/andueprober_target_runner 26979 com.tencent.tmgp.dfm /data/local/tmp/auep-dfm-v2207-39f9d8f",
+    "resultCode": 0,
+    "generation": 1,
     "selectedProfile": "Delta Force",
-    "exactCommittedRunPhaseStatus": {
-      "phase1UObject": "blocked-during-object-registry-candidate-validation",
-      "phase2UFieldAndUStruct": "not-started",
-      "phase3UClass": "not-started",
-      "phase4UFunction": "not-started",
-      "phase5FFieldAndFProperty": "not-started",
-      "phase6UEnum": "not-started"
-    },
-    "blockedRead": {
-      "absoluteAddress": "0x76269f6d18",
-      "moduleRelativeAddress": "0x202b8d18",
-      "candidateObjectArrayRelativeAddress": "0x202b8cf8",
-      "candidateFieldOffset": "0x20",
-      "bytes": 8,
-      "mapping": "0x7625eef000-0x7626d9e000 -w-p [anon:.bss]",
-      "providerPolicy": "Mappings without read permission are rejected without attempting the read."
-    },
-    "maximumObservedProgressBeforeRuntimeProtectionTransition": {
-      "status": "diagnostic-only-not-acceptance",
+    "phaseStatus": {
       "phase1UObject": "completed",
       "phase2UFieldAndUStruct": "completed",
       "phase3UClass": "completed",
       "phase4UFunction": "completed",
-      "phase5FFieldAndFProperty": "reached-but-not-completed",
-      "phase6UEnum": "not-started",
-      "offsetCount": 19,
-      "objectArrayRelativeAddress": "0x202b8cf8",
-      "namePoolRelativeAddress": "0x20291ec0",
-      "phase5Failure": "No live subclass tail was found for EnumProperty (instances=674, properties=24218).",
-      "note": "The target later changed the object-array BSS page to write-only; the exact committed rerun therefore stopped before these phases."
+      "phase5FFieldAndFProperty": "completed",
+      "phase6UEnum": "completed"
     },
-    "outputPublished": false,
-    "outputPath": ""
+    "offsetCount": 43,
+    "phaseValues": {
+      "anchors": {
+        "Module::GUObjectArray": "0x202b8cf8",
+        "Module::NamePool": "0x20291ec0"
+      },
+      "phase1": {
+        "UObject::ClassPrivate": "0x8",
+        "UObject::OuterPrivate": "0x10",
+        "UObject::ObjectFlags": "0x18",
+        "UObject::NamePrivate": "0x1c",
+        "UObject::InternalIndex": "0x24"
+      },
+      "phase2": {
+        "UField::Next": "0x28",
+        "UStruct::PropertiesSize": "0x3c",
+        "UStruct::SuperStruct": "0x40",
+        "UStruct::Children": "0x50",
+        "UStruct::ChildProperties": "0x68"
+      },
+      "phase3": {
+        "UClass::CastFlags": "0xd8",
+        "UClass::ClassDefaultObject": "0x138"
+      },
+      "phase4": {
+        "UFunction::NumParms": "0xb0",
+        "UFunction::ParmsSize": "0xb2",
+        "UFunction::ReturnValueOffset": "0xb4",
+        "UFunction::FunctionFlags": "0xb8",
+        "UFunction::Func": "0xd8"
+      },
+      "phase5": {
+        "FField::Owner": "0x8",
+        "FField::FlagsPrivate": "0x8",
+        "FField::Next": "0x18",
+        "FField::ClassPrivate": "0x20",
+        "FField::NamePrivate": "0x28",
+        "FProperty::ArrayDim": "0x38",
+        "FProperty::ElementSize": "0x3c",
+        "FProperty::PropertyFlags": "0x40",
+        "FProperty::Offset_Internal": "0x4c",
+        "sizeof(FProperty)": "0x80",
+        "FProperty::SubPropertyBase": "0x88",
+        "FBoolProperty::FieldSize": "0x80",
+        "FBoolProperty::ByteOffset": "0x81",
+        "FBoolProperty::ByteMask": "0x82",
+        "FBoolProperty::FieldMask": "0x83",
+        "FEnumProperty::UnderlyingType": "0x80",
+        "FEnumProperty::Enum": "0x88",
+        "FArrayProperty::Inner": "0x88",
+        "FSetProperty::ElementProp": "0x80",
+        "FMapProperty::KeyProp": "0x88",
+        "FMapProperty::ValueProp": "0x90"
+      },
+      "phase6": {
+        "UEnum::Names": "0x40"
+      },
+      "processEvent": {
+        "ProcessEvent::Address": "0x105fa968",
+        "ProcessEvent::VTableIdx": 69,
+        "invoked": false
+      }
+    },
+    "validation": "All 43 values are validated. Each completion-manifest entry records its origin, dependencies, evidence source, sample count, and sample identities.",
+    "optionalDiscoveries": {
+      "GEngine": "not-found-non-fatal",
+      "GWorld": "not-found-non-fatal"
+    },
+    "memoryReadPolicy": {
+      "mode": "AllowProcfsForceRead",
+      "scope": "explicitly selected remote target",
+      "writeOnlyBssRead": "passed",
+      "targetProtectionChanged": false
+    },
+    "outputPublished": true,
+    "deviceOutputPath": "/data/local/tmp/auep-dfm-v2207-39f9d8f/profile-413609724913781",
+    "localOutputPath": "build/actual-target-v2207-39f9d8f/profile-413609724913781"
   },
   "reflectionAndPublication": {
-    "status": "not-executed-on-current-target-version",
-    "objectsGathered": 0,
-    "deviceOutputPath": "",
-    "localOutputPath": "",
-    "published": false,
-    "completionMarkerComplete": false,
-    "regularFiles": 0
+    "status": "passed",
+    "layout": "FField",
+    "layoutIdentity": "object-array-v1;profile:Delta Force@771376ba2969cf520113050882ae2167963e9de9;pointer-bytes:8;objects:16;count:4;capacity:40;item-stride:24;item-object:0;chunk-count:8;chunk-capacity:0;elements-per-chunk:65536",
+    "objectsGathered": 184732,
+    "objectPackagesObserved": 1797,
+    "packagesSaved": 1791,
+    "classesSaved": 13862,
+    "structsSaved": 8693,
+    "enumsSaved": 3576,
+    "functionsObserved": 50173,
+    "manifestedFiles": 3595,
+    "regularFilesIncludingCompletion": 3596,
+    "headerFiles": 1793,
+    "translationUnits": 1792,
+    "transferredBytes": 108676355,
+    "published": true,
+    "completionMarkerComplete": true,
+    "hashes": {
+      "completion.json": "205bcd2fdd08ae12d6a1753f6cd33d1a9d4135d7b65ed5a5ffc6121e18e4f4b9",
+      "Objects.txt": "2977c0148d661caffb03d5ce56b0f3414fd01b5dc5e6197a541147844db1c274",
+      "Offsets.hpp": "8de710b96ad9f561f6aa0b1d009b5ece26d8e9f6d834220c59c2473ca61e76a5",
+      "AIOHeader.hpp": "a06fa6a77d9035ef7314c600664d5cf975045200f130940c1cc8107b09d038e6",
+      "SDK_A/SDK.hpp": "1b599eb6e5b42cc7a91b81265bd71e4b457ab1d030d77928f5416a32af7bf9fd",
+      "SDK_A/Basic.h": "110d1c262951aae4f41bda7ad8da19b084f995eed49057105b97f4176766fd98",
+      "SDK_A/Basic.cpp": "716d5cb919a757849a401389482ff1b58ed067d650fae70d28b7059e21a2a2af",
+      "SDK_A/CoreUObject_structs.hpp": "a14227688a16d2746a5f0e402843d304c952a86ae0ee527d6d0d2e6b62553fce",
+      "SDK_A/CoreUObject_classes.hpp": "22e04e6535c176933bd6f16cb3ce88a2f1a368f9a68f2a7913f9616ddf10f0d4",
+      "SDK_A/CoreUObject_functions.cpp": "05758cdbd1b2bdb00e8206bb29a5505bee0f3f6033039c7e3ee2078812c996f8"
+    }
   },
   "generatedSdkCompilation": {
-    "status": "not-executed-no-current-target-sdk",
-    "translationUnits": 0,
-    "reason": "The current target run did not reach reflection collection or SDK publication."
+    "status": "passed",
+    "compiler": "Apple clang 17.0.0",
+    "languageMode": "C++20",
+    "sdkHeaderPch": {
+      "path": "build/actual-target-v2207-39f9d8f/SDK.pch",
+      "sha256": "7a7afa7ba3695cb07120461884d6ccf8ad39c495bdfc59e735503667bfcf62ed"
+    },
+    "translationUnitsChecked": 1792,
+    "commandMode": "-fsyntax-only with the generated SDK PCH; function bodies are parsed",
+    "diagnostics": 0,
+    "representativeObjects": {
+      "Basic.o": "6c222a7d123825a7c66a1b5073a47ecc85fd24a2083d935f66b73ae1ec8dc70a",
+      "CoreUObject_functions.o": "e14eef0a0dcaf14cacf01d87c4fa79b7c0aed4f3280751ac79119e3a2fee6425"
+    }
   },
   "regressionCoverage": {
-    "hostDebug": "26/26 passed",
-    "hostRelease": "26/26 passed",
-    "hostAddressUndefinedSanitizers": "26/26 passed",
-    "standaloneAndSwapChainHookDebug": "4/4 passed",
-    "standaloneAndSwapChainHookRelease": "4/4 passed",
-    "standaloneAndSwapChainHookAddressUndefinedSanitizers": "4/4 passed",
+    "hostDebug": "27/27 passed",
+    "hostRelease": "27/27 passed",
+    "hostAddressUndefinedSanitizers": "27/27 passed",
+    "standaloneAndSwapChainHookDebug": "memory, lifecycle, and failure-injection contracts passed",
+    "standaloneAndSwapChainHookRelease": "memory, lifecycle, and failure-injection contracts passed",
+    "standaloneAndSwapChainHookAddressUndefinedSanitizers": "memory, lifecycle, and failure-injection contracts passed",
     "androidDefaultReleaseBuild": "passed",
-    "androidDefaultReleaseMissingMemoryDeviceExecution": "passed without starting a worker",
+    "androidAnalysisDebugBuild": "passed",
     "androidAnalysisReleaseBuild": "passed",
-    "androidAnalysisProfileFixtureOnDevice": "passed",
-    "independentInstalledConsumers": [
-      "Core",
-      "component",
-      "Inspector"
-    ],
-    "exactAndroidFixtureExecution": [
+    "androidAnalysisDeviceFixtures": [
       "inert JNI loading and explicit lifecycle",
-      "exact linker selection, bounded reads, cancellation, budgets, eight generations and duplicate load rejection",
+      "command API",
+      "bounded ProcessMemory including explicit force-read policy",
       "bounded profile discovery",
       "interactive Inspector commands",
       "configured and frozen Inspector views"
+    ],
+    "officialDumperValidation": {
+      "status": "32 checks passed; source consistent",
+      "path": "artifacts/dumper-validation/20260913T083622Z/verification.json",
+      "committedCopy": "tests/dumper_emitter/verification.json",
+      "sha256": "59750479e657fa242cad30214a412831f08c6912a2dacb3d7e23ab20f2f6d029"
+    },
+    "consumerCoverage": [
+      "source Debug and Release consumers",
+      "ASan/UBSan consumer",
+      "installed and relocated consumer",
+      "emitter symbol and revision checks",
+      "Android Debug, Release, source, installed, and generated-code consumers"
     ],
     "faultCoverage": [
       "corruption",
@@ -204,25 +289,25 @@
       "deadline",
       "module generation change",
       "export failure injection",
+      "export interruption",
       "previous successful export preservation"
     ]
   },
   "unsupportedOrUnavailable": [
-    "The current version 1.201.37117.67 places the validated GUObjectArray fields in a write-only BSS mapping after startup. The supported reader rejects that mapping, so current-version six-phase discovery, reflection publication, and generated-SDK compilation remain open.",
     "ProcessEvent invocation remains disabled because no target-specific verified signature, object ownership, game-thread executor, and matching allocation/release contract was admitted.",
     "Profiles other than Delta Force have bounded discovery providers and compile coverage but do not have runtime admission evidence for their current application versions.",
     "Container property pointer relationships are discovered; complete runtime TArray, TSet, and TMap storage ABI inference is not claimed.",
-    "The caller-owned ImGui Inspector is implemented and fixture-executed; no public Android overlay, input hook, Vulkan hook, concealment, or protection bypass is included.",
+    "The caller-owned ImGui Inspector is implemented and fixture-executed; no public Android overlay, input hook, Vulkan hook, or concealment is included.",
     "Android 16 KiB page devices and manual module-base selection were not executed in this acceptance run."
   ],
   "safety": {
-    "targetSelection": "explicit package, PID, and exact mapped module",
-    "memoryAccess": "read-only process memory; mappings without read permission are rejected",
+    "targetSelection": "explicit package, PID, process start identity, and exact mapped module",
+    "memoryAccess": "read-only /proc/<pid>/mem access with bounded mapping validation; AllowProcfsForceRead was explicitly selected for the remote target and does not write target memory",
     "ptraceAttach": false,
     "privilegeEscalation": "none performed; adb shell was already uid 0 in u:r:ksu:s0",
     "concealment": false,
     "protectionChanges": false,
-    "processStateChanges": "one normal launcher start; no restart, stop, attach, or protection change was used to overcome the failure",
+    "processStateChanges": "none used to obtain or preserve memory access",
     "engineFunctionCalls": false
   }
 }
