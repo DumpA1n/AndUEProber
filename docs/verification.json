@@ -13,7 +13,7 @@
   "source": {
     "originalAndUEProber": "3304244255c662d5896556c32573de6ad776e751",
     "migrationBaselineAndUEProber": "e66488ed1fd1277d6d679a927cfda7fcd90942e7",
-    "executedAndUEProber": "071a3882f20e6dc323002928d30878c979796916",
+    "executedAndUEProber": "d6c24dbe1616ab4a4ebf3ec8d4bfc2f537fe3fe9",
     "functionalMigrationAndUEProber": "9e97b5bc792d83895b9133b918c593c104da9ec2",
     "AndUEDumper": "3f4eaba87756e39ebfb0d88609deb572ab5f6a50",
     "selectedMemorySource": {
@@ -44,12 +44,20 @@
     },
     "artifacts": {
       "andueprober_target_runner": {
-        "path": "build/android-analysis-release/tests/andueprober_target_runner",
-        "sha256": "ad6ac821a5882c1b9c4c931e44f8fe0be346633134e39f46539341c6f8f0ef15"
+        "path": "build/android-analysis-release/andueprober_target_runner",
+        "sha256": "a1c2a5d4f341c203249694fcbb47f2deb0dc85d4a46fced22dc48412564763b3"
       },
-      "libAndUEProberAgent.so": {
-        "path": "build/android-analysis-release/libAndUEProberAgent.so",
-        "sha256": "bc6ffe51026aa5e2282aa9b27d1120a1552d0098f7e537b905ead26d357d65e5"
+      "analysisReleaseAgent": {
+        "path": "build/android-analysis-release/libAndUEProber.so",
+        "sha256": "75d0baba54db796928574ef7c4bc1061a95292c4b6046f441c848ac69713b58c"
+      },
+      "defaultReleaseAgent": {
+        "path": "build/android-release/libAndUEProber.so",
+        "sha256": "3468289f9e89bad5de26d6fbc150a20180909d28e364f5a074e36638dba44"
+      },
+      "defaultReleaseCommandsFixture": {
+        "path": "build/android-release/tests/andueprober_android_commands",
+        "sha256": "88fac15d76d688be06b913c6acfd4ceaa2b133fb56f379849670ac6217639702"
       }
     }
   },
@@ -100,7 +108,7 @@
     "identity": "/data/app/~~bqI4krjsr7lEEjiSMDjdlQ==/com.tencent.tmgp.dfm-Ch7TvlrxOrVNdR9hPU0YbQ==/lib/arm64/libUE4.so#gnu-build-id:8187ddb9edbc9d5201201ffd7b008df3bfe533db;pid-start:36454520"
   },
   "actualTargetExecution": {
-    "command": "/data/local/tmp/auep-validation-071a388/andueprober_target_runner 24094 com.tencent.tmgp.dfm /data/local/tmp/auep-dfm-071a388",
+    "command": "/data/local/tmp/auep-validation-d6c24db/andueprober_target_runner 24094 com.tencent.tmgp.dfm /data/local/tmp/auep-dfm-d6c24db",
     "resultCode": 0,
     "generation": 1,
     "profile": "Delta Force",
@@ -164,7 +172,7 @@
         "boundedProbe": 16,
         "admittedProfile": 27
       },
-      "detailedEvidencePath": "build/actual-target-071a388/profile-369089073675712/completion.json"
+      "detailedEvidencePath": "build/actual-target-d6c24db/profile-398546913178225/completion.json"
     },
     "processEvent": {
       "relativeAddress": "0xe8b79f0",
@@ -182,26 +190,26 @@
   },
   "reflectionAndPublication": {
     "objectsGathered": 97615,
-    "objectInventoryLines": 96866,
+    "objectInventoryLines": 96869,
     "packagesGathered": 437,
     "packagesSaved": 436,
     "classesSaved": 11582,
     "structsSaved": 8064,
     "enumsSaved": 3271,
     "functionsSaved": 47258,
-    "deviceOutputPath": "/data/local/tmp/auep-dfm-071a388/profile-369089073675712",
-    "localOutputPath": "build/actual-target-071a388/profile-369089073675712",
+    "deviceOutputPath": "/data/local/tmp/auep-dfm-d6c24db/profile-398546913178225",
+    "localOutputPath": "build/actual-target-d6c24db/profile-398546913178225",
     "published": true,
     "completionMarkerComplete": true,
     "regularFiles": 886,
     "manifestedFiles": 885,
-    "devicePublishedBytes": 85757324,
-    "pulledBytes": 85628184,
+    "devicePublishedBytes": 85757578,
+    "pulledBytes": 85628438,
     "generatedCppFiles": 437,
     "generatedHppFiles": 438,
     "hashes": {
-      "completion.json": "34fbbb0b1ec174af8019f4463eb7160c92df31dbbc8fd1469fd76478fb71ebfb",
-      "Objects.txt": "e0ec58fe3e09676213b9966747a19167d971272229600e59135a7fc548982b8c",
+      "completion.json": "c1021d52ee07ca112c7246377dd279a084a18d05ea9f0f28222b24f3a430fa07",
+      "Objects.txt": "0e42b2d10a0852c813c174030b574ad4a9db0bc7d0ed351cc64a94efbc6f0483",
       "Offsets.hpp": "603dd8a0b17c07a74d56b44de448c29224c07131eb550dad73844431a0dec571",
       "AIOHeader.hpp": "0bbfcc04bc33342f7309f3ab547b7803bbcdd41dfd3f6aaafb7f985780e764ad",
       "SDK_A/SDK.hpp": "ed9670530ce9063641b5628b12170f4c80a980082daa20c773dc6ccc166e394e",
@@ -228,6 +236,8 @@
     "standaloneAndSwapChainHookDebug": "4/4 passed",
     "standaloneAndSwapChainHookRelease": "4/4 passed",
     "standaloneAndSwapChainHookAddressUndefinedSanitizers": "4/4 passed",
+    "androidDefaultReleaseBuild": "passed",
+    "androidDefaultReleaseMissingMemoryDeviceExecution": "passed without starting a worker",
     "androidAnalysisReleaseBuild": "passed",
     "independentInstalledConsumers": [
       "Core",
