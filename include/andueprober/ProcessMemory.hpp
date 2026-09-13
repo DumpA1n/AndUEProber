@@ -15,9 +15,10 @@ public:
     ProcessMemory& operator=(const ProcessMemory&) = delete;
     Status open(const std::string& modulePath, std::uintptr_t addressInModule, ReadBudget* budget = nullptr);
     Status openByName(std::span<const std::string> moduleNames, ReadBudget&);
-    // Opens an existing read-only procfs channel. This never attaches to the
-    // target or changes its process state. The caller must revalidate the lease
-    // between bounded operations because an external loader lease is impossible.
+    // Opens an existing read-only procfs channel with explicit force-read access
+    // to mapped pages. This never attaches to or changes the target. The caller
+    // must revalidate the lease between bounded operations because an external
+    // loader lease is impossible.
     Status openRemoteByName(pid_t, std::span<const std::string> moduleNames, ReadBudget&);
     Status validateLease() const;
     std::uintptr_t elfAddress() const;

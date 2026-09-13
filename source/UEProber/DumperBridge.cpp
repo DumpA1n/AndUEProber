@@ -218,7 +218,7 @@ std::vector<std::string> dependencyNames(int phase) {
 void ConfigureProbeOperation(const std::atomic<bool>* cancelled) {
     g_Cancelled = cancelled;
     g_ReadBudget = {};
-    g_ReadBudget.remainingBytes = std::size_t{2} * 1024 * 1024 * 1024;
+    g_ReadBudget.remainingBytes = std::size_t{8} * 1024 * 1024 * 1024;
     g_ReadBudget.deadline = std::chrono::steady_clock::now() + std::chrono::minutes(10);
     g_ReadBudget.cancelled = cancelled;
     g_UpstreamReadFailure = {};
@@ -656,6 +656,14 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             if (property.classAddress) propertyClassesByAddress.emplace(property.classAddress, property.className);
         std::map<std::string, std::size_t> propertyClassCounts;
         for (const auto& property : properties) ++propertyClassCounts[property.className];
+        std::vector<ObjectAnchor> enumClasses;
+        status = collectObjects(1024 * 1024, 1, [](const ObjectAnchor& anchor) {
+            return anchor.className == "Class" && anchor.name == "Enum";
+        }, enumClasses);
+        if (!status) return status;
+        if (enumClasses.size() != 1)
+            return {Error::InvalidEvidence, "Phase 5 requires the live Enum class identity"};
+        const auto enumClassAddress = enumClasses.front().address;
         auto discoverPointerField = [&](const char* fieldName, auto expected,
             std::uintptr_t& result, std::vector<std::string>& fieldSamples) -> Status {
             std::vector<std::pair<std::uintptr_t, std::vector<std::string>>> candidates;
@@ -836,10 +844,8 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                             propertyClassesByAddress.contains(fieldClass);
                     } else if (valid) {
                         std::uintptr_t objectClass = 0;
-                        if (!readValue(value + offsets->UObject.ClassPrivate, objectClass)) valid = false;
-                        const auto classObject = structuresByAddress.find(objectClass);
-                        valid = valid && classObject != structuresByAddress.end() &&
-                            classObject->second->className == "Class" && classObject->second->name == "Enum";
+                        valid = readValue(value + offsets->UObject.ClassPrivate, objectClass) &&
+                            objectClass == enumClassAddress;
                     }
                     if (!valid) continue;
                     if (found != UINTPTR_MAX && found != candidate)
@@ -1021,8 +1027,19 @@ andueprober::Status RunFullSdkDump(const andueprober::Snapshot& snapshot, const 
     if (!dumper.Init(g_SelectedProfile->AsGameProfile()))
         return {Error::InvalidEvidence, "The reflection dumper rejected the validated profile: " + dumper.GetLastError()};
     std::unordered_map<std::string, BufferFmt> buffers;
-    if (!dumper.Dump(&buffers))
-        return {Error::InvalidEvidence, "Reflection collection failed: " + dumper.GetLastError()};
+    if (!dumper.Dump(&buffers)) {
+        auto detail = "Reflection collection failed: " + dumper.GetLastError();
+        if (!g_UpstreamReadFailure)
+            detail += "; provider: " + g_UpstreamReadFailure.message;
+        const auto logs = buffers.find("Logs.txt");
+        if (logs != buffers.end()) {
+            const auto view = logs->second.readView();
+            constexpr std::size_t maximumDiagnosticBytes = 2048;
+            const auto start = view.size() > maximumDiagnosticBytes ? view.size() - maximumDiagnosticBytes : 0;
+            detail += "; log-tail:\n" + std::string(view.substr(start));
+        }
+        return {Error::InvalidEvidence, std::move(detail)};
+    }
     if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
     if (auto lease = g_Reader->validateLease(); !lease) return lease;
     const auto* cancellation = g_Cancelled ? g_Cancelled : &cancelled;
