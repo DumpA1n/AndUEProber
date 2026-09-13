@@ -439,10 +439,14 @@ andueprober::Status DetectAndPrepareGame(GameDetectionResult& result)
 }
 
 andueprober::Status FullSdkExportAdmission() {
+#if !ANDUEPROBER_HAS_PROCESS_MEMORY
+    return {andueprober::Error::Unsupported, "Full SDK export requires the explicit Memory dependency"};
+#else
     if (!g_SelectedProfile || !g_Reader || !g_ObjectDiscovery.address || !g_NameDiscovery.address)
         return {andueprober::Error::InvalidEvidence, "Full SDK export requires a current bounded profile and module lease"};
     if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
     return {};
+#endif
 }
 
 andueprober::Status InspectTargetMemory(std::uintptr_t address, std::uint32_t size,
