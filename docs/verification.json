@@ -1,19 +1,19 @@
 {
-  "schemaVersion": 3,
+  "schemaVersion": 4,
   "recordedDate": "2026-09-13",
   "scope": "Functional migration acceptance for the exact source and target identities recorded below. Synthetic, owned-fixture, compiled, and actual-target results are distinguished explicitly.",
   "acceptance": {
-    "automaticSixPhaseDiscovery": "passed-on-actual-target",
-    "reflectionCollectionAndSdkPublication": "passed-on-actual-target",
-    "generatedTargetSdkCompilation": "passed",
-    "processEventDiscovery": "passed-on-actual-target",
+    "automaticSixPhaseDiscovery": "blocked-on-current-target-runtime-memory-permissions",
+    "reflectionCollectionAndSdkPublication": "not-executed-on-current-target-version",
+    "generatedTargetSdkCompilation": "not-executed-no-current-target-sdk",
+    "processEventDiscovery": "not-executed-on-current-target-version",
     "processEventInvocation": "not-enabled",
     "inspectorInteraction": "passed-on-owned-android-fixtures"
   },
   "source": {
     "originalAndUEProber": "3304244255c662d5896556c32573de6ad776e751",
     "migrationBaselineAndUEProber": "e66488ed1fd1277d6d679a927cfda7fcd90942e7",
-    "executedAndUEProber": "d6c24dbe1616ab4a4ebf3ec8d4bfc2f537fe3fe9",
+    "executedAndUEProber": "89b3204c27cb42b05384fe33b85938f77b530077",
     "functionalMigrationAndUEProber": "9e97b5bc792d83895b9133b918c593c104da9ec2",
     "AndUEDumper": "3f4eaba87756e39ebfb0d88609deb572ab5f6a50",
     "selectedMemorySource": {
@@ -45,15 +45,19 @@
     "artifacts": {
       "andueprober_target_runner": {
         "path": "build/android-analysis-release/andueprober_target_runner",
-        "sha256": "a1c2a5d4f341c203249694fcbb47f2deb0dc85d4a46fced22dc48412564763b3"
+        "sha256": "2fd96635ba3caffc1eca14db47dc55ea0653ca7b72aa0bfa3ba6345d1cfd9ea6"
       },
       "analysisReleaseAgent": {
         "path": "build/android-analysis-release/libAndUEProber.so",
-        "sha256": "75d0baba54db796928574ef7c4bc1061a95292c4b6046f441c848ac69713b58c"
+        "sha256": "7858f3c7348e90afe6d7fe4d35aca929578eb55828c154ea6997848e7153ef5f"
+      },
+      "analysisReleaseProfileFixture": {
+        "path": "build/android-analysis-release/tests/andueprober_profile_discovery",
+        "sha256": "6ed7ff95e440cfa355676f7480a28b4ba8d786b8dece2de767a06e36e3b044e7"
       },
       "defaultReleaseAgent": {
         "path": "build/android-release/libAndUEProber.so",
-        "sha256": "3468289f9e89bad5de26d6fbc150a20180909d28e364f5a074e36638dba44"
+        "sha256": "473c2fde845e951095d9f8398cb9ca8efe5ea6434e90a7c81e84487ab37fbb10"
       },
       "defaultReleaseCommandsFixture": {
         "path": "build/android-release/tests/andueprober_android_commands",
@@ -82,152 +86,92 @@
       "targetTracerPid": 0,
       "targetEffectiveCapabilities": "0000000000000000",
       "targetNoNewPrivs": 0,
-      "targetSeccomp": 0
+      "targetSeccomp": 0,
+      "adbShellUid": 0,
+      "adbShellContext": "u:r:ksu:s0"
     }
   },
   "target": {
     "package": "com.tencent.tmgp.dfm",
-    "versionCode": 2019,
-    "versionName": "1.201.37114.81",
+    "versionCode": 2207,
+    "versionName": "1.201.37117.67",
     "targetSdk": 34,
     "minSdk": 24,
     "primaryAbi": "arm64-v8a",
-    "pid": 24094,
+    "pid": 26979,
     "processName": "MainThread-UE4",
-    "processStartIdentity": "36454520",
-    "codePath": "/data/app/~~bqI4krjsr7lEEjiSMDjdlQ==/com.tencent.tmgp.dfm-Ch7TvlrxOrVNdR9hPU0YbQ=="
+    "processStartIdentity": "40882625",
+    "codePath": "/data/app/~~n3r1ClURZ2UpRaNLvuZ4bw==/com.tencent.tmgp.dfm-tE0gQSyHcDBDnak5d1Z-Kg=="
   },
   "module": {
     "name": "libUE4.so",
-    "path": "/data/app/~~bqI4krjsr7lEEjiSMDjdlQ==/com.tencent.tmgp.dfm-Ch7TvlrxOrVNdR9hPU0YbQ==/lib/arm64/libUE4.so",
-    "baseAddress": "0x7602f9e000",
-    "sizeBytes": 508099424,
-    "inode": 21537,
-    "gnuBuildId": "8187ddb9edbc9d5201201ffd7b008df3bfe533db",
-    "sha256": "60851fc9b654a76b1c4b3c522629b834370e7032c558375d61e31e202c73a21b",
-    "identity": "/data/app/~~bqI4krjsr7lEEjiSMDjdlQ==/com.tencent.tmgp.dfm-Ch7TvlrxOrVNdR9hPU0YbQ==/lib/arm64/libUE4.so#gnu-build-id:8187ddb9edbc9d5201201ffd7b008df3bfe533db;pid-start:36454520"
+    "path": "/data/app/~~n3r1ClURZ2UpRaNLvuZ4bw==/com.tencent.tmgp.dfm-tE0gQSyHcDBDnak5d1Z-Kg==/lib/arm64/libUE4.so",
+    "baseAddress": "0x760673e000",
+    "sizeBytes": 566193496,
+    "inode": 189560,
+    "mode": "0755",
+    "gnuBuildId": "2cdcd1a90870be747f3090993b73383359c17f47",
+    "sha256": "387cd911a67eca1069bd5e4c874bce5dfb14823ca75f55f1ae7c43a09f2f1441",
+    "identity": "/data/app/~~n3r1ClURZ2UpRaNLvuZ4bw==/com.tencent.tmgp.dfm-tE0gQSyHcDBDnak5d1Z-Kg==/lib/arm64/libUE4.so#gnu-build-id:2cdcd1a90870be747f3090993b73383359c17f47;pid-start:40882625",
+    "runtimeMappingsAtFailure": [
+      "0x7625883000-0x7625eef000 rw-p libUE4.so",
+      "0x7625eef000-0x7626d9e000 -w-p [anon:.bss]",
+      "0x7626d9e000-0x7626d9f000 rw-p [anon:.bss]"
+    ]
   },
   "actualTargetExecution": {
-    "command": "/data/local/tmp/auep-validation-d6c24db/andueprober_target_runner 24094 com.tencent.tmgp.dfm /data/local/tmp/auep-dfm-d6c24db",
-    "resultCode": 0,
-    "generation": 1,
-    "profile": "Delta Force",
-    "phaseStatus": {
+    "command": "/data/local/tmp/auep-validation-v2207-89b3204/andueprober_target_runner 26979 com.tencent.tmgp.dfm /data/local/tmp/auep-dfm-v2207-89b3204",
+    "resultCode": 4,
+    "error": "Memory provider rejected the read at address 507454123288 for 8 bytes; system error 0",
+    "generation": 0,
+    "selectedProfile": "Delta Force",
+    "exactCommittedRunPhaseStatus": {
+      "phase1UObject": "blocked-during-object-registry-candidate-validation",
+      "phase2UFieldAndUStruct": "not-started",
+      "phase3UClass": "not-started",
+      "phase4UFunction": "not-started",
+      "phase5FFieldAndFProperty": "not-started",
+      "phase6UEnum": "not-started"
+    },
+    "blockedRead": {
+      "absoluteAddress": "0x76269f6d18",
+      "moduleRelativeAddress": "0x202b8d18",
+      "candidateObjectArrayRelativeAddress": "0x202b8cf8",
+      "candidateFieldOffset": "0x20",
+      "bytes": 8,
+      "mapping": "0x7625eef000-0x7626d9e000 -w-p [anon:.bss]",
+      "providerPolicy": "Mappings without read permission are rejected without attempting the read."
+    },
+    "maximumObservedProgressBeforeRuntimeProtectionTransition": {
+      "status": "diagnostic-only-not-acceptance",
       "phase1UObject": "completed",
       "phase2UFieldAndUStruct": "completed",
       "phase3UClass": "completed",
       "phase4UFunction": "completed",
-      "phase5FFieldAndFProperty": "completed",
-      "phase6UEnum": "completed"
+      "phase5FFieldAndFProperty": "reached-but-not-completed",
+      "phase6UEnum": "not-started",
+      "offsetCount": 19,
+      "objectArrayRelativeAddress": "0x202b8cf8",
+      "namePoolRelativeAddress": "0x20291ec0",
+      "phase5Failure": "No live subclass tail was found for EnumProperty (instances=674, properties=24218).",
+      "note": "The target later changed the object-array BSS page to write-only; the exact committed rerun therefore stopped before these phases."
     },
-    "offsetCount": 43,
-    "offsets": {
-      "FArrayProperty::Inner": 136,
-      "FBoolProperty::ByteMask": 130,
-      "FBoolProperty::ByteOffset": 129,
-      "FBoolProperty::FieldMask": 131,
-      "FBoolProperty::FieldSize": 128,
-      "FEnumProperty::Enum": 136,
-      "FEnumProperty::UnderlyingType": 128,
-      "FField::ClassPrivate": 32,
-      "FField::FlagsPrivate": 8,
-      "FField::NamePrivate": 40,
-      "FField::Next": 24,
-      "FField::Owner": 8,
-      "FMapProperty::KeyProp": 136,
-      "FMapProperty::ValueProp": 144,
-      "FProperty::ArrayDim": 56,
-      "FProperty::ElementSize": 60,
-      "FProperty::Offset_Internal": 76,
-      "FProperty::PropertyFlags": 64,
-      "FProperty::SubPropertyBase": 136,
-      "FSetProperty::ElementProp": 128,
-      "Module::GUObjectArray": 484386600,
-      "Module::NamePool": 484227264,
-      "ProcessEvent::Address": 244021744,
-      "ProcessEvent::VTableIdx": 69,
-      "UClass::CastFlags": 216,
-      "UClass::ClassDefaultObject": 312,
-      "UEnum::Names": 64,
-      "UField::Next": 40,
-      "UFunction::Func": 216,
-      "UFunction::FunctionFlags": 184,
-      "UFunction::NumParms": 176,
-      "UFunction::ParmsSize": 178,
-      "UFunction::ReturnValueOffset": 180,
-      "UObject::ClassPrivate": 8,
-      "UObject::InternalIndex": 36,
-      "UObject::NamePrivate": 28,
-      "UObject::ObjectFlags": 24,
-      "UObject::OuterPrivate": 16,
-      "UStruct::ChildProperties": 104,
-      "UStruct::Children": 80,
-      "UStruct::PropertiesSize": 60,
-      "UStruct::SuperStruct": 64,
-      "sizeof(FProperty)": 128
-    },
-    "offsetEvidence": {
-      "validation": "validated",
-      "originSummary": {
-        "boundedProbe": 16,
-        "admittedProfile": 27
-      },
-      "detailedEvidencePath": "build/actual-target-d6c24db/profile-398546913178225/completion.json"
-    },
-    "processEvent": {
-      "relativeAddress": "0xe8b79f0",
-      "absoluteAddress": "0x76118559f0",
-      "vtableIndex": 69,
-      "discovered": true,
-      "invoked": false
-    },
-    "engineGlobals": {
-      "GEngineRelativeAddress": "0x1d0e50b0",
-      "GEngineAbsoluteAddress": "0x76200830b0",
-      "GWorldRelativeAddress": "0x1d0e8668",
-      "GWorldAbsoluteAddress": "0x7620086668"
-    }
+    "outputPublished": false,
+    "outputPath": ""
   },
   "reflectionAndPublication": {
-    "objectsGathered": 97615,
-    "objectInventoryLines": 96869,
-    "packagesGathered": 437,
-    "packagesSaved": 436,
-    "classesSaved": 11582,
-    "structsSaved": 8064,
-    "enumsSaved": 3271,
-    "functionsSaved": 47258,
-    "deviceOutputPath": "/data/local/tmp/auep-dfm-d6c24db/profile-398546913178225",
-    "localOutputPath": "build/actual-target-d6c24db/profile-398546913178225",
-    "published": true,
-    "completionMarkerComplete": true,
-    "regularFiles": 886,
-    "manifestedFiles": 885,
-    "devicePublishedBytes": 85757578,
-    "pulledBytes": 85628438,
-    "generatedCppFiles": 437,
-    "generatedHppFiles": 438,
-    "hashes": {
-      "completion.json": "c1021d52ee07ca112c7246377dd279a084a18d05ea9f0f28222b24f3a430fa07",
-      "Objects.txt": "0e42b2d10a0852c813c174030b574ad4a9db0bc7d0ed351cc64a94efbc6f0483",
-      "Offsets.hpp": "603dd8a0b17c07a74d56b44de448c29224c07131eb550dad73844431a0dec571",
-      "AIOHeader.hpp": "0bbfcc04bc33342f7309f3ab547b7803bbcdd41dfd3f6aaafb7f985780e764ad",
-      "SDK_A/SDK.hpp": "ed9670530ce9063641b5628b12170f4c80a980082daa20c773dc6ccc166e394e",
-      "SDK_A/Basic.h": "110d1c262951aae4f41bda7ad8da19b084f995eed49057105b97f4176766fd98",
-      "SDK_A/Basic.cpp": "716d5cb919a757849a401389482ff1b58ed067d650fae70d28b7059e21a2a2af",
-      "SDK_A/CoreUObject_classes.hpp": "f583b9f247f5ec4ea124d02db79d1505a7b92d8c2d23a8619123f0772efff185",
-      "SDK_A/CoreUObject_structs.hpp": "573260703f022959cc4b764757d630ff89c3907d77b28aac691b86a63660242f",
-      "SDK_A/CoreUObject_functions.cpp": "05758cdbd1b2bdb00e8206bb29a5505bee0f3f6033039c7e3ee2078812c996f8"
-    }
+    "status": "not-executed-on-current-target-version",
+    "objectsGathered": 0,
+    "deviceOutputPath": "",
+    "localOutputPath": "",
+    "published": false,
+    "completionMarkerComplete": false,
+    "regularFiles": 0
   },
   "generatedSdkCompilation": {
-    "compiler": "AppleClang 17.0.0.17000013",
-    "language": "C++20",
-    "translationUnitCommand": "find SDK_A -name '*.cpp' -print0 | xargs -0 -n1 -P4 clang++ -w -std=c++20 -fsyntax-only -I SDK_A",
-    "translationUnits": 437,
-    "translationUnitExitCode": 0,
-    "aggregateCommand": "clang++ -w -std=c++20 -fsyntax-only -x c++ -I SDK_A SDK_A/SDK.hpp",
-    "aggregateExitCode": 0
+    "status": "not-executed-no-current-target-sdk",
+    "translationUnits": 0,
+    "reason": "The current target run did not reach reflection collection or SDK publication."
   },
   "regressionCoverage": {
     "hostDebug": "26/26 passed",
@@ -239,6 +183,7 @@
     "androidDefaultReleaseBuild": "passed",
     "androidDefaultReleaseMissingMemoryDeviceExecution": "passed without starting a worker",
     "androidAnalysisReleaseBuild": "passed",
+    "androidAnalysisProfileFixtureOnDevice": "passed",
     "independentInstalledConsumers": [
       "Core",
       "component",
@@ -263,6 +208,7 @@
     ]
   },
   "unsupportedOrUnavailable": [
+    "The current version 1.201.37117.67 places the validated GUObjectArray fields in a write-only BSS mapping after startup. The supported reader rejects that mapping, so current-version six-phase discovery, reflection publication, and generated-SDK compilation remain open.",
     "ProcessEvent invocation remains disabled because no target-specific verified signature, object ownership, game-thread executor, and matching allocation/release contract was admitted.",
     "Profiles other than Delta Force have bounded discovery providers and compile coverage but do not have runtime admission evidence for their current application versions.",
     "Container property pointer relationships are discovered; complete runtime TArray, TSet, and TMap storage ABI inference is not claimed.",
@@ -271,12 +217,12 @@
   ],
   "safety": {
     "targetSelection": "explicit package, PID, and exact mapped module",
-    "memoryAccess": "read-only process memory",
+    "memoryAccess": "read-only process memory; mappings without read permission are rejected",
     "ptraceAttach": false,
-    "privilegeEscalation": false,
+    "privilegeEscalation": "none performed; adb shell was already uid 0 in u:r:ksu:s0",
     "concealment": false,
     "protectionChanges": false,
-    "processStateChanges": false,
+    "processStateChanges": "one normal launcher start; no restart, stop, attach, or protection change was used to overcome the failure",
     "engineFunctionCalls": false
   }
 }
