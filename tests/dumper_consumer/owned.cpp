@@ -79,7 +79,7 @@ extern "C" int andueprober_owned_dumper(const char* headerPath, const char* expo
     auto frozen = freezeReflection(analysis, model);
     require(bool(frozen.status) && bool(frozen.snapshot), "freeze typed native layout");
     auto result = buildDumperHeader(*frozen.snapshot);
-    require(dumperDependencyIdentity().starts_with("AndUEDumper:09aa4dfd8630da4643f1009d09b9148e41aeb50d:emitter-sha256:"),
+    require(dumperDependencyIdentity().starts_with("AndUEDumper:28c90cc9cd348d8738531ae7795fb23a7ff4a60c:emitter-sha256:"),
             "dependency identity comes from checked extraction");
     require(bool(result.status) && !result.header.empty(), "emit typed native layout");
     require(result.header.find("UNTRUSTED_METADATA") == std::string::npos, "metadata is excluded from generated C++");
