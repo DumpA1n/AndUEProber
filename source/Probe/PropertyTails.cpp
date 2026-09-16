@@ -1,5 +1,6 @@
 #include "andueprober/PropertyTails.hpp"
 #include "PropertyContext.hpp"
+#include "Core/Budget.hpp"
 
 #include <algorithm>
 #include <array>
@@ -10,28 +11,9 @@
 namespace andueprober {
 namespace {
 constexpr std::size_t maximumMetadata = 4 * 1024 * 1024;
-struct Failure { Error code; const char* message; };
-[[noreturn]] void fail(Error code, const char* message) { throw Failure{code, message}; }
 bool textValid(const std::string& value) {
     return !value.empty() && value.size() <= 1024 && value.find('\0') == std::string::npos && validateUtf8(value);
 }
-struct Meter {
-    ReadBudget& budget;
-    std::size_t remaining = maximumMetadata;
-    void check() const {
-        if (budget.cancelled && budget.cancelled->load()) fail(Error::Cancelled, "Property tail observation cancelled");
-        if (std::chrono::steady_clock::now() >= budget.deadline) fail(Error::DeadlineExceeded, "Property tail observation deadline exceeded");
-    }
-    void charge(std::size_t count, std::size_t width = 1) {
-        check();
-        if (count > remaining / width) fail(Error::BudgetExceeded, "Property tail metadata budget exceeded");
-        remaining -= count * width;
-    }
-    void text(const std::string& value) {
-        charge(value.size());
-        if (!textValid(value)) fail(Error::InvalidArgument, "Property tail metadata requires nonempty bounded UTF-8 text");
-    }
-};
 std::vector<std::string> fields(PropertyTailKind kind) {
     switch (kind) {
     case PropertyTailKind::Enum: return {"FEnumProperty::UnderlyingType", "FEnumProperty::Enum"};
@@ -58,17 +40,11 @@ std::uintptr_t expected(const PropertyTailSample& sample, std::size_t column) {
 const std::string& expectedIdentity(const PropertyTailSample& sample, std::size_t column) {
     return column ? sample.secondIdentity : sample.firstIdentity;
 }
-void proofCharge(Meter& meter, const Evidence& evidence) {
-    meter.charge(1, sizeof(Evidence)); meter.charge(evidence.check.size()); meter.charge(evidence.source.size());
-    meter.charge(evidence.relativeAddresses.size(), sizeof(std::uintptr_t));
-    meter.charge(evidence.sampleIdentities.size(), sizeof(std::string));
-    for (const auto& identity : evidence.sampleIdentities) meter.charge(identity.size());
-}
 }
 
 Status probePropertyTails(MemoryReader& reader, const PropertyTailProfile& profile, std::span<const PropertyTailSample> samples,
     const NameLayout& names, std::uintptr_t pool, const NamePoolProfile& poolProfile, ReadBudget& budget, Snapshot& snapshot) {
-    try {
+    return guard([&]() -> Status {
         const auto outputs = fields(profile.kind); const auto& property = profile.property;
         if (outputs.empty() || property.layout != Layout::FField || sizeof(std::uintptr_t) != 8 || std::endian::native != std::endian::little)
             return {Error::Unsupported, "Property tails support only the declared little-endian 64-bit pointer kinds; bool layouts remain unsupported"};
@@ -82,7 +58,7 @@ Status probePropertyTails(MemoryReader& reader, const PropertyTailProfile& profi
         if (auto status = detail::preparePropertyContext(reader, property, profile.propertyBaseExtent, profile.extent,
             8, names, pool, poolProfile, outputs, budget, snapshot, context); !status) return status;
         const auto& propertySource = context.source;
-        Meter input{budget}; input.charge(samples.size(), sizeof(PropertyTailSample));
+        Budget input{"Property tail observation", budget, maximumMetadata}; input.charge(samples.size(), sizeof(PropertyTailSample));
         std::set<std::string> identities;
         std::map<std::string, std::uintptr_t> targets;
         std::vector<std::pair<std::uintptr_t, std::uintptr_t>> ranges;
@@ -118,7 +94,7 @@ Status probePropertyTails(MemoryReader& reader, const PropertyTailProfile& profi
         }
         for (std::size_t column = 0; column < outputs.size(); ++column)
             if (distinct[column].size() < 2) return {Error::InvalidEvidence, "Each property tail field requires two distinct non-null named targets"};
-        Meter reportsBudget{budget};
+        Budget reportsBudget{"Property tail observation", budget, maximumMetadata};
         std::vector<std::reference_wrapper<FieldProbeReport>> reports;
         for (const auto& field : outputs) {
             auto& report = snapshot.fieldReports[field]; report = {}; report.generation = budget.generation;
@@ -141,7 +117,7 @@ Status probePropertyTails(MemoryReader& reader, const PropertyTailProfile& profi
                     }
                 }
                 if (matched) {
-                    reportsBudget.charge(1, sizeof(Offset)); proofCharge(reportsBudget, proofs[column]);
+                    reportsBudget.charge(1, sizeof(Offset)); reportsBudget.evidence(proofs[column]);
                     reportsBudget.charge(1, sizeof(std::uintptr_t));
                     auto proof = proofs[column]; proof.relativeAddresses = {offset};
                     Offset candidate; candidate.value = offset; candidate.evidence.push_back(std::move(proof));
@@ -161,7 +137,7 @@ Status probePropertyTails(MemoryReader& reader, const PropertyTailProfile& profi
                     }
                 }
                 auto proof = proofs[column]; proof.check = "complete property-tail phase final readback matches every declared pointer";
-                proof.relativeAddresses = {*candidate.value}; proofCharge(reportsBudget, proof); candidate.evidence.push_back(std::move(proof));
+                proof.relativeAddresses = {*candidate.value}; reportsBudget.evidence(proof); candidate.evidence.push_back(std::move(proof));
             }
             if (report.candidates.size() == 1) report.candidates.front().validation = Validation::Validated;
         }
@@ -170,8 +146,6 @@ Status probePropertyTails(MemoryReader& reader, const PropertyTailProfile& profi
         if (outputs.size() == 2 && reports[0].get().candidates.front().value == reports[1].get().candidates.front().value)
             return {Error::InvalidEvidence, "Distinct property-tail fields require separate pointer slots"};
         return detail::publishPropertyContext(reader, property, context, outputs, budget, snapshot);
-    } catch (const Failure& error) {
-        try { return {error.code, error.message}; } catch (...) { return {error.code, {}}; }
-    } catch (...) { return {Error::Internal, {}}; }
+    });
 }
 }

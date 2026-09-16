@@ -1,5 +1,6 @@
 #include "andueprober/PropertyValues.hpp"
 #include "PropertyContext.hpp"
+#include "Core/Budget.hpp"
 #include <algorithm>
 #include <array>
 #include <bit>
@@ -8,35 +9,11 @@
 
 namespace andueprober {
 namespace {
+constexpr std::size_t maximumMetadata = 4 * 1024 * 1024;
 const std::array<std::string, 4> boolFields{"FBoolProperty::FieldSize", "FBoolProperty::ByteOffset",
     "FBoolProperty::ByteMask", "FBoolProperty::FieldMask"};
 const std::array<std::string, 1> pathFields{"FFieldPathProperty::PropertyClass"};
-struct Failure { Error code; const char* message; };
-[[noreturn]] void fail(Error code, const char* message) { throw Failure{code, message}; }
-struct Meter {
-    ReadBudget& budget;
-    std::size_t remaining = 4 * 1024 * 1024;
-    void check() const {
-        if (budget.cancelled && budget.cancelled->load()) fail(Error::Cancelled, "Property metadata observation cancelled");
-        if (std::chrono::steady_clock::now() >= budget.deadline) fail(Error::DeadlineExceeded, "Property metadata observation deadline exceeded");
-    }
-    void charge(std::size_t count, std::size_t width = 1) {
-        check();
-        if (count > remaining / width) fail(Error::BudgetExceeded, "Property metadata budget exceeded");
-        remaining -= count * width;
-    }
-    void text(const std::string& value) {
-        charge(value.size());
-        if (!detail::propertyTextValid(value)) fail(Error::InvalidArgument, "Property metadata requires bounded nonempty UTF-8 text");
-    }
-    void proof(const Evidence& value) {
-        charge(1, sizeof(Evidence)); charge(value.check.size()); charge(value.source.size());
-        charge(value.relativeAddresses.size(), sizeof(std::uintptr_t));
-        charge(value.sampleIdentities.size(), sizeof(std::string));
-        for (const auto& identity : value.sampleIdentities) charge(identity.size());
-    }
-};
-template<class Sample> Status validateSamples(std::span<const Sample> samples, std::uint32_t extent, Meter& meter) {
+template<class Sample> Status validateSamples(std::span<const Sample> samples, std::uint32_t extent, Budget& meter) {
     if (samples.size() < 3 || samples.size() > 16) return {Error::InvalidArgument, "Property metadata requires 3-16 independent anchors"};
     meter.charge(samples.size(), sizeof(Sample));
     std::set<std::string> identities;
@@ -52,7 +29,7 @@ template<class Sample> Status validateSamples(std::span<const Sample> samples, s
     }
     return {};
 }
-void reject(FieldProbeReport& report, Meter& meter, std::uint32_t offset, const std::string& identity,
+void reject(FieldProbeReport& report, Budget& meter, std::uint32_t offset, const std::string& identity,
     Error code, const std::string& message) {
     meter.charge(1, sizeof(CandidateRejection)); meter.charge(identity.size()); meter.charge(message.size());
     report.rejected.push_back({offset, code, identity, message});
@@ -62,7 +39,7 @@ void reject(FieldProbeReport& report, Meter& meter, std::uint32_t offset, const 
 template<class Sample, class Observe> Status scan(std::span<const Sample> samples, std::span<const std::string> outputs,
     std::uint32_t prefix, std::uint32_t extent, std::uint32_t width, std::uint32_t alignment,
     std::span<const Evidence> proofs, const Evidence& inherited, ReadBudget& budget, Snapshot& snapshot, bool rejectMappingCandidates, Observe observe) {
-    Meter meter{budget};
+    Budget meter{"Property metadata observation", budget, maximumMetadata};
     for (const auto& field : outputs) { auto& report = snapshot.fieldReports[field]; report = {}; report.generation = budget.generation; }
     using Bytes = std::vector<std::byte>;
     std::vector<std::map<std::uint32_t, std::vector<Bytes>>> observations(outputs.size());
@@ -80,7 +57,7 @@ template<class Sample, class Observe> Status scan(std::span<const Sample> sample
                 raw.push_back(std::move(bytes));
             }
             if (matched) {
-                meter.charge(1, sizeof(Offset)); meter.proof(proofs[column]); meter.proof(inherited); meter.charge(1, sizeof(std::uintptr_t));
+                meter.charge(1, sizeof(Offset)); meter.evidence(proofs[column]); meter.evidence(inherited); meter.charge(1, sizeof(std::uintptr_t));
                 meter.charge(raw.size(), sizeof(Bytes)); for (const auto& bytes : raw) meter.charge(bytes.size());
                 auto proof = proofs[column]; proof.relativeAddresses = {offset};
                 Offset candidate; candidate.value = offset; candidate.evidence.push_back(std::move(proof)); candidate.evidence.push_back(inherited);
@@ -100,7 +77,7 @@ template<class Sample, class Observe> Status scan(std::span<const Sample> sample
                 }
             }
             auto proof = proofs[column]; proof.check = "complete property metadata final readback matches every declaration";
-            proof.relativeAddresses = {*candidate.value}; meter.proof(proof); candidate.evidence.push_back(std::move(proof));
+            proof.relativeAddresses = {*candidate.value}; meter.evidence(proof); candidate.evidence.push_back(std::move(proof));
         }
         if (report.candidates.size() == 1) report.candidates.front().validation = Validation::Validated;
     }
@@ -117,13 +94,13 @@ template<class Sample, class Observe> Status scan(std::span<const Sample> sample
     return {};
 }
 Evidence proof(const std::string& field, const std::string& identity, std::uint32_t prefix,
-    Meter& input, std::size_t samples) {
+    Budget& input, std::size_t samples) {
     Evidence result{"property metadata matches independent declarations", true, samples, {}, {}, {}};
     result.source = "property-value-profile:" + identity + ";field:" + field + ";occupied-property-prefix:" +
         std::to_string(prefix);
     input.text(result.source); return result;
 }
-Evidence inheritedProof(const detail::PropertyContext& context, const Snapshot& snapshot, Meter& input) {
+Evidence inheritedProof(const detail::PropertyContext& context, const Snapshot& snapshot, Budget& input) {
     Evidence result{"all inherited property fields match their complete observation identity", true,
         detail::propertyDependencies.size(), {}, context.source, {}};
     input.text(result.source);
@@ -131,7 +108,7 @@ Evidence inheritedProof(const detail::PropertyContext& context, const Snapshot& 
         result.relativeAddresses.push_back(*snapshot.offsets.at(field).value);
         result.sampleIdentities.push_back(field);
     }
-    input.proof(result); return result;
+    input.evidence(result); return result;
 }
 std::array<std::uint8_t, 4> values(const BoolPropertySample& sample) {
     return {sample.fieldSize, sample.byteOffset, sample.byteMask, sample.fieldMask};
@@ -139,7 +116,7 @@ std::array<std::uint8_t, 4> values(const BoolPropertySample& sample) {
 }
 Status probeBoolProperty(MemoryReader& reader, const BoolPropertyProfile& profile, std::span<const BoolPropertySample> samples,
     const NameLayout& names, std::uintptr_t pool, const NamePoolProfile& poolProfile, ReadBudget& budget, Snapshot& snapshot) {
-    try {
+    return guard([&]() -> Status {
         if (!detail::propertyTextValid(profile.identity) || samples.size() < 3 || samples.size() > 16)
             return {Error::InvalidArgument, "Bool metadata requires a named profile and 3-16 anchors"};
         for (const auto& sample : samples) if (sample.encoding != BoolEncoding::NativeByte && sample.encoding != BoolEncoding::SingleBit)
@@ -147,7 +124,7 @@ Status probeBoolProperty(MemoryReader& reader, const BoolPropertyProfile& profil
         detail::PropertyContext context;
         if (auto status = detail::preparePropertyContext(reader, profile.property, profile.propertyBaseExtent, profile.extent,
             1, names, pool, poolProfile, boolFields, budget, snapshot, context); !status) return status;
-        Meter input{budget};
+        Budget input{"Property metadata observation", budget, maximumMetadata};
         if (auto status = validateSamples(samples, profile.extent, input); !status) return status;
         const auto inherited = inheritedProof(context, snapshot, input);
         std::array<Evidence, 4> proofs;
@@ -177,13 +154,11 @@ Status probeBoolProperty(MemoryReader& reader, const BoolPropertyProfile& profil
         };
         if (auto status = scan(samples, boolFields, profile.propertyBaseExtent, profile.extent, 1, 1, proofs, inherited, budget, snapshot, false, observe); !status) return status;
         return detail::publishPropertyContext(reader, profile.property, context, boolFields, budget, snapshot);
-    } catch (const Failure& error) {
-        try { return {error.code, error.message}; } catch (...) { return {error.code, {}}; }
-    } catch (...) { return {Error::Internal, {}}; }
+    });
 }
 Status probeFieldPathProperty(MemoryReader& reader, const FieldPathPropertyProfile& profile, std::span<const FieldPathPropertySample> samples,
     const NameLayout& names, std::uintptr_t pool, const NamePoolProfile& poolProfile, ReadBudget& budget, Snapshot& snapshot) {
-    try {
+    return guard([&]() -> Status {
         if (profile.representation != FieldPathRepresentation::InlineFName)
             return {Error::Unsupported, "FieldPath metadata requires an explicitly declared inline FName representation"};
         if (!detail::propertyTextValid(profile.identity) || samples.size() < 3 || samples.size() > 16)
@@ -191,7 +166,7 @@ Status probeFieldPathProperty(MemoryReader& reader, const FieldPathPropertyProfi
         detail::PropertyContext context;
         if (auto status = detail::preparePropertyContext(reader, profile.property, profile.propertyBaseExtent, profile.extent,
             names.size, names, pool, poolProfile, pathFields, budget, snapshot, context); !status) return status;
-        Meter input{budget};
+        Budget input{"Property metadata observation", budget, maximumMetadata};
         if (auto status = validateSamples(samples, profile.extent, input); !status) return status;
         const auto inherited = inheritedProof(context, snapshot, input);
         std::array<Evidence, 1> proofs{proof(pathFields[0], profile.identity, profile.propertyBaseExtent, input, samples.size())};
@@ -216,8 +191,6 @@ Status probeFieldPathProperty(MemoryReader& reader, const FieldPathPropertyProfi
         };
         if (auto status = scan(samples, pathFields, profile.propertyBaseExtent, profile.extent, names.size, 4, proofs, inherited, budget, snapshot, true, observe); !status) return status;
         return detail::publishPropertyContext(reader, profile.property, context, pathFields, budget, snapshot);
-    } catch (const Failure& error) {
-        try { return {error.code, error.message}; } catch (...) { return {error.code, {}}; }
-    } catch (...) { return {Error::Internal, {}}; }
+    });
 }
 }

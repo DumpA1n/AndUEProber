@@ -1,4 +1,5 @@
 #include "andueprober/Reflection.hpp"
+#include "Core/Budget.hpp"
 #include <algorithm>
 #include <bit>
 #include <limits>
@@ -7,31 +8,6 @@
 
 namespace andueprober {
 namespace {
-struct Failure { Error code; const char* message; };
-[[noreturn]] void fail(Error code, const char* message) { throw Failure{code, message}; }
-struct Budget {
-    const ReflectionLimits& limits;
-    std::size_t remaining;
-    void check() const {
-        if (limits.cancelled && limits.cancelled->load()) fail(Error::Cancelled, "Reflection freeze cancelled");
-        if (std::chrono::steady_clock::now() >= limits.deadline) fail(Error::DeadlineExceeded, "Reflection freeze deadline exceeded");
-    }
-    void bytes(std::size_t amount) {
-        check();
-        if (amount > remaining) fail(Error::BudgetExceeded, "Reflection metadata exceeds its byte budget");
-        remaining -= amount;
-    }
-    void entries(std::size_t count, std::size_t width) {
-        check();
-        if (count > remaining / width) fail(Error::BudgetExceeded, "Reflection metadata entries exceed their byte budget");
-        remaining -= count * width;
-    }
-    void text(const std::string& value) {
-        bytes(value.size());
-        if (value.empty() || value.size() > 1024 || value.find('\0') != std::string::npos || !validateUtf8(value))
-            fail(Error::InvalidArgument, "Reflection metadata requires bounded nonempty UTF-8 text");
-    }
-};
 bool identifier(const std::string& value) {
     const auto letter = [](char c) { return (c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z'); };
     if (value.empty() || value.size() > 127 || !letter(value.front()) || value.find("__") != std::string::npos) return false;
@@ -63,16 +39,16 @@ bool integer(ReflectionScalar scalar) {
 }
 void proof(const Snapshot& analysis, Budget& budget) {
     budget.text(analysis.sessionId); budget.text(analysis.moduleIdentity); budget.text(analysis.layoutIdentity);
-    budget.entries(analysis.offsets.size(), sizeof(Offset));
+    budget.charge(analysis.offsets.size(), sizeof(Offset));
     for (const auto& [name, offset] : analysis.offsets) {
         budget.text(name);
-        budget.entries(offset.dependencies.size(), sizeof(std::pair<std::string, std::uint64_t>));
+        budget.charge(offset.dependencies.size(), sizeof(std::pair<std::string, std::uint64_t>));
         for (const auto& [dependency, version] : offset.dependencies) { (void)version; budget.text(dependency); }
-        budget.entries(offset.evidence.size(), sizeof(Evidence));
+        budget.charge(offset.evidence.size(), sizeof(Evidence));
         for (const auto& evidence : offset.evidence) {
             budget.text(evidence.check); budget.text(evidence.source);
-            budget.entries(evidence.relativeAddresses.size(), sizeof(std::uintptr_t));
-            budget.entries(evidence.sampleIdentities.size(), sizeof(std::string));
+            budget.charge(evidence.relativeAddresses.size(), sizeof(std::uintptr_t));
+            budget.charge(evidence.sampleIdentities.size(), sizeof(std::string));
             if (!evidence.passed || !evidence.samples || evidence.sampleIdentities.size() != evidence.samples)
                 fail(Error::InvalidEvidence, "Reflection offset evidence requires matching named samples");
             for (const auto& identity : evidence.sampleIdentities) budget.text(identity);
@@ -91,13 +67,13 @@ FreezeReflectionResult freezeReflection(const Snapshot& analysis, const Reflecti
         if (!limits.maximumTypes || !limits.maximumFields || !limits.maximumEnumValues || !limits.maximumMetadataBytes ||
             !limits.maximumTypeBytes || !limits.maximumArrayElements)
             fail(Error::InvalidArgument, "Reflection limits must be nonzero");
-        Budget budget{limits, limits.maximumMetadataBytes};
+        Budget budget{"Reflection freeze", limits.cancelled, limits.deadline, limits.maximumMetadataBytes};
         budget.check(); budget.text(schema.identity);
         if (schema.records.empty() && schema.enumerations.empty()) fail(Error::InvalidArgument, "Reflection requires at least one type");
         if (schema.records.size() > limits.maximumTypes || schema.enumerations.size() > limits.maximumTypes - schema.records.size())
             fail(Error::BudgetExceeded, "Reflection type count exceeds its limit");
-        budget.entries(schema.records.size(), sizeof(ReflectionRecordSpec));
-        budget.entries(schema.enumerations.size(), sizeof(ReflectionEnumSpec));
+        budget.charge(schema.records.size(), sizeof(ReflectionRecordSpec));
+        budget.charge(schema.enumerations.size(), sizeof(ReflectionEnumSpec));
         proof(analysis, budget);
         std::map<std::uint32_t, const ReflectionRecordSpec*> records;
         std::map<std::uint32_t, const ReflectionEnumSpec*> enumerations;
@@ -117,7 +93,7 @@ FreezeReflectionResult freezeReflection(const Snapshot& analysis, const Reflecti
             if (record.fields.empty()) fail(Error::InvalidArgument, "Reflection records require at least one typed field");
             if (record.fields.size() > limits.maximumFields - fieldCount)
                 fail(Error::BudgetExceeded, "Reflection field count exceeds its limit");
-            fieldCount += record.fields.size(); budget.entries(record.fields.size(), sizeof(ReflectionFieldSpec));
+            fieldCount += record.fields.size(); budget.charge(record.fields.size(), sizeof(ReflectionFieldSpec));
             records.emplace(record.id, &record);
         }
         for (const auto& enumeration : schema.enumerations) {
@@ -127,7 +103,7 @@ FreezeReflectionResult freezeReflection(const Snapshot& analysis, const Reflecti
             if (enumeration.values.empty()) fail(Error::InvalidArgument, "Reflection enums require at least one named value");
             if (enumeration.values.size() > limits.maximumEnumValues - valueCount)
                 fail(Error::BudgetExceeded, "Reflection enum value count exceeds its limit");
-            valueCount += enumeration.values.size(); budget.entries(enumeration.values.size(), sizeof(ReflectionEnumValue));
+            valueCount += enumeration.values.size(); budget.charge(enumeration.values.size(), sizeof(ReflectionEnumValue));
             std::set<std::string> members;
             for (const auto& value : enumeration.values) {
                 budget.text(value.name);
@@ -207,8 +183,8 @@ FreezeReflectionResult freezeReflection(const Snapshot& analysis, const Reflecti
         result->identity_ = schema.identity; result->records_ = std::move(ordered); result->enumerations_ = schema.enumerations;
         budget.check();
         return {{}, std::move(result)};
-    } catch (const Failure& error) {
-        try { return {{error.code, error.message}, {}}; } catch (...) { return {{error.code, {}}, {}}; }
+    } catch (const Interrupted& stop) {
+        try { return {{stop.code, stop.message()}, {}}; } catch (...) { return {{stop.code, {}}, {}}; }
     } catch (...) { return {{Error::Internal, {}}, {}}; }
 }
 }

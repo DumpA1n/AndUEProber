@@ -1,5 +1,6 @@
 #include "andueprober/Enums.hpp"
 #include "andueprober/Evidence.hpp"
+#include "Core/Budget.hpp"
 
 #include <algorithm>
 #include <array>
@@ -14,29 +15,9 @@ const std::string output = "UEnum::Names";
 const std::array<std::string, 5> dependencies{"UObject::InternalIndex", "UObject::NamePrivate",
     "UObject::ClassPrivate", "UObject::OuterPrivate", "UField::Next"};
 constexpr std::size_t maximumMetadata = 4 * 1024 * 1024;
-struct Failure { Error code; const char* message; };
-[[noreturn]] void fail(Error code, const char* message) { throw Failure{code, message}; }
 bool textValid(const std::string& text) {
     return !text.empty() && text.size() <= 1024 && text.find('\0') == std::string::npos && validateUtf8(text);
 }
-struct Meter {
-    ReadBudget& budget;
-    std::size_t remaining = maximumMetadata;
-    void check() const {
-        if (budget.cancelled && budget.cancelled->load()) fail(Error::Cancelled, "Enum observation cancelled");
-        if (std::chrono::steady_clock::now() >= budget.deadline) fail(Error::DeadlineExceeded, "Enum observation deadline exceeded");
-    }
-    void charge(std::size_t count, std::size_t width = 1) {
-        check();
-        if (count > remaining / width) fail(Error::BudgetExceeded, "Enum metadata budget exceeded");
-        remaining -= count * width;
-    }
-    void text(const std::string& text) {
-        charge(text.size());
-        if (!textValid(text))
-            fail(Error::InvalidArgument, "Enum metadata requires nonempty bounded UTF-8 text");
-    }
-};
 struct Range { std::uintptr_t begin, end; };
 bool overlaps(const Range& a, const Range& b) { return a.begin < b.end && b.begin < a.end; }
 Status range(std::uintptr_t begin, std::uint64_t size, Range& result) {
@@ -103,17 +84,11 @@ Status entries(MemoryReader& reader, const EnumProbeProfile& profile, const Enum
 std::string entryIdentity(const EnumSample& sample, const EnumValueSample& value) {
     return sample.identity + "/" + value.identity + ";name:" + value.expectedName + ";value:" + std::to_string(value.expectedValue);
 }
-void proofCharge(Meter& meter, const Evidence& evidence) {
-    meter.charge(1, sizeof(Evidence)); meter.charge(evidence.check.size()); meter.charge(evidence.source.size());
-    meter.charge(evidence.relativeAddresses.size(), sizeof(std::uintptr_t));
-    meter.charge(evidence.sampleIdentities.size(), sizeof(std::string));
-    for (const auto& name : evidence.sampleIdentities) meter.charge(name.size());
-}
 }
 
 Status probeEnumNames(MemoryReader& reader, const EnumProbeProfile& profile, std::span<const EnumSample> samples,
     const NameLayout& names, std::uintptr_t pool, const NamePoolProfile& poolProfile, ReadBudget& budget, Snapshot& snapshot) {
-    try {
+    return guard([&]() -> Status {
         if (sizeof(std::uintptr_t) != 8 || std::endian::native != std::endian::little ||
             (profile.layout != Layout::UProperty && profile.layout != Layout::FField))
             return {Error::Unsupported, "Enum probing supports only explicitly selected little-endian 64-bit reflection layouts"};
@@ -130,7 +105,7 @@ Status probeEnumNames(MemoryReader& reader, const EnumProbeProfile& profile, std
         const auto existing = snapshot.offsets.find(output);
         if (existing != snapshot.offsets.end() && existing->second.origin == Origin::User) snapshot.fieldReports.erase(output);
         else if (auto status = beginFieldProbe(snapshot, output); !status) return status;
-        Meter input{budget}; input.text(profile.identity); input.text(profile.moduleIdentity); input.text(poolProfile.identity);
+        Budget input{"Enum observation", budget, maximumMetadata}; input.text(profile.identity); input.text(profile.moduleIdentity); input.text(poolProfile.identity);
         EvidenceLimits limits; limits.deadline = budget.deadline; limits.cancelled = budget.cancelled;
         if (auto status = validateEvidenceClosure(snapshot, dependencies, limits); !status) return status;
         std::map<std::string, std::uint64_t> versions;
@@ -180,7 +155,7 @@ Status probeEnumNames(MemoryReader& reader, const EnumProbeProfile& profile, std
             }
         }
         proof.samples = totalValues;
-        Meter reportBudget{budget}; proofCharge(reportBudget, proof);
+        Budget reportBudget{"Enum observation", budget, maximumMetadata}; reportBudget.evidence(proof);
         auto& report = snapshot.fieldReports[output]; report = {}; report.generation = budget.generation;
         const auto reject = [&](std::uint32_t offset, const EnumSample& sample, const Status& status) {
             reportBudget.charge(1, sizeof(CandidateRejection)); reportBudget.charge(sample.identity.size()); reportBudget.charge(status.message.size());
@@ -216,7 +191,7 @@ Status probeEnumNames(MemoryReader& reader, const EnumProbeProfile& profile, std
                 arrays.push_back(storage); candidate.arrays.push_back(std::move(observation));
             }
             if (matched) {
-                reportBudget.charge(1, sizeof(Candidate) + sizeof(Offset)); proofCharge(reportBudget, proof);
+                reportBudget.charge(1, sizeof(Candidate) + sizeof(Offset)); reportBudget.evidence(proof);
                 auto evidence = proof; evidence.relativeAddresses = {offset};
                 reportBudget.charge(1, sizeof(std::uintptr_t));
                 Offset result; result.value = offset; result.evidence.push_back(std::move(evidence));
@@ -249,7 +224,7 @@ Status probeEnumNames(MemoryReader& reader, const EnumProbeProfile& profile, std
                 }
             }
             auto evidence = proof; evidence.check = "complete enum headers and entry arrays match the final readback";
-            evidence.relativeAddresses = {candidate.offset}; proofCharge(reportBudget, evidence);
+            evidence.relativeAddresses = {candidate.offset}; reportBudget.evidence(evidence);
             report.candidates[index].evidence.push_back(std::move(evidence));
         }
         if (report.candidates.size() != 1) return {Error::InvalidEvidence, "Enum probing requires one unambiguous complete array observation"};
@@ -275,8 +250,6 @@ Status probeEnumNames(MemoryReader& reader, const EnumProbeProfile& profile, std
             snapshot.moduleIdentity != profile.moduleIdentity || snapshot.layout != profile.layout)
             return {Error::StaleIdentity, "Enum identity changed before publication"};
         snapshot = std::move(published); return {};
-    } catch (const Failure& error) {
-        try { return {error.code, error.message}; } catch (...) { return {error.code, {}}; }
-    } catch (...) { return {Error::Internal, {}}; }
+    });
 }
 }

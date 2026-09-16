@@ -1,5 +1,6 @@
 #include "andueprober/DumperAdapter.hpp"
 #include "Emitter.hpp"
+#include "Core/Budget.hpp"
 
 #include <algorithm>
 #include <limits>
@@ -16,8 +17,6 @@ std::string_view dumperDependencyIdentity() noexcept {
 #undef ANDUEPROBER_STRINGIFY
 #undef ANDUEPROBER_STRINGIFY_INNER
 namespace {
-struct Failure { Error code; const char* message; };
-[[noreturn]] void fail(Error code, const char* message) { throw Failure{code, message}; }
 bool standardMacro(std::string_view name) {
     constexpr std::string_view fixed[] = {"NULL", "offsetof", "SIZE_MAX", "PTRDIFF_MIN", "PTRDIFF_MAX",
         "PTRDIFF_WIDTH", "SIZE_WIDTH", "INTPTR_MIN", "INTPTR_MAX", "INTPTR_WIDTH", "UINTPTR_MAX", "UINTPTR_WIDTH",
@@ -40,32 +39,6 @@ void declarationName(std::string_view name, bool enumerator = false) {
     if (standardMacro(name) || (!enumerator && name == "EM_MAX"))
         fail(Error::Unsupported, "A generated identifier conflicts with a standard-header macro");
 }
-struct Budget {
-    const DumperOptions& options;
-    std::size_t bytes{};
-    std::size_t items{};
-    void check() const {
-        if (options.cancelled && options.cancelled->load()) fail(Error::Cancelled, "Dumper formatting cancelled");
-        if (std::chrono::steady_clock::now() >= options.deadline)
-            fail(Error::DeadlineExceeded, "Dumper formatting deadline exceeded");
-    }
-    void item(std::size_t count) {
-        check();
-        if (count > options.maximumItems - items) fail(Error::BudgetExceeded, "Dumper input item limit exceeded");
-        items += count;
-    }
-    void text(std::string_view text) {
-        check();
-        if (text.size() > options.maximumInputBytes - bytes) fail(Error::BudgetExceeded, "Dumper input byte limit exceeded");
-        bytes += text.size();
-    }
-    void append(std::string& output, std::string_view text) {
-        check();
-        if (text.size() > options.maximumOutputBytes - output.size())
-            fail(Error::BudgetExceeded, "Dumper output byte limit exceeded");
-        output.append(text);
-    }
-};
 struct Scalar { const char* name; std::uint32_t size; };
 Scalar scalar(ReflectionScalar type) {
     switch (type) {
@@ -107,27 +80,36 @@ DumperHeaderResult buildDumperHeader(const FrozenReflection& frozen, const Dumpe
             options.maximumItems > std::numeric_limits<std::size_t>::max() / 3 ||
             options.maximumInputBytes > std::numeric_limits<std::size_t>::max() - options.maximumOutputBytes)
             fail(Error::InvalidArgument, "Dumper limits are invalid");
-        Budget budget{options};
+        Budget budget{"Dumper formatting", options.cancelled, options.deadline,
+            options.maximumInputBytes, options.maximumItems};
+        // Each generated string carries the whole output allowance independently,
+        // so the limit applies to that string rather than to a shared counter.
+        const auto append = [&](std::string& output, std::string_view text) {
+            budget.check();
+            if (text.size() > options.maximumOutputBytes - output.size())
+                fail(Error::BudgetExceeded, "Dumper output byte limit exceeded");
+            output.append(text);
+        };
         budget.check();
         budget.item(frozen.records().size());
         budget.item(frozen.enumerations().size());
-        budget.text(frozen.schemaIdentity());
+        budget.charge(frozen.schemaIdentity().size());
         for (const auto& record : frozen.records()) {
             declarationName(record.name);
-            budget.text(record.name); budget.text(record.metadataSource);
+            budget.charge(record.name.size()); budget.charge(record.metadataSource.size());
             budget.item(record.fields.size());
             for (const auto& field : record.fields) {
                 declarationName(field.name);
-                budget.text(field.name); budget.text(field.offsetSource);
+                budget.charge(field.name.size()); budget.charge(field.offsetSource.size());
             }
         }
         for (const auto& enumeration : frozen.enumerations()) {
             declarationName(enumeration.name);
-            budget.text(enumeration.name); budget.text(enumeration.metadataSource);
+            budget.charge(enumeration.name.size()); budget.charge(enumeration.metadataSource.size());
             budget.item(enumeration.values.size());
             for (const auto& value : enumeration.values) {
                 declarationName(value.name, true);
-                budget.text(value.name);
+                budget.charge(value.name.size());
             }
         }
         using Package = dumper_emitter::ExtractedPackage;
@@ -174,9 +156,9 @@ DumperHeaderResult buildDumperHeader(const FrozenReflection& frozen, const Dumpe
                 names.insert(name);
                 output.Members.push_back({"::std::uint8_t", name + "[" + std::to_string(end - next) + "]", "", next, end - next});
             };
-            budget.append(output.Trailer, "static_assert(::std::is_standard_layout_v<" + record.name + ">);\n");
-            budget.append(output.Trailer, "static_assert(sizeof(" + record.name + ") == " + std::to_string(record.size) + ");\n");
-            budget.append(output.Trailer, "static_assert(alignof(" + record.name + ") == " + std::to_string(record.alignment) + ");\n");
+            append(output.Trailer, "static_assert(::std::is_standard_layout_v<" + record.name + ">);\n");
+            append(output.Trailer, "static_assert(sizeof(" + record.name + ") == " + std::to_string(record.size) + ");\n");
+            append(output.Trailer, "static_assert(alignof(" + record.name + ") == " + std::to_string(record.alignment) + ");\n");
             for (const auto& field : record.fields) {
                 budget.check();
                 pad(field.offset);
@@ -187,7 +169,7 @@ DumperHeaderResult buildDumperHeader(const FrozenReflection& frozen, const Dumpe
                 const auto suffix = field.type.count == 1 ? "" : "[" + std::to_string(field.type.count) + "]";
                 output.Members.push_back({std::move(type.first), field.name + suffix, "", field.offset, bytes});
                 next = field.offset + bytes;
-                budget.append(output.Trailer, "static_assert(offsetof(" + record.name + ", " + field.name + ") == " + std::to_string(field.offset) + ");\n");
+                append(output.Trailer, "static_assert(offsetof(" + record.name + ", " + field.name + ") == " + std::to_string(field.offset) + ");\n");
             }
             pad(record.size);
             records.push_back(std::move(output));
@@ -202,13 +184,13 @@ DumperHeaderResult buildDumperHeader(const FrozenReflection& frozen, const Dumpe
         auto result = dumper_emitter::emit(records, enumerations, limits);
         if (!result) fail(translate(result.error), "Pinned dumper emission failed");
         std::string header;
-        budget.append(header, "#pragma once\n#include <cstddef>\n#include <cstdint>\n#include <type_traits>\n\nnamespace andueprober_sdk {\n");
-        budget.append(header, result.output);
-        budget.append(header, "} // namespace andueprober_sdk\n");
+        append(header, "#pragma once\n#include <cstddef>\n#include <cstdint>\n#include <type_traits>\n\nnamespace andueprober_sdk {\n");
+        append(header, result.output);
+        append(header, "} // namespace andueprober_sdk\n");
         budget.check();
         return {{}, std::move(header)};
-    } catch (const Failure& error) {
-        try { return {{error.code, error.message}, {}}; } catch (...) { return {{error.code, {}}, {}}; }
+    } catch (const Interrupted& stop) {
+        try { return {{stop.code, stop.message()}, {}}; } catch (...) { return {{stop.code, {}}, {}}; }
     } catch (...) { return {{Error::Internal, {}}, {}}; }
 }
 

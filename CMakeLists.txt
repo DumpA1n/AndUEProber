@@ -38,12 +38,15 @@ else()
 endif()
 andueprober_git_revision("${ANDSWAPCHAIN_DIR}/external/KittyMemoryEx" "unrecorded-kitty-source" ANDUEPROBER_KITTY_REVISION)
 configure_file(cmake/BuildInfo.hpp.in ${CMAKE_CURRENT_BINARY_DIR}/generated/BuildInfo.hpp @ONLY)
-add_library(AndUEProberCore STATIC source/Core/Core.cpp source/Core/Export.cpp source/Core/Commands.cpp source/Core/Engine.cpp source/Core/Reflection.cpp source/Core/Evidence.cpp)
+add_library(AndUEProberCore STATIC source/Core/Budget.cpp source/Core/Core.cpp source/Core/Export.cpp source/Core/Commands.cpp source/Core/Engine.cpp source/Core/Reflection.cpp source/Core/Evidence.cpp)
 add_library(AndUEProber::Core ALIAS AndUEProberCore)
 set_target_properties(AndUEProberCore PROPERTIES EXPORT_NAME Core POSITION_INDEPENDENT_CODE ON)
 target_compile_features(AndUEProberCore PUBLIC cxx_std_20)
 target_include_directories(AndUEProberCore PRIVATE ${CMAKE_CURRENT_BINARY_DIR}/generated)
 target_include_directories(AndUEProberCore PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/include> $<INSTALL_INTERFACE:${CMAKE_INSTALL_INCLUDEDIR}>)
+# Core/Budget.hpp is shared by every component that meters untrusted metadata.
+# Build-interface only: it is an implementation detail and is not installed.
+target_include_directories(AndUEProberCore PUBLIC $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/source>)
 target_link_libraries(AndUEProberCore PUBLIC Threads::Threads PRIVATE ${CMAKE_DL_LIBS})
 add_library(AndUEProberProbe STATIC
     source/Probe/Probe.cpp

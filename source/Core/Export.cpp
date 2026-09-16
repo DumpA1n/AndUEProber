@@ -1,5 +1,6 @@
 #include "andueprober/Export.hpp"
 #include "BuildInfo.hpp"
+#include "Core/Budget.hpp"
 
 #include <algorithm>
 #include <cerrno>
@@ -13,34 +14,27 @@
 
 namespace andueprober {
 namespace {
-struct ExportInterrupted { Error error; };
-void checkpoint(const ExportOptions& options) {
-    if (options.cancelled && options.cancelled->load()) throw ExportInterrupted{Error::Cancelled};
-    if (std::chrono::steady_clock::now() >= options.deadline)
-        throw ExportInterrupted{Error::DeadlineExceeded};
-}
-void validateText(const std::string& text, const ExportOptions& options) {
+void validateText(const std::string& text, const Budget& budget) {
     std::size_t begin = 0;
     while (begin < text.size()) {
-        checkpoint(options);
+        budget.check();
         auto end = begin + std::min<std::size_t>(text.size() - begin, 65536);
         if (end < text.size())
             while (end > begin && (static_cast<unsigned char>(text[end]) & 0xc0) == 0x80) --end;
         if (end == begin || !validateUtf8(std::string_view(text).substr(begin, end - begin)))
-            throw ExportInterrupted{Error::InvalidArgument};
+            fail(Error::InvalidArgument, "Export text is not valid UTF-8");
         begin = end;
     }
-    checkpoint(options);
+    budget.check();
 }
 class ManifestBuffer final : public std::streambuf {
 public:
-    explicit ManifestBuffer(const ExportOptions& options) : options_(options) {}
+    explicit ManifestBuffer(Budget& budget) : budget_(budget) {}
     const std::string& content() const { return content_; }
 protected:
+    // A negative count converts to an unaffordable charge, which the budget rejects.
     std::streamsize xsputn(const char* input, std::streamsize size) override {
-        checkpoint(options_);
-        if (size < 0 || static_cast<std::size_t>(size) > options_.maximumManifestBytes - content_.size())
-            throw ExportInterrupted{Error::BudgetExceeded};
+        budget_.charge(static_cast<std::size_t>(size));
         content_.append(input, static_cast<std::size_t>(size));
         return size;
     }
@@ -51,7 +45,7 @@ protected:
         return value;
     }
 private:
-    const ExportOptions& options_;
+    Budget& budget_;
     std::string content_;
 };
 bool safePath(const std::filesystem::path& path) {
@@ -74,10 +68,10 @@ std::ostream& operator<<(std::ostream& out, Quoted text) {
     }
     return out.put('"');
 }
-std::uint64_t checksum(const std::string& content, const ExportOptions& options) {
+std::uint64_t checksum(const std::string& content, const Budget& budget) {
     std::uint64_t value = 14695981039346656037ULL;
     for (std::size_t index = 0; index < content.size(); ++index) {
-        if ((index & 65535) == 0) checkpoint(options);
+        if ((index & 65535) == 0) budget.check();
         value = (value ^ static_cast<unsigned char>(content[index])) * 1099511628211ULL;
     }
     return value;
@@ -109,83 +103,81 @@ struct CompletionMarker {
 ExportResult publishExport(const Snapshot& snapshot, const std::vector<ExportFile>& files, const ExportOptions& options) {
     ExportResult result;
     try {
-        auto fail = [&](Status status) { result.status = std::move(status); return result; };
+        auto reject = [&](Status status) { result.status = std::move(status); return result; };
+        // Manifest text, manifest bytes and file bytes each carry their own
+        // allowance; only the cancellation source and the deadline are shared.
+        Budget metadata{"Export", options.cancelled, options.deadline,
+            options.maximumManifestBytes, options.maximumMetadataEntries};
+        Budget manifestBytes{"Export", options.cancelled, options.deadline, options.maximumManifestBytes};
+        Budget fileBytes{"Export", options.cancelled, options.deadline, options.maximumTotalBytes};
         auto check = [&](ExportOperation operation, const std::filesystem::path& path) -> Status {
             try {
-                checkpoint(options);
+                metadata.check();
                 if (options.beforeOperation) {
                     auto status = options.beforeOperation(operation, path);
                     if (!status) return status;
                 }
-                checkpoint(options);
+                metadata.check();
                 return {};
-            } catch (const ExportInterrupted& error) {
-                return {error.error, {}};
+            } catch (const Interrupted& stop) {
+                return {stop.code, {}};
             } catch (...) {
                 return {Error::Internal, {}};
             }
         };
         auto ioError = [] { return Status{Error::Io, std::strerror(errno)}; };
-        checkpoint(options);
+        metadata.check();
         if (!options.maximumFiles || !options.maximumFileBytes || !options.maximumTotalBytes ||
             !options.maximumManifestBytes || !options.maximumMetadataEntries || !options.maximumPathBytes)
-            return fail({Error::InvalidArgument, "Export limits must be nonzero"});
-        if (files.size() > options.maximumFiles) return fail({Error::BudgetExceeded, "Export file count exceeds its limit"});
+            return reject({Error::InvalidArgument, "Export limits must be nonzero"});
+        if (files.size() > options.maximumFiles) return reject({Error::BudgetExceeded, "Export file count exceeds its limit"});
         if (snapshot.sessionId.size() > options.maximumPathBytes)
-            return fail({Error::BudgetExceeded, "Export session path exceeds its limit"});
-        auto entries = options.maximumMetadataEntries;
-        auto metadataBytes = options.maximumManifestBytes;
-        auto consume = [&](std::size_t amount, std::size_t& remaining) {
-            checkpoint(options);
-            if (amount > remaining) throw ExportInterrupted{Error::BudgetExceeded};
-            remaining -= amount;
-        };
-        auto text = [&](const std::string& value) { consume(value.size(), metadataBytes); validateText(value, options); };
+            return reject({Error::BudgetExceeded, "Export session path exceeds its limit"});
+        auto text = [&](const std::string& value) { metadata.charge(value.size()); validateText(value, metadata); };
         text(snapshot.sessionId); text(snapshot.moduleIdentity); text(snapshot.layoutIdentity); text(options.toolRevision);
-        consume(snapshot.offsets.size(), entries);
-        consume(options.dependencyRevisions.size(), entries);
+        metadata.item(snapshot.offsets.size());
+        metadata.item(options.dependencyRevisions.size());
         for (const auto& [name, revision] : options.dependencyRevisions) { text(name); text(revision); }
         for (const auto& [name, offset] : snapshot.offsets) {
             text(name);
-            consume(offset.dependencies.size(), entries);
-            consume(offset.evidence.size(), entries);
+            metadata.item(offset.dependencies.size());
+            metadata.item(offset.evidence.size());
             for (const auto& [dependency, version] : offset.dependencies) { (void)version; text(dependency); }
             for (const auto& evidence : offset.evidence) {
                 text(evidence.check); text(evidence.source);
-                consume(evidence.relativeAddresses.size(), entries);
-                consume(evidence.sampleIdentities.size(), entries);
+                metadata.item(evidence.relativeAddresses.size());
+                metadata.item(evidence.sampleIdentities.size());
                 for (const auto& identity : evidence.sampleIdentities) text(identity);
             }
         }
-        if (auto status = validateSnapshot(snapshot); !status) return fail(status);
+        if (auto status = validateSnapshot(snapshot); !status) return reject(status);
         if (!options.root.is_absolute() || !safePath(snapshot.sessionId) || snapshot.sessionId.starts_with('.') ||
             std::filesystem::path(snapshot.sessionId).has_parent_path() || files.empty())
-            return fail({Error::InvalidArgument, "Export requires an absolute root, single-component session ID and files"});
+            return reject({Error::InvalidArgument, "Export requires an absolute root, single-component session ID and files"});
         std::set<std::string> paths;
-        auto fileBytes = options.maximumTotalBytes;
         for (const auto& file : files) {
-            checkpoint(options);
+            metadata.check();
             if (file.relativePath.size() > options.maximumPathBytes || file.content.size() > options.maximumFileBytes)
-                return fail({Error::BudgetExceeded, "Export path or individual file exceeds its limit"});
-            consume(file.content.size(), fileBytes);
-            validateText(file.relativePath, options);
+                return reject({Error::BudgetExceeded, "Export path or individual file exceeds its limit"});
+            fileBytes.charge(file.content.size());
+            validateText(file.relativePath, metadata);
             if (!safePath(file.relativePath) || file.relativePath == "completion.json" ||
                 file.relativePath == ".manifest.pending" || !paths.insert(file.relativePath).second)
-                return fail({Error::InvalidArgument, "Export contains an invalid, duplicate or reserved file path"});
+                return reject({Error::InvalidArgument, "Export contains an invalid, duplicate or reserved file path"});
         }
         std::error_code error;
-        if (auto status = check(ExportOperation::CreateDirectory, options.root); !status) return fail(status);
+        if (auto status = check(ExportOperation::CreateDirectory, options.root); !status) return reject(status);
         std::filesystem::create_directories(options.root, error);
-        if (error) return fail({Error::Io, error.message()});
+        if (error) return reject({Error::Io, error.message()});
         auto finalDirectory = options.root / snapshot.sessionId;
         FileDescriptor lock{::open((options.root / ".publish.lock").c_str(), O_CREAT | O_RDWR | O_CLOEXEC | O_NOFOLLOW, 0600)};
-        if (lock.value < 0) return fail(ioError());
+        if (lock.value < 0) return reject(ioError());
         if (flock(lock.value, LOCK_EX | LOCK_NB) != 0)
-            return fail(errno == EWOULDBLOCK ? Status{Error::Busy, "Export root is locked by another publisher"} : ioError());
+            return reject(errno == EWOULDBLOCK ? Status{Error::Busy, "Export root is locked by another publisher"} : ioError());
         if (std::filesystem::exists(finalDirectory, error) || error)
-            return fail({Error::Io, "Export session directory already exists or cannot be inspected"});
+            return reject({Error::Io, "Export session directory already exists or cannot be inspected"});
         std::string temporary = (options.root / (".staging-" + snapshot.sessionId + "-XXXXXX")).string();
-        if (!mkdtemp(temporary.data())) return fail(ioError());
+        if (!mkdtemp(temporary.data())) return reject(ioError());
         result.incompleteDirectory = temporary;
         auto writeFile = [&](const std::filesystem::path& path, const std::string& content) -> Status {
             if (auto status = check(ExportOperation::CreateDirectory, path.parent_path()); !status) return status;
@@ -210,7 +202,7 @@ ExportResult publishExport(const Snapshot& snapshot, const std::vector<ExportFil
             if (::close(descriptor) != 0) return ioError();
             return {};
         };
-        ManifestBuffer manifestBuffer(options);
+        ManifestBuffer manifestBuffer(manifestBytes);
         std::ostream manifest(&manifestBuffer);
         manifest.exceptions(std::ios::badbit | std::ios::failbit);
         manifest << "{\"schemaVersion\":" << snapshot.schemaVersion << ",\"sessionId\":" << quote(snapshot.sessionId)
@@ -262,14 +254,14 @@ ExportResult publishExport(const Snapshot& snapshot, const std::vector<ExportFil
         manifest << "},\"files\":[";
         first = true;
         for (const auto& file : files) {
-            if (auto status = writeFile(result.incompleteDirectory / file.relativePath, file.content); !status) return fail(status);
+            if (auto status = writeFile(result.incompleteDirectory / file.relativePath, file.content); !status) return reject(status);
             if (!first) manifest << ',';
             first = false;
             manifest << "{\"path\":" << quote(file.relativePath) << ",\"bytes\":" << file.content.size()
-                << ",\"checksum\":" << quote(std::to_string(checksum(file.content, options))) << '}';
+                << ",\"checksum\":" << quote(std::to_string(checksum(file.content, metadata))) << '}';
         }
         manifest << "],\"complete\":true}\n";
-        if (auto status = writeFile(result.incompleteDirectory / ".manifest.pending", manifestBuffer.content()); !status) return fail(status);
+        if (auto status = writeFile(result.incompleteDirectory / ".manifest.pending", manifestBuffer.content()); !status) return reject(status);
         auto syncDirectory = [&](const std::filesystem::path& path) -> Status {
             if (auto status = check(ExportOperation::Flush, path); !status) return status;
             FileDescriptor directory{::open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW)};
@@ -278,44 +270,44 @@ ExportResult publishExport(const Snapshot& snapshot, const std::vector<ExportFil
             const auto descriptor = directory.value;
             directory.value = -1;
             if (::close(descriptor) != 0) return ioError();
-            try { checkpoint(options); }
-            catch (const ExportInterrupted& interrupted) { return {interrupted.error, {}}; }
+            try { metadata.check(); }
+            catch (const Interrupted& stop) { return {stop.code, {}}; }
             return {};
         };
         std::vector<std::filesystem::path> directories{result.incompleteDirectory};
         for (std::filesystem::recursive_directory_iterator item(result.incompleteDirectory, error), end; item != end && !error; item.increment(error)) {
-            checkpoint(options);
+            metadata.check();
             const bool isDirectory = item->is_directory(error);
-            if (error) return fail({Error::Io, error.message()});
+            if (error) return reject({Error::Io, error.message()});
             if (isDirectory) directories.push_back(item->path());
         }
-        if (error) return fail({Error::Io, error.message()});
+        if (error) return reject({Error::Io, error.message()});
         for (auto it = directories.rbegin(); it != directories.rend(); ++it)
-            if (auto status = syncDirectory(*it); !status) return fail(status);
-        if (auto status = check(ExportOperation::Publish, finalDirectory); !status) return fail(status);
+            if (auto status = syncDirectory(*it); !status) return reject(status);
+        if (auto status = check(ExportOperation::Publish, finalDirectory); !status) return reject(status);
         std::filesystem::rename(result.incompleteDirectory, finalDirectory, error);
         if (error) {
-            return fail({Error::Io, error.message()});
+            return reject({Error::Io, error.message()});
         }
         // The completion marker is finalized only after the session directory is published.
         result.incompleteDirectory = finalDirectory;
-        if (auto status = syncDirectory(options.root); !status) return fail(status);
-        if (auto status = check(ExportOperation::Finalize, finalDirectory); !status) return fail(status);
+        if (auto status = syncDirectory(options.root); !status) return reject(status);
+        if (auto status = check(ExportOperation::Finalize, finalDirectory); !status) return reject(status);
         const auto pendingMarker = finalDirectory / ".manifest.pending";
         const auto completeMarker = finalDirectory / "completion.json";
         std::filesystem::rename(pendingMarker, completeMarker, error);
-        if (error) return fail({Error::Io, error.message()});
+        if (error) return reject({Error::Io, error.message()});
         CompletionMarker marker{completeMarker, pendingMarker, finalDirectory, result.completionUncertain};
         if (auto status = syncDirectory(finalDirectory); !status) {
             marker.retract();
-            return fail(status);
+            return reject(status);
         }
         result.publishedDirectory = finalDirectory;
         result.incompleteDirectory.clear();
         marker.active = false;
         return result;
-    } catch (const ExportInterrupted& error) {
-        result.status.code = error.error;
+    } catch (const Interrupted& stop) {
+        result.status.code = stop.code;
     } catch (const std::filesystem::filesystem_error&) {
         result.status.code = Error::Io;
     } catch (...) {
