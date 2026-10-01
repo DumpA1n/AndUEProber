@@ -172,7 +172,8 @@ std::vector<std::string> identities(std::span<const ObjectAnchor> values, std::s
 andueprober::Status publishLiveOffset(andueprober::Snapshot& snapshot, const std::string& name,
     std::uintptr_t rawValue, std::span<const std::string> samples,
     std::span<const std::string> dependencies, const std::string& source,
-    andueprober::Origin origin = andueprober::Origin::Profile) {
+    andueprober::Origin origin = andueprober::Origin::Profile,
+    const std::string& check = "bounded live reflection invariants match the selected profile field") {
     using namespace andueprober;
     if (rawValue > UINT32_MAX || samples.empty())
         return {Error::InvalidEvidence, "A bounded live offset requires a value and named samples"};
@@ -194,8 +195,7 @@ andueprober::Status publishLiveOffset(andueprober::Snapshot& snapshot, const std
             return {Error::InvalidEvidence, "A live offset dependency is unavailable: " + dependency};
         candidate.dependencies.emplace(dependency, found->second.version);
     }
-    Evidence evidence{"bounded live reflection invariants match the selected profile field", true,
-        samples.size(), {rawValue}, source, {}};
+    Evidence evidence{check, true, samples.size(), {rawValue}, source, {}};
     evidence.sampleIdentities.assign(samples.begin(), samples.end());
     candidate.evidence.push_back(std::move(evidence));
     return publishOffset(snapshot, name, std::move(candidate));
@@ -730,22 +730,115 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         const auto nameOffset = nameCandidates.front().first;
         const auto nameSamples = std::move(nameCandidates.front().second);
 
-        std::vector<std::string> samples;
-        for (std::size_t index = 0; index < std::min<std::size_t>(properties.size(), 8); ++index)
-            samples.push_back(properties[index].identity);
-        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 5>{{
-            {"FField::FlagsPrivate", offsets->FField.FlagsPrivate},
-            {"FProperty::ArrayDim", offsets->FProperty.ArrayDim},
-            {"FProperty::ElementSize", offsets->FProperty.ElementSize},
-            {"FProperty::PropertyFlags", offsets->FProperty.PropertyFlags},
-            {"FProperty::Offset_Internal", offsets->FProperty.Offset_Internal}}})
-            if (auto published = publish(name, value, samples); !published) return published;
+        // FlagsPrivate has no live witness of its own: the emitted FField declaration
+        // places VTable at offset 0 and derives the struct extent from FlagsPrivate,
+        // so the five members must occupy disjoint ranges above the vtable slot,
+        // FlagsPrivate must be the last of them, and the resulting extent must end
+        // at or before FProperty's first member.
+        struct FieldRange { const char* name; std::uintptr_t begin, width; };
+        const std::array<FieldRange, 5> fieldRanges{{
+            {"FField::Owner", ownerOffset, sizeof(void*) * 2},
+            {"FField::Next", nextOffset, sizeof(void*)},
+            {"FField::ClassPrivate", classOffset, sizeof(void*)},
+            {"FField::NamePrivate", nameOffset, offsets->FName.Size ? offsets->FName.Size : sizeof(void*)},
+            {"FField::FlagsPrivate", offsets->FField.FlagsPrivate, sizeof(std::int32_t)}}};
+        const auto fieldExtent = fieldRanges.back().begin + fieldRanges.back().width;
+        for (std::size_t i = 0; i < fieldRanges.size(); ++i) {
+            if (fieldRanges[i].begin < sizeof(void*))
+                return {Error::InvalidEvidence, std::string("Phase 5 requires ") + fieldRanges[i].name +
+                    " above the FField vtable slot (offset=" + std::to_string(fieldRanges[i].begin) + ")"};
+            if (fieldRanges[i].begin + fieldRanges[i].width > fieldExtent)
+                return {Error::InvalidEvidence, std::string("Phase 5 requires FField::FlagsPrivate last; ") +
+                    fieldRanges[i].name + "@" + std::to_string(fieldRanges[i].begin) + " extends past the extent " +
+                    std::to_string(fieldExtent)};
+            for (std::size_t j = i + 1; j < fieldRanges.size(); ++j)
+                if (fieldRanges[i].begin < fieldRanges[j].begin + fieldRanges[j].width &&
+                    fieldRanges[j].begin < fieldRanges[i].begin + fieldRanges[i].width)
+                    return {Error::InvalidEvidence, std::string("Phase 5 rejects overlapping FField ranges: ") +
+                        fieldRanges[i].name + "@" + std::to_string(fieldRanges[i].begin) + " and " +
+                        fieldRanges[j].name + "@" + std::to_string(fieldRanges[j].begin)};
+        }
+        if (fieldExtent > offsets->FProperty.ArrayDim)
+            return {Error::InvalidEvidence, "Phase 5 requires the FField extent " + std::to_string(fieldExtent) +
+                " to end at or before FProperty::ArrayDim " + std::to_string(offsets->FProperty.ArrayDim)};
+
+        // The FProperty scalars have no direct witness either. They are corroborated
+        // against the structure that declares each property: its storage must fit
+        // inside the declared PropertiesSize, and CPF_Parm separates function
+        // parameters from structure members.
+        constexpr std::uint64_t parameterFlag = 0x80;
+        constexpr std::size_t maximumScalarSamples = 4096;
+        std::vector<std::string> scalarSamples;
+        std::size_t functionProperties = 0, parameterProperties = 0, corroborated = 0;
+        for (const auto& property : properties) {
+            if (corroborated == maximumScalarSamples) break;
+            const auto owner = structuresByAddress.find(property.ownerAddress);
+            if (owner == structuresByAddress.end()) continue;
+            std::int32_t declaredSize = 0, arrayDim = 0, elementSize = 0, offsetInternal = 0;
+            std::uint64_t propertyFlags = 0;
+            if (!readValue(property.ownerAddress + offsets->UStruct.PropertiesSize, declaredSize) ||
+                !readValue(property.address + offsets->FProperty.ArrayDim, arrayDim) ||
+                !readValue(property.address + offsets->FProperty.ElementSize, elementSize) ||
+                !readValue(property.address + offsets->FProperty.Offset_Internal, offsetInternal) ||
+                !readValue(property.address + offsets->FProperty.PropertyFlags, propertyFlags)) continue;
+            if (declaredSize <= 0) continue;
+            const auto storage = static_cast<std::int64_t>(elementSize) * arrayDim;
+            if (arrayDim < 1 || elementSize < 0 || offsetInternal < 0 ||
+                static_cast<std::int64_t>(offsetInternal) + storage > declaredSize)
+                return {Error::InvalidEvidence, "Phase 5 rejects FProperty storage outside its declaring structure: " +
+                    property.identity + ";declaring-size:" + std::to_string(declaredSize) +
+                    ";offset:" + std::to_string(offsetInternal) + ";element-size:" + std::to_string(elementSize) +
+                    ";array-dim:" + std::to_string(arrayDim)};
+            const bool parameter = (propertyFlags & parameterFlag) != 0;
+            if (owner->second->className == "Function") {
+                ++functionProperties;
+                parameterProperties += parameter ? 1 : 0;
+            } else if (parameter) {
+                return {Error::InvalidEvidence, "Phase 5 rejects CPF_Parm on a structure member: " + property.identity};
+            }
+            ++corroborated;
+            if (scalarSamples.size() < 8)
+                scalarSamples.push_back(property.identity + ";declaring-size:" + std::to_string(declaredSize) +
+                    ";offset:" + std::to_string(offsetInternal) + ";element-size:" + std::to_string(elementSize) +
+                    ";array-dim:" + std::to_string(arrayDim) + ";parameter:" + (parameter ? "true" : "false"));
+        }
+        if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
+        if (scalarSamples.size() < 3)
+            return {Error::InvalidEvidence, "Phase 5 requires three declaring-structure corroborations (examined=" +
+                std::to_string(properties.size()) + ")"};
+        if (functionProperties >= 16 && !parameterProperties)
+            return {Error::InvalidEvidence, "Phase 5 requires CPF_Parm among live function parameters (functions=" +
+                std::to_string(functionProperties) + ")"};
+
         for (const auto& [name, value, observations] :
             std::array<std::tuple<const char*, std::uintptr_t, const std::vector<std::string>*>, 4>{{
                 {"FField::NamePrivate", nameOffset, &nameSamples}, {"FField::Owner", ownerOffset, &ownerSamples},
                 {"FField::Next", nextOffset, &nextSamples}, {"FField::ClassPrivate", classOffset, &classSamples}}})
             if (auto published = publishLiveOffset(working, name, value, *observations, dependencies,
                 source + ";phase:5;independent-field-relations", Origin::Probe); !published) return published;
+
+        std::vector<std::string> samples;
+        for (std::size_t index = 0; index < std::min<std::size_t>(properties.size(), 8); ++index)
+            samples.push_back(properties[index].identity);
+        auto layoutDependencies = dependencies;
+        for (const auto& member : fieldRanges)
+            if (std::string(member.name) != "FField::FlagsPrivate") layoutDependencies.emplace_back(member.name);
+        if (auto published = publishLiveOffset(working, "FField::FlagsPrivate", offsets->FField.FlagsPrivate,
+            samples, layoutDependencies, source + ";phase:5;field-layout-closure", Origin::Profile,
+            "FField members occupy disjoint ranges ending at FlagsPrivate below FProperty"); !published)
+            return published;
+        auto scalarDependencies = dependencies;
+        scalarDependencies.emplace_back("UStruct::PropertiesSize");
+        scalarDependencies.emplace_back("UStruct::ChildProperties");
+        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 4>{{
+            {"FProperty::ArrayDim", offsets->FProperty.ArrayDim},
+            {"FProperty::ElementSize", offsets->FProperty.ElementSize},
+            {"FProperty::PropertyFlags", offsets->FProperty.PropertyFlags},
+            {"FProperty::Offset_Internal", offsets->FProperty.Offset_Internal}}})
+            if (auto published = publishLiveOffset(working, name, value, scalarSamples, scalarDependencies,
+                source + ";phase:5;declaring-structure-closure", Origin::Profile,
+                "property storage fits its declaring structure and CPF_Parm matches the owner kind"); !published)
+                return published;
 
         std::vector<PropertyPointerTailSample> pointerSamples;
         std::vector<PropertyBoolTailSample> boolSamples;
