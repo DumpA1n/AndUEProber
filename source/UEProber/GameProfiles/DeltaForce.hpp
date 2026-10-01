@@ -145,11 +145,13 @@ public:
             offsets.UFunction.EFunctionFlags = offsets.UFunction.ParamSize + sizeof(int16_t) + sizeof(int32_t);
             offsets.UFunction.Func = offsets.UFunction.EFunctionFlags +
                 (sizeof(int32_t) * 2) + (sizeof(void *) * 3);
-            offsets.FField.FlagsPrivate = sizeof(void *);
+            // Owner is a 16-byte FFieldVariant placed directly after the vtable,
+            // so the rest of the chain starts at Owner + 2 pointers.
             offsets.FField.Owner = sizeof(void *);
-            offsets.FField.Next = offsets.FField.FlagsPrivate + (sizeof(void *) * 2);
+            offsets.FField.Next = offsets.FField.Owner + (sizeof(void *) * 2);
             offsets.FField.ClassPrivate = offsets.FField.Next + sizeof(void *);
             offsets.FField.NamePrivate = offsets.FField.ClassPrivate + sizeof(void *);
+            offsets.FField.FlagsPrivate = offsets.FField.NamePrivate + offsets.FName.Size;
             offsets.FProperty.ArrayDim = offsets.FField.NamePrivate +
                 UEMemory::GetPtrAlignedOf(offsets.FName.Size) + sizeof(void *);
             offsets.FProperty.ElementSize = offsets.FProperty.ArrayDim + sizeof(int32_t);
