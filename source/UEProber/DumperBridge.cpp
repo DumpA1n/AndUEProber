@@ -166,6 +166,9 @@ bool readNameAt(const UE_Offsets& offsets, std::uintptr_t address, std::string& 
     return validText(name);
 }
 
+// EObjectFlags::RF_ClassDefaultObject.
+constexpr std::uint32_t classDefaultObjectFlag = 0x10;
+
 struct ObjectAnchor {
     std::uint32_t index = 0;
     std::uintptr_t address = 0;
@@ -174,8 +177,13 @@ struct ObjectAnchor {
     std::string identity;
 };
 
+// GetObjectsOfClass and TObjectIterator skip objects carrying any of their
+// exclusion flags, RF_ClassDefaultObject by default: a class default object is never
+// linked, so its reflected members do not describe a live struct or function.
+// ObjectFlags is only read when exclusion flags are given.
 andueprober::Status collectObjects(std::size_t maximumExamined, std::size_t maximumAccepted,
-    const std::function<bool(const ObjectAnchor&)>& accept, std::vector<ObjectAnchor>& result) {
+    const std::function<bool(const ObjectAnchor&)>& accept, std::vector<ObjectAnchor>& result,
+    std::uint32_t exclusionFlags = classDefaultObjectFlag) {
     result.clear();
     if (!maximumAccepted) return {andueprober::Error::InvalidArgument, "Object collection requires a positive result bound"};
     auto* objects = UEWrappers::GetObjects();
@@ -192,6 +200,9 @@ andueprober::Status collectObjects(std::size_t maximumExamined, std::size_t maxi
         ObjectAnchor anchor;
         anchor.index = static_cast<std::uint32_t>(index);
         anchor.address = reinterpret_cast<std::uintptr_t>(pointer);
+        std::uint32_t flags = 0;
+        if (exclusionFlags && (!readValue(anchor.address + offsets.UObject.ObjectFlags, flags) || (flags & exclusionFlags)))
+            continue;
         std::uintptr_t objectClass = 0;
         if (!readNameAt(offsets, anchor.address + offsets.UObject.NamePrivate, anchor.name) ||
             !readValue(anchor.address + offsets.UObject.ClassPrivate, objectClass) || !objectClass ||
@@ -626,7 +637,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             std::int32_t observed = -1;
             if (auto read = readValue(anchor.address + offsets->UObject.InternalIndex, observed); !read) return false;
             return observed == static_cast<std::int32_t>(anchor.index);
-        }, anchors);
+        }, anchors, 0);
         if (!status) return status;
         if (anchors.size() < 3) return {Error::InvalidEvidence, "Phase 1 requires three indexed live UObject anchors"};
         anchors.resize(std::min<std::size_t>(anchors.size(), 8));
