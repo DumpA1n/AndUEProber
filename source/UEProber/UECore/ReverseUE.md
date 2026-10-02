@@ -14,7 +14,7 @@ Configured operations copy arrays and strings at admission and borrow referenced
 |---|---|
 | 1 | Indexed UObjects validate `InternalIndex` against their slot. Every outer is a registered object and each outer chain ends at a `Package`. `RF_ClassDefaultObject` is set on `Default__<Class>` objects and clear on classes |
 | 2 | Typed UStruct objects validate `PropertiesSize` and `ChildProperties`. Every `SuperStruct` is a registered struct and class walks end at `Object`. `Children` and `UField::Next` enumerate registered functions whose outer is the class |
-| 3 | UClass/default-object ownership validates `CastFlags` and `ClassDefaultObject` |
+| 3 | The default object is an instance of its class and carries `RF_ClassDefaultObject`. The CoreUObject intrinsics carry their `EClassCastFlags`, and every class's `CastFlags` include its super class's flags |
 | 4 | Coherent UFunction records validate flags, parameter count/size, return offset and native-function pointer |
 | 5 | Independent FField owner/next/class/name relationships, FProperty scalars, base size, subclass base, pointer members and Bool metadata validate the reflection property model |
 | 6 | UEnum arrays and names are validated; ProcessEvent is found through executable UObject vtable relationships and recorded separately |

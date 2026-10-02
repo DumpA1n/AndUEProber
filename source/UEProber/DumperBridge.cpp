@@ -872,21 +872,52 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             return anchor.className == "Class" || anchor.className == "BlueprintGeneratedClass";
         }, anchors);
         if (!status) return status;
+        // UClass::GetDefaultObject: the class default object is an instance of exactly
+        // that class and carries RF_ClassDefaultObject.
         std::vector<ObjectAnchor> valid;
         for (const auto& anchor : anchors) {
-            std::uintptr_t defaultObject = 0;
-            std::uint64_t castFlags = 0;
-            if (!readValue(anchor.address + offsets->UClass.DefaultObject, defaultObject) ||
-                !readValue(anchor.address + offsets->UClass.CastFlags, castFlags) || !defaultObject) continue;
-            UE_UObject object(reinterpret_cast<void*>(defaultObject));
-            if (reinterpret_cast<std::uintptr_t>(object.GetClass().GetAddress()) != anchor.address) continue;
+            std::uintptr_t defaultObject = 0, defaultClass = 0;
+            std::uint32_t flags = 0;
+            if (!readValue(anchor.address + offsets->UClass.DefaultObject, defaultObject) || !defaultObject ||
+                !readValue(defaultObject + offsets->UObject.ClassPrivate, defaultClass) || defaultClass != anchor.address ||
+                !readValue(defaultObject + offsets->UObject.ObjectFlags, flags) || !(flags & classDefaultObjectFlag))
+                continue;
             valid.push_back(anchor);
             if (valid.size() == 8) break;
         }
         if (valid.size() < 3) return {Error::InvalidEvidence, "Phase 3 requires three UClass/default-object ownership anchors"};
         const auto samples = identities(valid);
-        if (auto status = publish("UClass::CastFlags", offsets->UClass.CastFlags, samples); !status) return status;
-        if (auto status = publish("UClass::ClassDefaultObject", offsets->UClass.DefaultObject, samples); !status) return status;
+
+        // UClass::ClassCastFlags: the CoreUObject intrinsics carry their EClassCastFlags,
+        // and binding ORs a class's super flags into its own, which Cast<T> relies on.
+        std::vector<std::string_view> intrinsicNames;
+        for (const auto& intrinsic : andueprober::intrinsicCastClasses()) intrinsicNames.push_back(intrinsic.name);
+        std::map<std::string, std::uintptr_t, std::less<>> intrinsicClasses;
+        if (auto found = findIntrinsicClasses(*offsets, intrinsicNames, intrinsicClasses); !found) return found;
+        std::vector<std::string> castSamples;
+        for (const auto& intrinsic : andueprober::intrinsicCastClasses()) {
+            std::uint64_t flags = 0;
+            if (auto read = readValue(intrinsicClasses.find(intrinsic.name)->second + offsets->UClass.CastFlags, flags);
+                !read) return read;
+            if (flags != intrinsic.classCastFlags)
+                return {Error::InvalidEvidence, "Phase 3 ClassCastFlags of CoreUObject." + std::string(intrinsic.name) +
+                    " is " + std::to_string(flags) + ", not " + std::to_string(intrinsic.classCastFlags)};
+            castSamples.push_back("CoreUObject." + std::string(intrinsic.name) + ";class-cast-flags:" + std::to_string(flags));
+        }
+        for (const auto& anchor : valid) {
+            std::uint64_t flags = 0, superFlags = 0;
+            std::uintptr_t super = 0;
+            if (auto read = readValue(anchor.address + offsets->UClass.CastFlags, flags); !read) return read;
+            if (auto read = readValue(anchor.address + offsets->UStruct.SuperStruct, super); !read) return read;
+            if (super) if (auto read = readValue(super + offsets->UClass.CastFlags, superFlags); !read) return read;
+            if ((flags & superFlags) != superFlags)
+                return {Error::InvalidEvidence, "Phase 3 ClassCastFlags omits super class flags: " + anchor.identity};
+            castSamples.push_back(anchor.identity + ";class-cast-flags:" + std::to_string(flags));
+        }
+        if (auto status = publishChecked("UClass::CastFlags", offsets->UClass.CastFlags, castSamples,
+            "intrinsic EClassCastFlags match and every class includes its super class flags"); !status) return status;
+        if (auto status = publishChecked("UClass::ClassDefaultObject", offsets->UClass.DefaultObject, samples,
+            "the default object is an instance of the class and carries RF_ClassDefaultObject"); !status) return status;
     } else if (phase == 4) {
         std::vector<ObjectAnchor> anchors;
         auto status = collectObjects(196608, 128,
