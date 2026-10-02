@@ -12,7 +12,7 @@ Configured operations copy arrays and strings at admission and borrow referenced
 
 | Phase | Live relationships and published layout |
 |---|---|
-| 1 | Indexed UObjects validate `InternalIndex`, `NamePrivate`, `ClassPrivate`, `OuterPrivate` and `ObjectFlags` |
+| 1 | Indexed UObjects validate `InternalIndex` against their slot. Every outer is a registered object and each outer chain ends at a `Package`. `RF_ClassDefaultObject` is set on `Default__<Class>` objects and clear on classes |
 | 2 | Typed UStruct objects validate `UField::Next`, `SuperStruct`, `Children`, `ChildProperties` and `PropertiesSize` |
 | 3 | UClass/default-object ownership validates `CastFlags` and `ClassDefaultObject` |
 | 4 | Coherent UFunction records validate flags, parameter count/size, return offset and native-function pointer |

@@ -168,6 +168,14 @@ bool readNameAt(const UE_Offsets& offsets, std::uintptr_t address, std::string& 
     return validText(name);
 }
 
+// FUObjectArray::IsValid(Object): the slot at the object's InternalIndex holds it.
+bool registeredObject(const UE_Offsets& offsets, std::uintptr_t object) {
+    auto* objects = UEWrappers::GetObjects();
+    std::int32_t index = -1;
+    return object && objects && readValue(object + offsets.UObject.InternalIndex, index) && index >= 0 &&
+        index < objects->GetNumElements() && reinterpret_cast<std::uintptr_t>(objects->GetObjectPtr(index)) == object;
+}
+
 // EObjectFlags::RF_ClassDefaultObject.
 constexpr std::uint32_t classDefaultObjectFlag = 0x10;
 
@@ -692,6 +700,11 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         const std::vector<std::string>& samples) -> Status {
         return publishLiveOffset(working, name, value, samples, dependencies, source + ";phase:" + std::to_string(phase));
     };
+    const auto publishChecked = [&](const std::string& name, std::uintptr_t value,
+        const std::vector<std::string>& samples, const std::string& check) -> Status {
+        return publishLiveOffset(working, name, value, samples, dependencies,
+            source + ";phase:" + std::to_string(phase), Origin::Profile, check);
+    };
 
     if (phase == 1) {
         std::vector<ObjectAnchor> anchors;
@@ -704,13 +717,63 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         if (anchors.size() < 3) return {Error::InvalidEvidence, "Phase 1 requires three indexed live UObject anchors"};
         anchors.resize(std::min<std::size_t>(anchors.size(), 8));
         const auto samples = identities(anchors);
-        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 5>{{
+
+        // UObjectBaseUtility::GetOutermost: every outer chain ends at a UPackage, the
+        // objects that have no outer, and each outer is itself a registered object.
+        std::vector<std::string> outerSamples;
+        for (const auto& anchor : anchors) {
+            auto outermost = anchor.address;
+            std::size_t depth = 0;
+            for (std::uintptr_t outer = 0;; outermost = outer) {
+                if (auto read = readValue(outermost + offsets->UObject.OuterPrivate, outer); !read) return read;
+                if (!outer) break;
+                if (++depth > 64 || !registeredObject(*offsets, outer))
+                    return {Error::InvalidEvidence, "Phase 1 rejects an outer that is not a registered object: " +
+                        anchor.identity + ";depth:" + std::to_string(depth)};
+            }
+            std::uintptr_t packageClass = 0;
+            std::string packageClassName;
+            if (!readValue(outermost + offsets->UObject.ClassPrivate, packageClass) ||
+                !readNameAt(*offsets, packageClass + offsets->UObject.NamePrivate, packageClassName) ||
+                packageClassName != "Package")
+                return {Error::InvalidEvidence, "Phase 1 rejects an outer chain that does not end at a Package: " +
+                    anchor.identity};
+            outerSamples.push_back(anchor.identity + ";outermost-depth:" + std::to_string(depth));
+        }
+
+        // UClass::CreateDefaultObject names each class default object Default__<Class>
+        // and constructs it with RF_ClassDefaultObject; UClass objects never carry it.
+        constexpr std::size_t flagQuota = 8;
+        std::size_t defaults = 0, classes = 0;
+        std::vector<ObjectAnchor> flagAnchors;
+        status = collectObjects(65536, flagQuota * 2, [&](const ObjectAnchor& anchor) {
+            if (anchor.name == "Default__" + anchor.className) return defaults < flagQuota && ++defaults != 0;
+            return anchor.className == "Class" && classes < flagQuota && ++classes != 0;
+        }, flagAnchors, 0);
+        if (!status) return status;
+        if (defaults < 3 || classes < 3)
+            return {Error::InvalidEvidence, "Phase 1 requires three class default objects and three classes (defaults=" +
+                std::to_string(defaults) + ", classes=" + std::to_string(classes) + ")"};
+        std::vector<std::string> flagSamples;
+        for (const auto& anchor : flagAnchors) {
+            std::uint32_t flags = 0;
+            if (auto read = readValue(anchor.address + offsets->UObject.ObjectFlags, flags); !read) return read;
+            const bool defaultObject = anchor.name == "Default__" + anchor.className;
+            if (((flags & classDefaultObjectFlag) != 0) != defaultObject)
+                return {Error::InvalidEvidence, "Phase 1 RF_ClassDefaultObject contradicts the object role: " +
+                    anchor.identity + ";flags:" + std::to_string(flags)};
+            flagSamples.push_back(anchor.identity + ";flags:" + std::to_string(flags));
+        }
+
+        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 3>{{
             {"UObject::InternalIndex", offsets->UObject.InternalIndex},
             {"UObject::NamePrivate", offsets->UObject.NamePrivate},
-            {"UObject::ClassPrivate", offsets->UObject.ClassPrivate},
-            {"UObject::OuterPrivate", offsets->UObject.OuterPrivate},
-            {"UObject::ObjectFlags", offsets->UObject.ObjectFlags}}})
+            {"UObject::ClassPrivate", offsets->UObject.ClassPrivate}}})
             if (auto published = publish(name, value, samples); !published) return published;
+        if (auto published = publishChecked("UObject::OuterPrivate", offsets->UObject.OuterPrivate, outerSamples,
+            "every outer is a registered object and the outer chain ends at a Package"); !published) return published;
+        if (auto published = publishChecked("UObject::ObjectFlags", offsets->UObject.ObjectFlags, flagSamples,
+            "RF_ClassDefaultObject is set on Default__ objects and clear on classes"); !published) return published;
     } else if (phase == 2) {
         std::vector<ObjectAnchor> anchors;
         auto status = collectObjects(131072, 64, [](const ObjectAnchor& anchor) {
