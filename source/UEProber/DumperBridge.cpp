@@ -1376,6 +1376,36 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             }
             return {};
         };
+        const auto propertyClassName = [&](std::uintptr_t property) -> const std::string* {
+            std::uintptr_t propertyClass = 0;
+            if (!readValue(property + classOffset, propertyClass)) return nullptr;
+            const auto found = propertyClassesByAddress.find(propertyClass);
+            return found == propertyClassesByAddress.end() ? nullptr : &found->second;
+        };
+        // FEnumProperty::LinkInternal copies ElementSize from UnderlyingProp, which is
+        // always a numeric property; the enum's width is never an assumed byte.
+        const auto corroborateUnderlying = [&](std::uintptr_t underlyingOffset, std::vector<std::string>& tailSamples) -> Status {
+            static const std::set<std::string, std::less<>> numeric{"ByteProperty", "Int8Property", "Int16Property",
+                "UInt16Property", "IntProperty", "UInt32Property", "Int64Property", "UInt64Property"};
+            std::size_t corroborated = 0;
+            for (const auto* property : findProperties("EnumProperty")) {
+                std::uintptr_t underlying = 0;
+                std::int32_t enumSize = 0, underlyingSize = 0;
+                if (!readValue(property->address + underlyingOffset, underlying) || !underlying) continue;
+                const auto* underlyingClass = propertyClassName(underlying);
+                if (!underlyingClass || !numeric.contains(*underlyingClass) ||
+                    !readValue(property->address + offsets->FProperty.ElementSize, enumSize) ||
+                    !readValue(underlying + offsets->FProperty.ElementSize, underlyingSize) || enumSize != underlyingSize)
+                    return {Error::InvalidEvidence, "FEnumProperty::UnderlyingType is not a numeric property of the enum's size: " +
+                        property->identity};
+                tailSamples.push_back(property->identity + ";underlying:" + *underlyingClass +
+                    ";element-size:" + std::to_string(enumSize));
+                if (++corroborated == 64) break;
+            }
+            if (corroborated < 2)
+                return {Error::InvalidEvidence, "FEnumProperty::UnderlyingType requires two numeric underlying properties"};
+            return {};
+        };
         struct Tail { const char* className; const char* field; bool property; };
         for (const auto& tail : std::array<Tail, 5>{{
             {"EnumProperty", "FEnumProperty::UnderlyingType", true},
@@ -1385,26 +1415,90 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             {"MapProperty", "FMapProperty::KeyProp", true}}}) {
             std::uintptr_t value = 0; std::vector<std::string> tailSamples;
             if (auto found = pointerTail(tail.className, tail.property, value, tailSamples); !found) return found;
+            if (std::string_view(tail.field) == "FEnumProperty::UnderlyingType")
+                if (auto checked = corroborateUnderlying(value, tailSamples); !checked) return checked;
             if (auto published = tailPublish(tail.field, value, tailSamples); !published) return published;
         }
-        const auto mapKeyOffset = *working.offsets.at("FMapProperty::KeyProp").value;
-        std::vector<std::string> mapValueSamples;
-        for (const auto* property : findProperties("MapProperty")) {
-            std::uintptr_t key = 0, value = 0, keyClass = 0, valueClass = 0;
-            if (!readValue(property->address + mapKeyOffset, key) ||
-                !readValue(property->address + mapKeyOffset + sizeof(void*), value) || !key || !value || key == value ||
-                !readValue(key + classOffset, keyClass) ||
-                !readValue(value + classOffset, valueClass) ||
-                !propertyClassesByAddress.contains(keyClass) || !propertyClassesByAddress.contains(valueClass)) continue;
-            mapValueSamples.push_back(property->identity + ";key:" + std::to_string(key) +
-                ";value:" + std::to_string(value));
-            if (mapValueSamples.size() == 4) break;
+
+        // FProperty::GetSize and GetMinAlignment for inner property classes whose
+        // alignment is fixed by their C++ value type. Struct properties take
+        // UScriptStruct::MinAlignment, which this phase does not observe, so they and
+        // other classes are not eligible.
+        const auto innerLayout = [&](std::uintptr_t property, std::int32_t& size, std::int32_t& alignment) {
+            struct Fixed { std::string_view name; std::int32_t size, alignment; };
+            static constexpr std::array<Fixed, 15> fixed{{{"ByteProperty", 1, 1}, {"Int8Property", 1, 1},
+                {"Int16Property", 2, 2}, {"UInt16Property", 2, 2}, {"IntProperty", 4, 4}, {"UInt32Property", 4, 4},
+                {"FloatProperty", 4, 4}, {"Int64Property", 8, 8}, {"UInt64Property", 8, 8}, {"DoubleProperty", 8, 8},
+                {"ObjectProperty", 8, 8}, {"ObjectPtrProperty", 8, 8}, {"ClassProperty", 8, 8}, {"StrProperty", 16, 8},
+                {"NameProperty", 0, 4}}};
+            std::int32_t arrayDim = 0, elementSize = 0;
+            const auto* className = propertyClassName(property);
+            if (!className || !readValue(property + offsets->FProperty.ArrayDim, arrayDim) ||
+                !readValue(property + offsets->FProperty.ElementSize, elementSize) || arrayDim != 1) return false;
+            if (*className == "EnumProperty") {
+                size = alignment = elementSize;
+                return elementSize == 1 || elementSize == 2 || elementSize == 4 || elementSize == 8;
+            }
+            const auto match = std::find_if(fixed.begin(), fixed.end(), [&](const auto& item) { return item.name == *className; });
+            if (match == fixed.end()) return false;
+            size = match->size ? match->size : static_cast<std::int32_t>(offsets->FName.Size);
+            alignment = match->alignment;
+            return elementSize == size;
+        };
+        // FSetProperty::SetLayout follows ElementProp and FMapProperty::MapLayout follows
+        // ValueProp. FScriptSet/FScriptMap::GetScriptLayout derive both from the inner
+        // properties, so agreement corroborates the pointer slots and the key/value order.
+        const auto setOffset = *working.offsets.at("FSetProperty::ElementProp").value;
+        std::vector<std::string> setLayoutSamples;
+        for (const auto* property : findProperties("SetProperty")) {
+            std::uintptr_t element = 0;
+            std::int32_t size = 0, alignment = 0;
+            if (!readValue(property->address + setOffset, element) || !element || !innerLayout(element, size, alignment)) continue;
+            std::array<std::int32_t, 5> observed{};
+            if (auto read = readValue(property->address + setOffset + sizeof(void*), observed); !read) return read;
+            const auto expected = scriptSetLayout(size, alignment);
+            if (!expected || observed != std::array<std::int32_t, 5>{expected->hashNextIdOffset, expected->hashIndexOffset,
+                expected->size, expected->sparseArray.alignment, expected->sparseArray.size})
+                return {Error::InvalidEvidence, "FSetProperty::SetLayout disagrees with FScriptSet::GetScriptLayout: " +
+                    property->identity};
+            setLayoutSamples.push_back(property->identity + ";element-size:" + std::to_string(size) +
+                ";element-alignment:" + std::to_string(alignment));
+            if (setLayoutSamples.size() == 8) break;
         }
-        if (mapValueSamples.size() < 2)
-            return {Error::InvalidEvidence, "MapProperty requires two distinct adjacent key/value relationships"};
-        if (auto published = tailPublish("FMapProperty::ValueProp", mapKeyOffset + sizeof(void*), mapValueSamples); !published)
+        if (!setLayoutSamples.empty())
+            working.offsets.at("FSetProperty::ElementProp").evidence.push_back({
+                "the following SetLayout equals FScriptSet::GetScriptLayout of the element property", true,
+                setLayoutSamples.size(), {setOffset}, source + ";phase:5;set-layout", std::move(setLayoutSamples)});
+
+        const auto mapKeyOffset = *working.offsets.at("FMapProperty::KeyProp").value;
+        const auto mapValueOffset = mapKeyOffset + sizeof(void*);
+        std::vector<std::string> mapValueSamples;
+        std::size_t mapLayouts = 0;
+        for (const auto* property : findProperties("MapProperty")) {
+            std::uintptr_t key = 0, value = 0;
+            if (!readValue(property->address + mapKeyOffset, key) ||
+                !readValue(property->address + mapValueOffset, value) || !key || !value || key == value ||
+                !propertyClassName(key) || !propertyClassName(value)) continue;
+            std::int32_t keySize = 0, keyAlignment = 0, valueSize = 0, valueAlignment = 0;
+            if (!innerLayout(key, keySize, keyAlignment) || !innerLayout(value, valueSize, valueAlignment)) continue;
+            std::array<std::int32_t, 6> observed{};
+            if (auto read = readValue(property->address + mapValueOffset + sizeof(void*), observed); !read) return read;
+            const auto expected = scriptMapLayout(keySize, keyAlignment, valueSize, valueAlignment);
+            if (!expected || observed != std::array<std::int32_t, 6>{expected->valueOffset, expected->set.hashNextIdOffset,
+                expected->set.hashIndexOffset, expected->set.size, expected->set.sparseArray.alignment,
+                expected->set.sparseArray.size})
+                return {Error::InvalidEvidence, "FMapProperty::MapLayout disagrees with FScriptMap::GetScriptLayout: " +
+                    property->identity};
+            mapValueSamples.push_back(property->identity + ";key-size:" + std::to_string(keySize) +
+                ";value-size:" + std::to_string(valueSize) + ";value-offset:" + std::to_string(expected->valueOffset));
+            if (++mapLayouts == 8) break;
+        }
+        if (mapLayouts < 2)
+            return {Error::InvalidEvidence, "MapProperty requires two key/value pairs whose MapLayout matches "
+                "FScriptMap::GetScriptLayout (observed=" + std::to_string(mapLayouts) + ")"};
+        if (auto published = tailPublish("FMapProperty::ValueProp", mapValueOffset, mapValueSamples); !published)
             return published;
-        const auto boolIdentities = [&] { std::vector<std::string> values; for (const auto& item : boolSamples) values.push_back(item.identity); return values; }();
+        auto boolIdentities = [&] { std::vector<std::string> values; for (const auto& item : boolSamples) values.push_back(item.identity); return values; }();
         // The quartet may follow sizeof(FProperty) after leading bytes (one on
         // DeltaForce), but it lies in the same aligned slot the property base was
         // derived from.
@@ -1412,6 +1506,26 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         if ((fieldSize & ~std::uintptr_t{7}) != *working.offsets.at("sizeof(FProperty)").value)
             return {Error::InvalidEvidence, "The NativeBool offset " + std::to_string(fieldSize) +
                 " disagrees with sizeof(FProperty)"};
+        // FBoolProperty::SetBoolSize leaves every Bool property either native or a
+        // one-bit bitfield at that offset, with FieldSize equal to ElementSize.
+        std::size_t examinedBools = 0, bitfieldBools = 0;
+        for (const auto* property : findProperties("BoolProperty")) {
+            std::int32_t elementSize = 0;
+            std::array<std::uint8_t, 4> quartet{};
+            if (auto read = readValue(property->address + offsets->FProperty.ElementSize, elementSize); !read) return read;
+            if (auto read = readValue(property->address + fieldSize, quartet); !read) return read;
+            const auto kind = classifyBoolProperty(elementSize, quartet[0], quartet[1], quartet[2], quartet[3]);
+            if (kind == BoolPropertyKind::Invalid)
+                return {Error::InvalidEvidence, "A Bool property violates FBoolProperty::SetBoolSize at offset " +
+                    std::to_string(fieldSize) + ": " + property->identity};
+            if (kind == BoolPropertyKind::Bitfield && bitfieldBools++ < 4)
+                boolIdentities.push_back(property->identity + ";byte-offset:" + std::to_string(quartet[1]) +
+                    ";field-mask:" + std::to_string(quartet[3]));
+            if (++examinedBools == 4096) break;
+        }
+        if (bitfieldBools < 2)
+            return {Error::InvalidEvidence, "Phase 5 requires two bitfield Bool properties (examined=" +
+                std::to_string(examinedBools) + ")"};
         for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 4>{{
             {"FBoolProperty::FieldSize", fieldSize}, {"FBoolProperty::ByteOffset", fieldSize + 1},
             {"FBoolProperty::ByteMask", fieldSize + 2}, {"FBoolProperty::FieldMask", fieldSize + 3}}})
