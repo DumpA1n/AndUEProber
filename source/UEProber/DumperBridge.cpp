@@ -806,9 +806,63 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             return {Error::InvalidEvidence, std::move(detail)};
         }
         const auto samples = identities(valid);
-        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 5>{{
-            {"UField::Next", offsets->UField.Next}, {"UStruct::SuperStruct", offsets->UStruct.SuperStruct},
-            {"UStruct::Children", offsets->UStruct.Children},
+
+        // UStruct::GetSuperStruct: every class's SuperStruct walk visits registered
+        // structs and ends at UObject's class.
+        std::vector<std::string> superSamples;
+        for (const auto& anchor : valid) {
+            std::size_t depth = 0;
+            auto root = anchor.address;
+            for (std::uintptr_t super = 0;; root = super) {
+                if (auto read = readValue(root + offsets->UStruct.SuperStruct, super); !read) return read;
+                if (!super) break;
+                if (++depth > 64 || !registeredObject(*offsets, super))
+                    return {Error::InvalidEvidence, "Phase 2 rejects a SuperStruct that is not a registered struct: " +
+                        anchor.identity + ";depth:" + std::to_string(depth)};
+            }
+            std::string rootName;
+            if (anchor.className != "Function" &&
+                (!readNameAt(*offsets, root + offsets->UObject.NamePrivate, rootName) ||
+                 (anchor.className != "ScriptStruct" && rootName != "Object")))
+                return {Error::InvalidEvidence, "Phase 2 rejects a class whose SuperStruct walk does not end at Object: " +
+                    anchor.identity};
+            superSamples.push_back(anchor.identity + ";super-depth:" + std::to_string(depth));
+        }
+
+        // TFieldIterator<UFunction> over UClass::Children follows UField::Next through
+        // the functions the class owns: each is registered, has the class as its outer
+        // and is a function.
+        std::vector<std::string> childSamples;
+        for (const auto& anchor : anchors) {
+            if (anchor.className != "Class" && anchor.className != "BlueprintGeneratedClass") continue;
+            std::uintptr_t child = 0;
+            if (auto read = readValue(anchor.address + offsets->UStruct.Children, child); !read) return read;
+            std::size_t functions = 0;
+            for (; child; ++functions) {
+                std::uintptr_t outer = 0, childClass = 0;
+                std::string childClassName;
+                if (functions == 1024 || !registeredObject(*offsets, child) ||
+                    !readValue(child + offsets->UObject.OuterPrivate, outer) || outer != anchor.address ||
+                    !readValue(child + offsets->UObject.ClassPrivate, childClass) ||
+                    !readNameAt(*offsets, childClass + offsets->UObject.NamePrivate, childClassName) ||
+                    !childClassName.ends_with("Function"))
+                    return {Error::InvalidEvidence, "Phase 2 rejects a class child that is not a function it owns: " +
+                        anchor.identity + ";position:" + std::to_string(functions)};
+                if (auto read = readValue(child + offsets->UField.Next, child); !read) return read;
+            }
+            if (functions) childSamples.push_back(anchor.identity + ";functions:" + std::to_string(functions));
+        }
+        if (childSamples.size() < 3)
+            return {Error::InvalidEvidence, "Phase 2 requires three classes with owned function chains (observed=" +
+                std::to_string(childSamples.size()) + ")"};
+
+        if (auto published = publishChecked("UStruct::SuperStruct", offsets->UStruct.SuperStruct, superSamples,
+            "every SuperStruct is a registered struct and class walks end at Object"); !published) return published;
+        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 2>{{
+            {"UStruct::Children", offsets->UStruct.Children}, {"UField::Next", offsets->UField.Next}}})
+            if (auto published = publishChecked(name, value, childSamples,
+                "Children and Next enumerate registered functions whose outer is the class"); !published) return published;
+        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 2>{{
             {"UStruct::ChildProperties", offsets->UStruct.ChildProperties},
             {"UStruct::PropertiesSize", offsets->UStruct.PropertiesSize}}})
             if (auto published = publish(name, value, samples); !published) return published;
