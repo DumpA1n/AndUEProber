@@ -1,4 +1,5 @@
 #include "andueprober/Names.hpp"
+#include "andueprober/EngineModel.hpp"
 #include <array>
 #include <cstring>
 #include <limits>
@@ -127,9 +128,9 @@ Status readFName(MemoryReader& reader, std::uintptr_t address, const NameLayout&
     if (number > static_cast<std::uint32_t>(std::numeric_limits<std::int32_t>::max()))
         return {Error::InvalidEvidence, "FName number exceeds the supported nonnegative int32 contract"};
     const auto id = field(layout.display ? *layout.display : *layout.comparison);
-    std::string name;
-    if (auto status = readPoolName(reader, pool, id, profile, budget, name); !status) return status;
-    if (number) name += "_" + std::to_string(number - 1);
+    std::string entry;
+    if (auto status = readPoolName(reader, pool, id, profile, budget, entry); !status) return status;
+    auto name = fnameToString(entry, number);
     if (auto status = readExact(reader, address, std::span(final).first(layout.size), budget); !status) return status;
     if (bytes != final) return {Error::InvalidEvidence, "FName fields changed during observation"};
     output = std::move(name);

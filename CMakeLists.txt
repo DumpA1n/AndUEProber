@@ -51,6 +51,7 @@ target_link_libraries(AndUEProberCore PUBLIC Threads::Threads PRIVATE ${CMAKE_DL
 add_library(AndUEProberProbe STATIC
     source/Probe/Probe.cpp
     source/Probe/Names.cpp
+    source/Probe/EngineModel.cpp
     source/Probe/Relations.cpp
     source/Probe/Discovery.cpp
     source/Probe/Structs.cpp
