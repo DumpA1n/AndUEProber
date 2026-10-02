@@ -402,7 +402,7 @@ std::vector<std::string> dependencyNames(int phase) {
         "UStruct::PropertiesSize"};
     if (phase == 4) return {"UClass::CastFlags", "UClass::ClassDefaultObject"};
     if (phase == 5) return {"UFunction::FunctionFlags", "UFunction::NumParms", "UFunction::ParmsSize",
-        "UFunction::ReturnValueOffset", "UFunction::Func"};
+        "UFunction::Func"};
     return {"sizeof(FProperty)", "FProperty::SubPropertyBase", "FEnumProperty::UnderlyingType",
         "FEnumProperty::Enum", "FArrayProperty::Inner", "FSetProperty::ElementProp",
         "FMapProperty::KeyProp", "FMapProperty::ValueProp"};
@@ -924,27 +924,23 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             [](const ObjectAnchor& anchor) { return anchor.className == "Function"; }, anchors);
         if (!status) return status;
         std::vector<ObjectAnchor> valid;
-        const auto returnOffset = offsets->UFunction.ParamSize + sizeof(std::uint16_t);
         for (const auto& anchor : anchors) {
-            std::uint32_t flags = 0; std::uint8_t count = 0; std::uint16_t size = 0, result = 0;
+            std::uint32_t flags = 0; std::uint8_t count = 0; std::uint16_t size = 0;
             std::uintptr_t function = 0;
             if (!readValue(anchor.address + offsets->UFunction.EFunctionFlags, flags) ||
                 !readValue(anchor.address + offsets->UFunction.NumParams, count) ||
                 !readValue(anchor.address + offsets->UFunction.ParamSize, size) ||
-                !readValue(anchor.address + returnOffset, result) ||
                 !readValue(anchor.address + offsets->UFunction.Func, function)) continue;
-            if (count > 64 || (result != 0xffff && result >= size) ||
-                (function && !UEMemory::kPtrValidator.isPtrExecutable(function))) continue;
+            if (count > 64 || (function && !UEMemory::kPtrValidator.isPtrExecutable(function))) continue;
             valid.push_back(anchor);
             if (valid.size() == 12) break;
         }
         if (valid.size() < 3) return {Error::InvalidEvidence, "Phase 4 requires three coherent live UFunction anchors"};
         const auto samples = identities(valid);
-        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 5>{{
+        for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 4>{{
             {"UFunction::FunctionFlags", offsets->UFunction.EFunctionFlags},
             {"UFunction::NumParms", offsets->UFunction.NumParams},
-            {"UFunction::ParmsSize", offsets->UFunction.ParamSize},
-            {"UFunction::ReturnValueOffset", returnOffset}, {"UFunction::Func", offsets->UFunction.Func}}})
+            {"UFunction::ParmsSize", offsets->UFunction.ParamSize}, {"UFunction::Func", offsets->UFunction.Func}}})
             if (auto published = publish(name, value, samples); !published) return published;
     } else if (phase == 5) {
         struct PropertyAnchor {
@@ -1155,6 +1151,101 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                 source + ";phase:5;declaring-structure-closure", Origin::Profile,
                 "property storage fits its declaring structure and CPF_Parm matches the owner kind"); !published)
                 return published;
+
+        // UFunction::InitializeDerivedMembers recomputes NumParms, ParmsSize and
+        // ReturnValueOffset from the leading parameter properties. Every function whose
+        // ChildProperties chain is walked to its end must reproduce the published
+        // NumParms and ParmsSize, and ReturnValueOffset is the one uint16 slot beside
+        // them that holds the derived return offset in all of those functions.
+        constexpr std::size_t maximumDerivedFunctions = 1024;
+        struct DerivedFunction {
+            std::uintptr_t address;
+            std::string identity;
+            FunctionParameterSummary summary;
+        };
+        std::vector<ObjectAnchor> functions;
+        if (status = collectObjects(1024 * 1024, maximumDerivedFunctions,
+            [](const ObjectAnchor& anchor) { return anchor.className == "Function"; }, functions); !status) return status;
+        std::vector<DerivedFunction> derivedFunctions;
+        std::size_t withReturn = 0;
+        for (const auto& function : functions) {
+            std::vector<FunctionParameter> parameters;
+            std::uintptr_t field = 0;
+            if (auto read = readValue(function.address + offsets->UStruct.ChildProperties, field); !read) return read;
+            for (std::size_t hop = 0; field && hop < 128; ++hop) {
+                std::uintptr_t fieldClass = 0;
+                if (!readValue(field + classOffset, fieldClass) || !propertyClassesByAddress.contains(fieldClass)) break;
+                FunctionParameter parameter;
+                for (const auto& read : {readValue(field + offsets->FProperty.PropertyFlags, parameter.propertyFlags),
+                    readValue(field + offsets->FProperty.Offset_Internal, parameter.offset),
+                    readValue(field + offsets->FProperty.ArrayDim, parameter.arrayDim),
+                    readValue(field + offsets->FProperty.ElementSize, parameter.elementSize),
+                    readValue(field + nextOffset, field)})
+                    if (!read) return read;
+                parameters.push_back(parameter);
+            }
+            if (field) continue;
+            std::uint32_t functionFlags = 0;
+            std::uint8_t numParms = 0;
+            std::uint16_t parmsSize = 0;
+            for (const auto& read : {readValue(function.address + offsets->UFunction.EFunctionFlags, functionFlags),
+                readValue(function.address + offsets->UFunction.NumParams, numParms),
+                readValue(function.address + offsets->UFunction.ParamSize, parmsSize)})
+                if (!read) return read;
+            const auto derived = deriveFunctionParameters(functionFlags, parameters);
+            if (!derived || derived->numParms != numParms || derived->parmsSize != parmsSize)
+                return {Error::InvalidEvidence, "Phase 5 parameter properties disagree with UFunction NumParms/ParmsSize: " +
+                    function.identity + ";observed:" + std::to_string(numParms) + "/" + std::to_string(parmsSize) +
+                    (derived ? ";derived:" + std::to_string(derived->numParms) + "/" + std::to_string(derived->parmsSize) :
+                        std::string(";derived:out-of-range"))};
+            withReturn += derived->returnValueOffset != 0xffff;
+            derivedFunctions.push_back({function.address, function.identity, *derived});
+        }
+        if (withReturn < 3 || derivedFunctions.size() - withReturn < 1)
+            return {Error::InvalidEvidence, "Phase 5 requires complete parameter chains of three functions with and one "
+                "without a return value (functions=" + std::to_string(functions.size()) +
+                ", complete=" + std::to_string(derivedFunctions.size()) + ", returning=" + std::to_string(withReturn) + ")"};
+        struct UFunctionField { std::uintptr_t begin, width; };
+        const std::array<UFunctionField, 4> functionFields{{{offsets->UFunction.NumParams, sizeof(std::uint8_t)},
+            {offsets->UFunction.ParamSize, sizeof(std::uint16_t)}, {offsets->UFunction.EFunctionFlags, sizeof(std::uint32_t)},
+            {offsets->UFunction.Func, sizeof(void*)}}};
+        const auto lowestField = std::min({offsets->UFunction.NumParams, offsets->UFunction.ParamSize,
+            offsets->UFunction.EFunctionFlags}) & ~std::uintptr_t{1};
+        const auto windowBegin = lowestField >= 8 ? lowestField - 8 : 0;
+        const auto windowEnd = std::max({offsets->UFunction.NumParams + 1, offsets->UFunction.ParamSize + 2,
+            offsets->UFunction.EFunctionFlags + 4}) + 8;
+        std::vector<std::uintptr_t> returnCandidates;
+        for (auto candidate = windowBegin; candidate + sizeof(std::uint16_t) <= windowEnd; candidate += sizeof(std::uint16_t)) {
+            if (std::any_of(functionFields.begin(), functionFields.end(), [&](const auto& field) {
+                return candidate < field.begin + field.width && field.begin < candidate + sizeof(std::uint16_t);
+            })) continue;
+            bool matched = true;
+            for (const auto& function : derivedFunctions) {
+                std::uint16_t observed = 0;
+                if (!readValue(function.address + candidate, observed) || observed != function.summary.returnValueOffset) {
+                    matched = false; break;
+                }
+            }
+            if (matched) returnCandidates.push_back(candidate);
+        }
+        if (returnCandidates.size() != 1)
+            return {Error::InvalidEvidence, "Phase 5 requires one UFunction slot holding every derived ReturnValueOffset "
+                "(candidates=" + std::to_string(returnCandidates.size()) + ")"};
+        std::vector<std::string> derivedSamples;
+        for (std::size_t index = 0; index < std::min<std::size_t>(derivedFunctions.size(), 8); ++index) {
+            const auto& function = derivedFunctions[index];
+            derivedSamples.push_back(function.identity + ";num-parms:" + std::to_string(function.summary.numParms) +
+                ";parms-size:" + std::to_string(function.summary.parmsSize) +
+                ";return-value-offset:" + std::to_string(function.summary.returnValueOffset));
+        }
+        auto derivedDependencies = scalarDependencies;
+        for (const auto* field : {"FField::Next", "FProperty::ArrayDim", "FProperty::ElementSize",
+            "FProperty::PropertyFlags", "FProperty::Offset_Internal"}) derivedDependencies.emplace_back(field);
+        if (auto published = publishLiveOffset(working, "UFunction::ReturnValueOffset", returnCandidates.front(),
+            derivedSamples, derivedDependencies, source + ";phase:5;function-derived-members", Origin::Probe,
+            "UFunction::InitializeDerivedMembers over " + std::to_string(derivedFunctions.size()) +
+            " complete parameter chains reproduces NumParms, ParmsSize and ReturnValueOffset"); !published)
+            return published;
 
         std::vector<PropertyPointerTailSample> pointerSamples;
         std::vector<PropertyBoolTailSample> boolSamples;
