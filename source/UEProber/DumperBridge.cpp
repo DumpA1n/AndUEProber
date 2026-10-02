@@ -11,6 +11,7 @@
 
 #include <chrono>
 #include <string>
+#include <string_view>
 #include <mutex>
 #include <limits>
 #include "andueprober/Discovery.hpp"
@@ -18,6 +19,7 @@
 #include <array>
 #include <filesystem>
 #include <iterator>
+#include <map>
 #include <set>
 #include <tuple>
 #include <vector>
@@ -214,6 +216,66 @@ andueprober::Status collectObjects(std::size_t maximumExamined, std::size_t maxi
         }
     }
     if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
+    return {};
+}
+
+// StaticFindObject(UClass::StaticClass(), ANY_PACKAGE, Name, true) for CoreUObject
+// intrinsics. UClass is the one registered object that is its own class; a match is
+// an object of exactly that class with the requested FName whose outer is the
+// /Script/CoreUObject package. The engine returns whichever duplicate its hash
+// bucket yields first, so a second match is refused instead of chosen.
+andueprober::Status findIntrinsicClasses(const UE_Offsets& offsets, std::span<const std::string_view> names,
+    std::map<std::string, std::uintptr_t, std::less<>>& found) {
+    using andueprober::Error;
+    found.clear();
+    auto* objects = UEWrappers::GetObjects();
+    if (!objects) return {Error::InvalidEvidence, "The reflection object registry is unavailable"};
+    const auto count = objects->GetNumElements();
+    if (count <= 1 || count > 16 * 1024 * 1024)
+        return {Error::InvalidEvidence, "The reflection object count is outside the bounded range"};
+    std::vector<std::pair<std::uintptr_t, std::uintptr_t>> classed;
+    std::vector<std::uintptr_t> selfClassed;
+    for (std::int32_t index = 0; index < count; ++index) {
+        if (ProbeCancelled()) return {Error::Cancelled, "Intrinsic class lookup cancelled"};
+        const auto object = reinterpret_cast<std::uintptr_t>(objects->GetObjectPtr(index));
+        std::uintptr_t objectClass = 0;
+        if (!object || !readValue(object + offsets.UObject.ClassPrivate, objectClass) || !objectClass) continue;
+        classed.emplace_back(object, objectClass);
+        if (object == objectClass) selfClassed.push_back(object);
+    }
+    if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
+    const auto inCoreUObject = [&](std::uintptr_t object) {
+        std::uintptr_t package = 0, packageOuter = 1, packageClass = 0;
+        std::string packageName, packageClassName;
+        return readValue(object + offsets.UObject.OuterPrivate, package) && package &&
+            readValue(package + offsets.UObject.OuterPrivate, packageOuter) && !packageOuter &&
+            readNameAt(offsets, package + offsets.UObject.NamePrivate, packageName) &&
+            packageName == "/Script/CoreUObject" &&
+            readValue(package + offsets.UObject.ClassPrivate, packageClass) && packageClass &&
+            readNameAt(offsets, packageClass + offsets.UObject.NamePrivate, packageClassName) &&
+            packageClassName == "Package";
+    };
+    std::uintptr_t classClass = 0;
+    for (const auto candidate : selfClassed) {
+        std::string name;
+        if (!readNameAt(offsets, candidate + offsets.UObject.NamePrivate, name) || name != "Class" ||
+            !inCoreUObject(candidate)) continue;
+        if (classClass) return {Error::InvalidEvidence, "More than one CoreUObject UClass is its own class"};
+        classClass = candidate;
+    }
+    if (!classClass) return {Error::InvalidEvidence, "No CoreUObject UClass is its own class"};
+    for (const auto& [object, objectClass] : classed) {
+        if (objectClass != classClass) continue;
+        if (ProbeCancelled()) return {Error::Cancelled, "Intrinsic class lookup cancelled"};
+        std::string name;
+        if (!readNameAt(offsets, object + offsets.UObject.NamePrivate, name) ||
+            std::find(names.begin(), names.end(), name) == names.end() || !inCoreUObject(object)) continue;
+        if (!found.emplace(name, object).second)
+            return {Error::InvalidEvidence, "CoreUObject class " + name + " is registered more than once"};
+    }
+    for (const auto name : names)
+        if (!found.contains(name))
+            return {Error::InvalidEvidence, "CoreUObject class " + std::string(name) + " is not registered"};
     return {};
 }
 
@@ -777,14 +839,10 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             if (property.classAddress) propertyClassesByAddress.emplace(property.classAddress, property.className);
         std::map<std::string, std::size_t> propertyClassCounts;
         for (const auto& property : properties) ++propertyClassCounts[property.className];
-        std::vector<ObjectAnchor> enumClasses;
-        status = collectObjects(1024 * 1024, 1, [](const ObjectAnchor& anchor) {
-            return anchor.className == "Class" && anchor.name == "Enum";
-        }, enumClasses);
-        if (!status) return status;
-        if (enumClasses.size() != 1)
-            return {Error::InvalidEvidence, "Phase 5 requires the live Enum class identity"};
-        const auto enumClassAddress = enumClasses.front().address;
+        std::map<std::string, std::uintptr_t, std::less<>> enumClasses;
+        constexpr std::array<std::string_view, 1> enumClassName{"Enum"};
+        if (status = findIntrinsicClasses(*offsets, enumClassName, enumClasses); !status) return status;
+        const auto enumClassAddress = enumClasses.begin()->second;
         auto discoverPointerField = [&](const char* fieldName, auto expected,
             std::uintptr_t& result, std::vector<std::string>& fieldSamples) -> Status {
             std::vector<std::pair<std::uintptr_t, std::vector<std::string>>> candidates;

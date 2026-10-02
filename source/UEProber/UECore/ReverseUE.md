@@ -19,7 +19,7 @@ Configured operations copy arrays and strings at admission and borrow referenced
 | 5 | Independent FField owner/next/class/name relationships, FProperty scalars, base size, subclass base, pointer members and Bool metadata validate the reflection property model |
 | 6 | UEnum arrays and names are validated; ProcessEvent is found through executable UObject vtable relationships and recorded separately |
 
-Names are composed as `FName::ToString` does: the display entry when names preserve case, then `_<Number - 1>` when the inline Number is nonzero. Objects that differ only in Number therefore keep distinct names. Object collection skips class default objects, as `GetObjectsOfClass` does by default, because a default object is never linked and its reflected members describe no live struct or function.
+Names are composed as `FName::ToString` does: the display entry when names preserve case, then `_<Number - 1>` when the inline Number is nonzero. Objects that differ only in Number therefore keep distinct names. Object collection skips class default objects, as `GetObjectsOfClass` does by default, because a default object is never linked and its reflected members describe no live struct or function. CoreUObject intrinsic classes are found by exact class, FName and `/Script/CoreUObject` outer, and a duplicate match is refused rather than chosen.
 
 At least three distinct named anchors are required for scalar/relationship fields where the algorithm admits comparison. Ambiguity, invalid text, changed relationships or read failures stop the phase without publishing a partially completed automatic result. User overrides survive rediscovery and must agree with current live evidence. Replacing an upstream value invalidates its dependency closure.
 
