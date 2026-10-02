@@ -139,6 +139,9 @@ public:
             offsets.UStruct.SuperStruct = offsets.UStruct.PropertiesSize + sizeof(int32_t);
             offsets.UStruct.Children = offsets.UStruct.SuperStruct + (sizeof(void *) * 2);
             offsets.UStruct.ChildProperties = offsets.UStruct.Children + (sizeof(void *) * 3);
+            // The engine's own IsA indexes the struct base chain at SuperStruct - 0x10;
+            // RunFullSdkDump corroborates the array against every class before emitting it.
+            offsets.Config.isUsingStructBaseChain = true;
             offsets.UFunction.NumParams = offsets.UStruct.ChildProperties +
                 ((sizeof(void *) + sizeof(int32_t) * 2) * 2) + (sizeof(void *) * 5);
             offsets.UFunction.ParamSize = offsets.UFunction.NumParams + sizeof(int16_t);

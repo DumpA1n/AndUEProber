@@ -13,8 +13,10 @@
 #include <mutex>
 #include <limits>
 #include "andueprober/Discovery.hpp"
+#include <algorithm>
 #include <array>
 #include <filesystem>
+#include <iterator>
 #include <set>
 #include <tuple>
 #include <vector>
@@ -159,6 +161,74 @@ andueprober::Status collectObjects(std::size_t maximumExamined, std::size_t maxi
         }
     }
     if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
+    return {};
+}
+
+// The emitter answers UObject::IsA from FStructBaseChain when the profile claims
+// that layout, and reflection cannot confirm it. Every class that the object table
+// registers must therefore carry an array that is exactly its SuperStruct ancestry,
+// root first, each element addressing that ancestor's own base-chain subobject.
+// That equality makes the indexed test agree with the walk for every pair of
+// classes. A null array is admitted because the emitted IsA walks for it. A class
+// pointer that is not itself a registered object belongs to a slot whose object is
+// being torn down while the table is read, so it is not a class to corroborate.
+andueprober::Status corroborateStructBaseChain(const UE_Offsets& offsets) {
+    using andueprober::Error;
+    constexpr std::uintptr_t baseChainSpan = sizeof(void*) * 2;
+    constexpr std::size_t maximumDepth = 64;
+    if (offsets.UStruct.SuperStruct < offsets.UObject.ClassPrivate + sizeof(void*) + baseChainSpan)
+        return {Error::InvalidEvidence, "The struct base chain does not fit before UStruct::SuperStruct"};
+    const auto chainOffset = offsets.UStruct.SuperStruct - baseChainSpan;
+    auto* objects = UEWrappers::GetObjects();
+    if (!objects) return {Error::InvalidEvidence, "The reflection object registry is unavailable"};
+    const auto count = objects->GetNumElements();
+    if (count <= 1 || count > 16 * 1024 * 1024)
+        return {Error::InvalidEvidence, "The reflection object count is outside the bounded range"};
+    std::set<std::uintptr_t> registered, referenced;
+    for (std::int32_t index = 0; index < count; ++index) {
+        if (ProbeCancelled()) return {Error::Cancelled, "Struct base chain corroboration cancelled"};
+        const auto object = reinterpret_cast<std::uintptr_t>(objects->GetObjectPtr(index));
+        if (!object) continue;
+        registered.insert(object);
+        std::uintptr_t objectClass = 0;
+        if (!readValue(object + offsets.UObject.ClassPrivate, objectClass) || !objectClass) continue;
+        referenced.insert(objectClass);
+    }
+    if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
+    std::vector<std::uintptr_t> classes;
+    std::set_intersection(referenced.begin(), referenced.end(), registered.begin(), registered.end(),
+        std::back_inserter(classes));
+    struct BaseChain { std::uintptr_t array; std::int32_t depthMinusOne; };
+    std::size_t populated = 0;
+    for (const auto objectClass : classes) {
+        if (ProbeCancelled()) return {Error::Cancelled, "Struct base chain corroboration cancelled"};
+        std::vector<std::uintptr_t> ancestry;
+        for (auto at = objectClass; at; ) {
+            if (ancestry.size() == maximumDepth)
+                return {Error::InvalidEvidence, "A SuperStruct chain exceeds the bounded depth at class " +
+                    std::to_string(objectClass)};
+            ancestry.push_back(at);
+            if (auto status = readValue(at + offsets.UStruct.SuperStruct, at); !status) return status;
+        }
+        BaseChain chain{};
+        if (auto status = readValue(objectClass + chainOffset, chain); !status) return status;
+        if (!chain.array) continue;
+        if (chain.depthMinusOne != static_cast<std::int32_t>(ancestry.size()) - 1)
+            return {Error::InvalidEvidence, "The struct base chain depth disagrees with the SuperStruct walk at class " +
+                std::to_string(objectClass) + ";depth:" + std::to_string(chain.depthMinusOne) +
+                ";walk:" + std::to_string(ancestry.size() - 1)};
+        std::vector<std::uintptr_t> elements(ancestry.size());
+        if (auto status = andueprober::readExact(*g_Reader, chain.array,
+            std::as_writable_bytes(std::span(elements)), g_ReadBudget); !status) return status;
+        for (std::size_t depth = 0; depth < elements.size(); ++depth) {
+            const auto expected = ancestry[ancestry.size() - 1 - depth] + chainOffset;
+            if (elements[depth] != expected)
+                return {Error::InvalidEvidence, "The struct base chain disagrees with the SuperStruct walk at class " +
+                    std::to_string(objectClass) + ";depth:" + std::to_string(depth)};
+        }
+        ++populated;
+    }
+    if (!populated) return {Error::InvalidEvidence, "No class in the object table carries a struct base chain"};
     return {};
 }
 
@@ -1110,6 +1180,8 @@ andueprober::Status RunFullSdkDump(const andueprober::Snapshot& snapshot, const 
         if (auto status = assign(item.first, *item.second); !status) return status;
     if (auto status = assign("FMapProperty::KeyProp", offsets.FMapProperty.KeyProp); !status) return status;
     if (auto status = assign("FMapProperty::ValueProp", offsets.FMapProperty.ValueProp); !status) return status;
+    if (offsets.Config.isUsingStructBaseChain)
+        if (auto status = corroborateStructBaseChain(offsets); !status) return status;
     g_SelectedProfile->SetProbedOffsets(offsets);
     g_SelectedProfile->BindRuntime(*g_ObjectDiscovery.address, *g_NameDiscovery.address);
     g_UpstreamReadFailure = {};
