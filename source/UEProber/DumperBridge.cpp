@@ -912,6 +912,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
 
         std::vector<PropertyPointerTailSample> pointerSamples;
         std::vector<PropertyBoolTailSample> boolSamples;
+        std::set<std::uintptr_t> boolOffsets;
         std::set<std::uintptr_t> pointed;
         const auto scalarEnd = offsets->FProperty.Offset_Internal + sizeof(std::int32_t);
         const auto tailStart = (scalarEnd + sizeof(void*) - 1) & ~(sizeof(void*) - 1);
@@ -943,15 +944,22 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                     if (readValue(property.address + candidate, bytes) &&
                         bytes == std::array<std::uint8_t, 4>{1, 0, 1, 0xff}) matches.push_back(candidate);
                 }
-                if (matches.size() == 1)
+                if (matches.size() == 1) {
+                    boolOffsets.insert(matches.front());
                     boolSamples.push_back({property.address, property.identity +
                         ";native-bool-offset:" + std::to_string(matches.front())});
+                }
             }
         }
         if (pointerSamples.size() < 2 || boolSamples.size() < 2)
             return {Error::InvalidEvidence, "Phase 5 requires two independent pointer-tail and NativeBool anchors "
                 "(pointer=" + std::to_string(pointerSamples.size()) + ", NativeBool=" +
                 std::to_string(boolSamples.size()) + ")"};
+        if (boolOffsets.size() != 1) {
+            std::string detail = "Phase 5 NativeBool anchors disagree on the FBoolProperty::FieldSize offset:";
+            for (const auto& sample : boolSamples) detail += ' ' + sample.identity;
+            return {Error::InvalidEvidence, std::move(detail)};
+        }
         const auto propertyIdentity = source + ";phase:5;property-scalars";
         for (const auto* field : {"FProperty::ArrayDim", "FProperty::ElementSize", "FProperty::PropertyFlags", "FProperty::Offset_Internal"})
             working.offsets.at(field).evidence.back().source = propertyIdentity;
@@ -1060,10 +1068,16 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         if (auto published = tailPublish("FMapProperty::ValueProp", mapKeyOffset + sizeof(void*), mapValueSamples); !published)
             return published;
         const auto boolIdentities = [&] { std::vector<std::string> values; for (const auto& item : boolSamples) values.push_back(item.identity); return values; }();
-        const auto size = *working.offsets.at("sizeof(FProperty)").value;
+        // The quartet may follow sizeof(FProperty) after leading bytes (one on
+        // DeltaForce), but it lies in the same aligned slot the property base was
+        // derived from.
+        const auto fieldSize = *boolOffsets.begin();
+        if ((fieldSize & ~std::uintptr_t{7}) != *working.offsets.at("sizeof(FProperty)").value)
+            return {Error::InvalidEvidence, "The NativeBool offset " + std::to_string(fieldSize) +
+                " disagrees with sizeof(FProperty)"};
         for (const auto& [name, value] : std::array<std::pair<const char*, std::uintptr_t>, 4>{{
-            {"FBoolProperty::FieldSize", size}, {"FBoolProperty::ByteOffset", size + 1},
-            {"FBoolProperty::ByteMask", size + 2}, {"FBoolProperty::FieldMask", size + 3}}})
+            {"FBoolProperty::FieldSize", fieldSize}, {"FBoolProperty::ByteOffset", fieldSize + 1},
+            {"FBoolProperty::ByteMask", fieldSize + 2}, {"FBoolProperty::FieldMask", fieldSize + 3}}})
             if (auto published = tailPublish(name, value, boolIdentities); !published) return published;
     } else {
         std::vector<ObjectAnchor> enums;
@@ -1159,7 +1173,7 @@ andueprober::Status RunFullSdkDump(const andueprober::Snapshot& snapshot, const 
         field = observed;
         return {};
     };
-    for (const auto& item : std::array<std::pair<const char*, std::uintptr_t*>, 32>{{
+    for (const auto& item : std::array<std::pair<const char*, std::uintptr_t*>, 33>{{
         {"UObject::ObjectFlags", &offsets.UObject.ObjectFlags}, {"UObject::InternalIndex", &offsets.UObject.InternalIndex},
         {"UObject::ClassPrivate", &offsets.UObject.ClassPrivate}, {"UObject::NamePrivate", &offsets.UObject.NamePrivate},
         {"UObject::OuterPrivate", &offsets.UObject.OuterPrivate}, {"UField::Next", &offsets.UField.Next},
@@ -1176,8 +1190,13 @@ andueprober::Status RunFullSdkDump(const andueprober::Snapshot& snapshot, const 
         {"FProperty::Offset_Internal", &offsets.FProperty.Offset_Internal}, {"sizeof(FProperty)", &offsets.FProperty.Size},
         {"FProperty::SubPropertyBase", &offsets.FProperty.SubPropertyBase},
         {"FEnumProperty::UnderlyingType", &offsets.FEnumProperty.UnderlyingType}, {"FEnumProperty::Enum", &offsets.FEnumProperty.Enum},
-        {"FArrayProperty::Inner", &offsets.FArrayProperty.Inner}, {"FSetProperty::ElementProp", &offsets.FSetProperty.ElementProp}}})
+        {"FArrayProperty::Inner", &offsets.FArrayProperty.Inner}, {"FSetProperty::ElementProp", &offsets.FSetProperty.ElementProp},
+        {"FBoolProperty::FieldSize", &offsets.FBoolProperty.FieldSize}}})
         if (auto status = assign(item.first, *item.second); !status) return status;
+    for (const auto& [name, distance] : std::array<std::pair<const char*, std::uintptr_t>, 3>{{
+        {"FBoolProperty::ByteOffset", 1}, {"FBoolProperty::ByteMask", 2}, {"FBoolProperty::FieldMask", 3}}})
+        if (value(name) != offsets.FBoolProperty.FieldSize + distance)
+            return {Error::InvalidEvidence, std::string("The SDK layout requires ") + name + " to follow FBoolProperty::FieldSize"};
     if (auto status = assign("FMapProperty::KeyProp", offsets.FMapProperty.KeyProp); !status) return status;
     if (auto status = assign("FMapProperty::ValueProp", offsets.FMapProperty.ValueProp); !status) return status;
     if (offsets.Config.isUsingStructBaseChain)

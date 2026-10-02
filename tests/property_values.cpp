@@ -207,6 +207,59 @@ void boundaryAndClosure() {
         REQUIRE(snapshot.offsets.at(boolFields[0]).value == fixture.boolOffsets[0]);
     }
 }
+void shiftedLayout() {
+    // DeltaForce stores one byte before FieldSize that reads 1 on every Bool. Native and
+    // single-bit FieldSize also read 1, so a declared prefix ending at the FProperty base
+    // leaves FieldSize ambiguous; a prefix covering the leading byte resolves the quartet.
+    struct Record { OwnedNativeProperty property; std::uint8_t leading, fieldSize, byteOffset, byteMask, fieldMask; };
+    static constexpr std::array<std::array<std::uint8_t, 4>, 4> values{{{1, 0, 1, 255}, {1, 0, 1, 1}, {1, 0, 2, 2}, {1, 0, 4, 4}}};
+    struct Memory final : MemoryReader {
+        OwnedPropertyValues predecessor; std::array<Record, 4> records;
+        Memory() {
+            for (std::size_t i = 0; i < records.size(); ++i) {
+                std::memset(&records[i], 0xCC, sizeof(records[i])); records[i].property = predecessor.phase5.properties[i % 3]; records[i].leading = 1;
+                records[i].fieldSize = values[i][0]; records[i].byteOffset = values[i][1]; records[i].byteMask = values[i][2]; records[i].fieldMask = values[i][3];
+            }
+        }
+        ReadResult read(std::uintptr_t address, std::span<std::byte> output) override {
+            for (const auto& record : records) {
+                const auto begin = reinterpret_cast<std::uintptr_t>(&record);
+                if (address < begin || address - begin > sizeof(record) || output.size() > sizeof(record) - (address - begin)) continue;
+                std::memcpy(output.data(), reinterpret_cast<const std::byte*>(&record) + address - begin, output.size()); return {output.size(), Error::None};
+            }
+            return predecessor.read(address, output);
+        }
+        std::uint64_t generation() const override { return 1; }
+    };
+    const auto samples = [](const Memory& memory) {
+        std::array<BoolPropertySample, 4> result;
+        for (std::size_t i = 0; i < result.size(); ++i) {
+            const auto& value = values[i];
+            result[i] = {reinterpret_cast<std::uintptr_t>(&memory.records[i]), "shifted-bool:" + std::to_string(i),
+                i == 0 ? BoolEncoding::NativeByte : BoolEncoding::SingleBit, value[0], value[1], value[2], value[3], 1,
+                i == 0 ? std::string("shifted-storage:native") : std::string("shifted-storage:bitfield")};
+        }
+        return result;
+    };
+    for (const std::uint32_t leadingCovered : {0u, 1u}) {
+        Memory fixture; auto snapshot = fixture.predecessor.initial(); auto profile = fixture.predecessor.boolProfile();
+        profile.extent = sizeof(Record); profile.propertyBaseExtent = sizeof(OwnedNativeProperty) + leadingCovered;
+        const auto& source = fixture.predecessor.phase5.phase5.nameMemory(); ReadBudget budget; budget.generation = 1;
+        const auto status = probeBoolProperty(fixture, profile, samples(fixture), source.nameLayout, source.address(64), source.pool, budget, snapshot);
+        if (!leadingCovered) {
+            REQUIRE(status.code == Error::InvalidEvidence); REQUIRE(snapshot.fieldReports.at(boolFields[0]).candidates.size() == 2);
+            for (const auto& field : boolFields) REQUIRE(!snapshot.offsets.contains(field));
+            continue;
+        }
+        REQUIRE(status);
+        const std::array<std::uint32_t, 4> expected{offsetof(Record, fieldSize), offsetof(Record, byteOffset), offsetof(Record, byteMask), offsetof(Record, fieldMask)};
+        for (std::size_t i = 0; i < boolFields.size(); ++i) {
+            REQUIRE(expected[i] == sizeof(OwnedNativeProperty) + 1 + i);
+            REQUIRE(snapshot.offsets.at(boolFields[i]).value == expected[i]);
+            REQUIRE(snapshot.offsets.at(boolFields[i]).validation == Validation::Validated);
+        }
+    }
+}
 void reportBudget() {
     struct Record { OwnedNativeProperty property; std::array<std::uint8_t, 3904> bytes; };
     static_assert(sizeof(Record) <= 4096);
@@ -242,4 +295,4 @@ void reportBudget() {
 }
 
 }
-int main() { success(); metadata(); ambiguity(); failures(); lateChanges(); evidenceAndOverrides(); boundaryAndClosure(); reportBudget(); std::printf("PASS: %u owned Bool/FieldPath checks; independent metadata and bounded reads, no engine execution\n", checks); }
+int main() { success(); metadata(); ambiguity(); failures(); lateChanges(); evidenceAndOverrides(); boundaryAndClosure(); shiftedLayout(); reportBudget(); std::printf("PASS: %u owned Bool/FieldPath checks; independent metadata and bounded reads, no engine execution\n", checks); }

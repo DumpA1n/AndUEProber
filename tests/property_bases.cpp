@@ -36,6 +36,34 @@ int main() {
     CHECK(!failed.offsets.contains("sizeof(FProperty)"));
     CHECK(!failed.offsets.contains("FProperty::SubPropertyBase"));
 
+    // DeltaForce stores one byte before FieldSize that reads 1 on every Bool; the
+    // quartet starts at sizeof(FProperty) + 1 and the base stays aligned below it.
+    OwnedPropertyBases shifted;
+    constexpr std::array<std::uint8_t, 5> leadingByteBool{1, 1, 0, 1, 0xff};
+    for (std::size_t index = 2; index < 4; ++index) {
+        shifted.tails[index].fill(std::byte{0});
+        std::memcpy(shifted.tails[index].data() + shifted.size, leadingByteBool.data(), leadingByteBool.size());
+    }
+    auto shiftedSnapshot = shifted.initial();
+    auto shiftedPointers = shifted.pointerSamples();
+    auto shiftedBools = shifted.boolSamples();
+    budget = {}; budget.generation = shifted.epoch;
+    CHECK(probePropertyBases(shifted, shifted.profile(), shiftedPointers, shiftedBools, budget, shiftedSnapshot));
+    const auto& shiftedSize = shiftedSnapshot.offsets.at("sizeof(FProperty)");
+    CHECK(shiftedSize.value == shifted.size);
+    CHECK(shiftedSize.evidence.front().relativeAddresses.front() == shifted.size + 1);
+
+    // Every NativeBool anchor must place the quartet at the same offset.
+    OwnedPropertyBases disagreeing;
+    disagreeing.tails[3].fill(std::byte{0});
+    std::memcpy(disagreeing.tails[3].data() + disagreeing.size, leadingByteBool.data(), leadingByteBool.size());
+    auto disagreement = disagreeing.initial();
+    auto disagreeingPointers = disagreeing.pointerSamples();
+    auto disagreeingBools = disagreeing.boolSamples();
+    budget = {}; budget.generation = disagreeing.epoch;
+    CHECK(probePropertyBases(disagreeing, disagreeing.profile(), disagreeingPointers, disagreeingBools, budget, disagreement).code == Error::InvalidEvidence);
+    CHECK(!disagreement.offsets.contains("sizeof(FProperty)"));
+
     auto denied = fixture.initial();
     fixture.failure = Error::PermissionDenied;
     budget = {}; budget.generation = fixture.epoch;
@@ -54,5 +82,6 @@ int main() {
     CHECK(probePropertyBases(mutableFixture, mutableFixture.profile(), mutablePointers, mutableBools, budget, changed).code == Error::InvalidEvidence);
     CHECK(!changed.offsets.contains("sizeof(FProperty)"));
     CHECK(!changed.offsets.contains("FProperty::SubPropertyBase"));
-    std::cout << "PASS: FProperty size and SubPropertyBase discovery, ambiguity, read failure and final mutation rejection\n";
+    std::cout << "PASS: FProperty size and SubPropertyBase discovery, shifted and disagreeing NativeBool anchors, "
+        "ambiguity, read failure and final mutation rejection\n";
 }
