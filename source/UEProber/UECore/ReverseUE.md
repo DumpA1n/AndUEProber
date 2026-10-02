@@ -17,7 +17,7 @@ Configured operations copy arrays and strings at admission and borrow referenced
 | 3 | The default object is an instance of its class and carries `RF_ClassDefaultObject`. The CoreUObject intrinsics carry their `EClassCastFlags`, and every class's `CastFlags` include its super class's flags |
 | 4 | Coherent UFunction records validate flags, parameter count/size and native-function pointer |
 | 5 | Independent FField owner/next/class/name relationships, FProperty scalars, base size, subclass base, pointer members and Bool metadata validate the reflection property model. `UFunction::InitializeDerivedMembers` over complete parameter chains reproduces `NumParms` and `ParmsSize` and locates `ReturnValueOffset` |
-| 6 | UEnum arrays and names are validated; ProcessEvent is found through executable UObject vtable relationships and recorded separately |
+| 6 | Each UEnum name array resolves every `TPair<FName, int64>` entry and ends with the generated `_MAX` entry. ProcessEvent is found through executable UObject vtable relationships and recorded separately |
 
 Names are composed as `FName::ToString` does: the display entry when names preserve case, then `_<Number - 1>` when the inline Number is nonzero. Objects that differ only in Number therefore keep distinct names. Object collection skips class default objects, as `GetObjectsOfClass` does by default, because a default object is never linked and its reflected members describe no live struct or function. CoreUObject intrinsic classes are found by exact class, FName and `/Script/CoreUObject` outer, and a duplicate match is refused rather than chosen.
 

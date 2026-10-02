@@ -1535,18 +1535,27 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         auto status = collectObjects(196608, 64,
             [](const ObjectAnchor& anchor) { return anchor.className == "Enum"; }, enums);
         if (!status) return status;
-        std::vector<ObjectAnchor> valid;
+        // UEnum::Names is TArray<TPair<FName, int64>>. Every entry name resolves through
+        // the pool, and UEnum::SetEnums appends the generated <prefix>_MAX key last.
+        const auto entryStride = ((offsets->FName.Size + alignof(std::int64_t) - 1) & ~(alignof(std::int64_t) - 1)) +
+            sizeof(std::int64_t);
+        std::vector<std::string> samples;
         for (const auto& anchor : enums) {
             struct ArrayHeader { std::uintptr_t data; std::int32_t count, capacity; } header{};
             if (!readValue(anchor.address + offsets->UEnum.Names, header)) continue;
-            if (!header.data || header.count <= 0 || header.capacity < header.count || header.capacity > 1024 * 1024 ||
-                !UEMemory::IsPtrReadable(header.data)) continue;
-            valid.push_back(anchor);
-            if (valid.size() == 8) break;
+            if (!header.data || header.count <= 0 || header.count > 4096 || header.capacity < header.count ||
+                header.capacity > 1024 * 1024 || !UEMemory::IsPtrReadable(header.data)) continue;
+            std::string entry;
+            bool resolved = true;
+            for (std::int32_t index = 0; resolved && index < header.count; ++index)
+                resolved = readNameAt(*offsets, header.data + static_cast<std::uintptr_t>(index) * entryStride, entry);
+            if (!resolved || !entry.ends_with("_MAX")) continue;
+            samples.push_back(anchor.identity + ";entries:" + std::to_string(header.count) + ";last:" + entry);
+            if (samples.size() == 8) break;
         }
-        if (valid.size() < 2) return {Error::InvalidEvidence, "Phase 6 requires two populated live UEnum anchors"};
-        const auto samples = identities(valid);
-        if (auto published = publish("UEnum::Names", offsets->UEnum.Names, samples); !published) return published;
+        if (samples.size() < 2) return {Error::InvalidEvidence, "Phase 6 requires two live UEnum name arrays ending in _MAX"};
+        if (auto published = publishChecked("UEnum::Names", offsets->UEnum.Names, samples,
+            "every TPair<FName, int64> entry resolves and the generated _MAX entry is last"); !published) return published;
 
         std::vector<ObjectAnchor> objects;
         status = collectObjects(8192, 512, [](const ObjectAnchor&) { return true; }, objects);
