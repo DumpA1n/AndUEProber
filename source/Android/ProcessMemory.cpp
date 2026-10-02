@@ -388,7 +388,7 @@ Status ProcessMemory::openRemoteByName(pid_t pid, std::span<const std::string> n
     std::uint64_t start = 0;
     if (auto status = processStartTime(pid, start); !status) return status;
     const auto opened = impl_->reader.Open(
-        pid, AndSwapChainHook::Memory::MappingReadPolicy::AllowProcfsForceRead);
+        pid, AndSwapChainHook::Memory::MappingReadPolicy::AllowProcfsUnlistedRead);
     if (!opened) return {convert(opened.error), "Cannot open the explicit target memory channel; system error " + std::to_string(opened.systemError)};
     const auto refreshed = impl_->reader.RefreshMappings();
     if (!refreshed) return {convert(refreshed.error), "Cannot refresh target mappings; system error " + std::to_string(refreshed.systemError)};

@@ -108,6 +108,20 @@ bool boundedUpstreamRead(void*, std::uintptr_t address, void* output, std::size_
 #endif
 }
 
+bool boundedProbeRead(void*, std::uintptr_t address, void* output, std::size_t size) noexcept {
+#if !ANDUEPROBER_HAS_PROCESS_MEMORY
+    (void)address; (void)output; (void)size;
+    return false;
+#else
+    try {
+        return g_Reader && output && static_cast<bool>(andueprober::readExact(*g_Reader, address,
+            {static_cast<std::byte*>(output), size}, g_ReadBudget));
+    } catch (...) {
+        return false;
+    }
+#endif
+}
+
 template<class T>
 andueprober::Status readValue(std::uintptr_t address, T& value) {
 #if !ANDUEPROBER_HAS_PROCESS_MEMORY
@@ -482,7 +496,7 @@ andueprober::Status DetectAndPrepareGame(GameDetectionResult& result)
     g_ObjectDiscovery = std::move(discovery);
     g_NameDiscovery = std::move(names);
     g_SelectedProfile = selected;
-    UEMemory::SetBoundedReader(nullptr, boundedUpstreamRead);
+    UEMemory::SetBoundedReader(nullptr, boundedUpstreamRead, boundedProbeRead);
     if (!UEMemory::kMgr.initialize(targetPid, EK_MEM_OP_SYSCALL, false)) {
         UEMemory::ClearBoundedReader();
         g_SelectedProfile = nullptr;
@@ -609,7 +623,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             std::uintptr_t super = 0;
             if (!readValue(anchor.address + offsets->UStruct.PropertiesSize, size) ||
                 !readValue(anchor.address + offsets->UStruct.SuperStruct, super)) continue;
-            if (size < 0 || size > 64 * 1024 * 1024 || (super && !UEMemory::kPtrValidator.isPtrReadable(super))) continue;
+            if (size < 0 || size > 64 * 1024 * 1024 || (super && !UEMemory::IsPtrReadable(super))) continue;
             valid.push_back(anchor);
             if (valid.size() == 12) break;
         }
@@ -702,7 +716,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             std::uintptr_t field = 0;
             if (!readValue(structure.address + offsets->UStruct.ChildProperties, field)) continue;
             for (std::size_t hop = 0; field && hop < 128 && properties.size() < 65536; ++hop) {
-                if (!seen.insert(field).second || !UEMemory::kPtrValidator.isPtrReadable(field)) break;
+                if (!seen.insert(field).second || !UEMemory::IsPtrReadable(field)) break;
                 UE_FField wrapper(reinterpret_cast<std::uint8_t*>(field));
                 auto fieldName = wrapper.GetName();
                 auto fieldClass = wrapper.GetClass();
@@ -783,7 +797,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                 std::uintptr_t block = 0;
                 const auto blockIndex = static_cast<std::uint32_t>(nameId) >> offsets->FNamePool.BlocksBit;
                 if (!readValue(*g_NameDiscovery.address + offsets->FNamePool.BlocksOff + blockIndex * sizeof(void*), block) ||
-                    !block || !UEMemory::kPtrValidator.isPtrReadable(block)) {
+                    !block || !UEMemory::IsPtrReadable(block)) {
                     matched.clear(); break;
                 }
                 auto observed = g_SelectedProfile->ResolveName(nameId);
@@ -925,7 +939,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                 for (std::uintptr_t candidate = tailStart; candidate <= tailStart + tailWindow; candidate += sizeof(void*)) {
                     std::uintptr_t target = 0;
                     if (!readValue(property.address + candidate, target) || !target ||
-                        !UEMemory::kPtrValidator.isPtrReadable(target)) continue;
+                        !UEMemory::IsPtrReadable(target)) continue;
                     const auto related = structuresByAddress.find(target);
                     if (related == structuresByAddress.end()) continue;
                     const auto& relatedClass = related->second->className;
@@ -1008,7 +1022,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
                     candidate <= *working.offsets.at("FProperty::SubPropertyBase").value + 24; candidate += 8) {
                     std::uintptr_t value = 0;
                     if (!readValue(property->address + candidate, value) || !value) continue;
-                    bool valid = UEMemory::kPtrValidator.isPtrReadable(value);
+                    bool valid = UEMemory::IsPtrReadable(value);
                     if (valid && requireProperty) {
                         std::uintptr_t fieldClass = 0;
                         valid = readValue(value + classOffset, fieldClass) &&
@@ -1089,7 +1103,7 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             struct ArrayHeader { std::uintptr_t data; std::int32_t count, capacity; } header{};
             if (!readValue(anchor.address + offsets->UEnum.Names, header)) continue;
             if (!header.data || header.count <= 0 || header.capacity < header.count || header.capacity > 1024 * 1024 ||
-                !UEMemory::kPtrValidator.isPtrReadable(header.data)) continue;
+                !UEMemory::IsPtrReadable(header.data)) continue;
             valid.push_back(anchor);
             if (valid.size() == 8) break;
         }

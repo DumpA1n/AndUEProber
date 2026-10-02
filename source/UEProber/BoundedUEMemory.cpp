@@ -16,14 +16,21 @@ KittyPtrValidator kPtrValidator;
 namespace {
 thread_local void* readContext = nullptr;
 thread_local BoundedRead boundedRead = nullptr;
+thread_local BoundedRead boundedProbe = nullptr;
 }
-void SetBoundedReader(void* context, BoundedRead reader) noexcept {
+void SetBoundedReader(void* context, BoundedRead reader, BoundedRead probe) noexcept {
     readContext = context;
     boundedRead = reader;
+    boundedProbe = probe;
 }
 void ClearBoundedReader() noexcept {
     boundedRead = nullptr;
+    boundedProbe = nullptr;
     readContext = nullptr;
+}
+bool IsPtrReadable(uintptr_t address) {
+    std::uintptr_t value = 0;
+    return address && boundedProbe && boundedProbe(readContext, address, &value, sizeof(value));
 }
 bool vm_rpm_ptr(const void* address, void* result, size_t length) {
     if ((!address && length) || (!result && length) || length > 16 * 1024 * 1024 || !boundedRead)
