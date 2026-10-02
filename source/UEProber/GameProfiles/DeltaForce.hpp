@@ -162,6 +162,8 @@ public:
             offsets.FProperty.Offset_Internal = offsets.FProperty.PropertyFlags + sizeof(int64_t) + sizeof(int32_t);
             offsets.FProperty.Size = offsets.FProperty.Offset_Internal +
                 (sizeof(int32_t) * 3) + (sizeof(void *) * 4);
+            // ITextData's vtable leads with the two destructors and OwnsLocalizedString.
+            offsets.FTextData.GetDisplayString = 3;
         }
         return &offsets;
     }

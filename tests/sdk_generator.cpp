@@ -51,12 +51,22 @@ int main(int argc, char** argv) {
     layout.MaxChunksOffset = *memory.profile.chunkCapacity;
     std::string header = "#pragma once\n#include <cstdint>\n#include <cstring>\n#include <string>\n#include <functional>\n#include <type_traits>\n#include <cstddef>\n#include \"UEAssert.h\"\nusing int32 = int32_t; using uint8 = uint8_t; using int64 = int64_t;\nnamespace SDK { class UObject;\n";
     header += sdkcoregen::GenUObjectArray(layout);
+    // The chunked fixture reads display strings through ITextData's vtable as Delta
+    // Force does; the flat one reads the stock embedded source string.
+    header += "class FString { public: const char* Data = \"\"; std::string ToString() const { return Data; } };\n";
+    header += sdkcoregen::GenFText(chunked ? sdkcoregen::FTextLayout{0x28, 3} : sdkcoregen::FTextLayout{});
     header += "class UObject { public: ";
     if (indexOffset) header += "uint8 Padding[" + std::to_string(indexOffset) + "]; ";
     header += "int32 InternalIndex; };\nstatic_assert(offsetof(UObject, InternalIndex) == " +
         std::to_string(indexOffset) + ");\n}\n";
 
     std::string runtime = R"CPP(#include "SDK.hpp"
+)CPP";
+    if (chunked) runtime += R"CPP(
+static SDK::FString displayString;
+static const SDK::FString& Display(const SDK::FTextImpl::FTextData*) { return displayString; }
+)CPP";
+    runtime += R"CPP(
 int main() {
     SDK::UObject objects[4]{};
     SDK::FUObjectItem items[4]{};
@@ -67,6 +77,23 @@ int main() {
     runtime += chunked ?
         "SDK::FUObjectItem* chunks[2] = {items, items + 2}; array.ObjObjects.Objects = chunks; array.ObjObjects.NumChunks = array.ObjObjects.MaxChunks = 2;\n" :
         "array.ObjObjects.Objects = items;\n";
+    runtime += R"CPP(
+    SDK::FText text{};
+    if (text.IsValid() || !text.ToString().empty() || !text.GetStringRef().ToString().empty()) return 3;
+)CPP";
+    runtime += chunked ? R"CPP(
+    void* vtable[4] = {nullptr, nullptr, nullptr, reinterpret_cast<void*>(&Display)};
+    SDK::FTextImpl::FTextData data{vtable};
+    displayString.Data = "display";
+    text.TextData = &data;
+    if (text.ToString() != "display" || &text.GetStringRef() != &displayString) return 4;
+)CPP" : R"CPP(
+    SDK::FTextImpl::FTextData data{};
+    data.TextSource.Data = "source";
+    text.TextData = &data;
+    if (offsetof(SDK::FTextImpl::FTextData, TextSource) != 0x28 || text.ToString() != "source" ||
+        &text.GetStringRef() != &data.TextSource) return 4;
+)CPP";
     runtime += R"CPP(
     if (array.GetObjectArrayNum() != 4 || array.IndexToObject(-1) || array.IndexToObject(4)) return 1;
     for (int32 i = 0; i < 4; ++i) {

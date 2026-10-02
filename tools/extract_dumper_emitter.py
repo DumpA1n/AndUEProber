@@ -7,7 +7,7 @@ import json
 from pathlib import Path
 import subprocess
 
-REVISION = "a03b50cc8ad6b3d6843d407667d484133f507265"
+REVISION = "1dd6ce15c7ece7d02bf132eb977d9f4c07485351"
 INPUTS = {
     "LICENSE": "6ad5720f2b9b0f5670438cf7feb7552c7103668fe21fa67a0409af2a2c9c7b95",
     "deps/fmt/LICENSE": "07580f2a3b35709ce703d523f447b242f6dfec7582a8c0df102c7fa2849375f8",
