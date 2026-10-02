@@ -19,6 +19,8 @@ Configured operations copy arrays and strings at admission and borrow referenced
 | 5 | Independent FField owner/next/class/name relationships, FProperty scalars, base size, subclass base, pointer members and Bool metadata validate the reflection property model |
 | 6 | UEnum arrays and names are validated; ProcessEvent is found through executable UObject vtable relationships and recorded separately |
 
+Names are composed as `FName::ToString` does: the display entry when names preserve case, then `_<Number - 1>` when the inline Number is nonzero. Objects that differ only in Number therefore keep distinct names.
+
 At least three distinct named anchors are required for scalar/relationship fields where the algorithm admits comparison. Ambiguity, invalid text, changed relationships or read failures stop the phase without publishing a partially completed automatic result. User overrides survive rediscovery and must agree with current live evidence. Replacing an upstream value invalidates its dependency closure.
 
 `sizeof(FProperty)` and `FProperty::SubPropertyBase` are inferred from independent pointer-tail and NativeBool anchors, not from a configured constant. `FBoolProperty::FieldSize` is the offset at which every NativeBool anchor holds `01 00 01 ff`; the anchors must agree, and the offset must lie in the aligned slot that starts at `sizeof(FProperty)`. ByteOffset, ByteMask and FieldMask follow it. Delta Force stores one byte before FieldSize, so its quartet starts at `sizeof(FProperty) + 1`. Container pointer members establish key/value/element relationships. They do not claim the complete runtime representation of `TArray`, `TSet`, `TMap`, allocators or element storage.

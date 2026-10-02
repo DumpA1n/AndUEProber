@@ -2,6 +2,7 @@
 #include "BuildInfo.hpp"
 #include "BoundedUEMemory.hpp"
 #include "andueprober/Export.hpp"
+#include "andueprober/EngineModel.hpp"
 #include "andueprober/Evidence.hpp"
 #include "andueprober/Properties.hpp"
 #if ANDUEPROBER_HAS_PROCESS_MEMORY
@@ -139,6 +140,32 @@ bool validText(const std::string& value) {
         static_cast<bool>(andueprober::validateUtf8(value));
 }
 
+// FName::ToString of the FName at address under the selected profile's layout: the
+// display entry when names preserve case, followed by the inline Number unless the
+// profile keeps numbers in the entry. Pool block pointers are checked before the
+// profile resolver reads an entry, so a candidate address that is not an FName is
+// a negative answer rather than a recorded read failure.
+bool readNameAt(const UE_Offsets& offsets, std::uintptr_t address, std::string& name) {
+    name.clear();
+    const auto entryOffset = offsets.Config.isUsingCasePreservingName ? offsets.FName.DisplayIndex :
+        offsets.FName.ComparisonIndex;
+    std::int32_t entry = -1;
+    std::uint32_t number = 0;
+    if (!readValue(address + entryOffset, entry) || entry < 0) return false;
+    if (!offsets.Config.isUsingOutlineNumberName &&
+        (!readValue(address + offsets.FName.Number, number) || number > INT32_MAX)) return false;
+    if (offsets.Config.IsUsingFNamePool) {
+        const auto blockIndex = static_cast<std::uint32_t>(entry) >> offsets.FNamePool.BlocksBit;
+        std::uintptr_t block = 0;
+        if (blockIndex >= 8192 || !readValue(*g_NameDiscovery.address + offsets.FNamePool.BlocksOff +
+            blockIndex * sizeof(void*), block) || !block || !UEMemory::IsPtrReadable(block)) return false;
+    }
+    const auto text = g_SelectedProfile->ResolveName(entry);
+    if (!validText(text)) return false;
+    name = andueprober::fnameToString(text, number);
+    return validText(name);
+}
+
 struct ObjectAnchor {
     std::uint32_t index = 0;
     std::uintptr_t address = 0;
@@ -153,6 +180,7 @@ andueprober::Status collectObjects(std::size_t maximumExamined, std::size_t maxi
     if (!maximumAccepted) return {andueprober::Error::InvalidArgument, "Object collection requires a positive result bound"};
     auto* objects = UEWrappers::GetObjects();
     if (!objects) return {andueprober::Error::InvalidEvidence, "The reflection object registry is unavailable"};
+    const auto& offsets = *g_SelectedProfile->AsGameProfile()->GetOffsets();
     const auto count = objects->GetNumElements();
     if (count <= 1 || count > 16 * 1024 * 1024)
         return {andueprober::Error::InvalidEvidence, "The reflection object count is outside the bounded range"};
@@ -161,13 +189,13 @@ andueprober::Status collectObjects(std::size_t maximumExamined, std::size_t maxi
         if (ProbeCancelled()) return {andueprober::Error::Cancelled, "Object collection cancelled"};
         auto pointer = objects->GetObjectPtr(static_cast<std::int32_t>(index));
         if (!pointer) continue;
-        UE_UObject object(pointer);
         ObjectAnchor anchor;
         anchor.index = static_cast<std::uint32_t>(index);
         anchor.address = reinterpret_cast<std::uintptr_t>(pointer);
-        anchor.name = object.GetName();
-        anchor.className = object.GetClass().GetName();
-        if (!validText(anchor.name) || !validText(anchor.className)) continue;
+        std::uintptr_t objectClass = 0;
+        if (!readNameAt(offsets, anchor.address + offsets.UObject.NamePrivate, anchor.name) ||
+            !readValue(anchor.address + offsets.UObject.ClassPrivate, objectClass) || !objectClass ||
+            !readNameAt(offsets, objectClass + offsets.UObject.NamePrivate, anchor.className)) continue;
         anchor.identity = anchor.className + ":" + anchor.name + "#" + std::to_string(index);
         if (accept(anchor)) {
             result.push_back(std::move(anchor));
@@ -514,8 +542,8 @@ andueprober::Status DetectAndPrepareGame(GameDetectionResult& result)
     if (!objects || objects->GetNumElements() <= 1 || objects->GetObjectPtr(1) == nullptr)
         return {Error::InvalidEvidence, "The initialized profile has no usable object registry"};
     const auto firstObject = reinterpret_cast<std::uintptr_t>(objects->GetObjectPtr(1));
-    const auto firstName = UE_UObject(reinterpret_cast<void*>(firstObject)).GetName();
-    if (firstName.empty() || firstName == "None" || firstName.size() > 1024 || !validateUtf8(firstName))
+    std::string firstName;
+    if (!readNameAt(*profileOffsets, firstObject + profileOffsets->UObject.NamePrivate, firstName) || firstName == "None")
         return {Error::InvalidEvidence, "The bounded name-pool contract did not resolve the first live UObject"};
     if (!g_UpstreamReadFailure) return g_UpstreamReadFailure;
     if (auto lease = g_Reader->validateLease(); !lease) return lease;
@@ -717,15 +745,13 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
             if (!readValue(structure.address + offsets->UStruct.ChildProperties, field)) continue;
             for (std::size_t hop = 0; field && hop < 128 && properties.size() < 65536; ++hop) {
                 if (!seen.insert(field).second || !UEMemory::IsPtrReadable(field)) break;
-                UE_FField wrapper(reinterpret_cast<std::uint8_t*>(field));
-                auto fieldName = wrapper.GetName();
-                auto fieldClass = wrapper.GetClass();
-                auto className = fieldClass.GetName();
-                if (!validText(fieldName) || !validText(className)) break;
-                std::uintptr_t next = 0;
-                if (!readValue(field + offsets->FField.Next, next)) break;
-                properties.push_back({field, structure.address,
-                    reinterpret_cast<std::uintptr_t>(fieldClass.GetAddress()), next, fieldName, className,
+                std::string fieldName, className;
+                std::uintptr_t fieldClass = 0, next = 0;
+                if (!readNameAt(*offsets, field + offsets->FField.NamePrivate, fieldName) ||
+                    !readValue(field + offsets->FField.ClassPrivate, fieldClass) || !fieldClass ||
+                    !readNameAt(*offsets, fieldClass + offsets->FFieldClass.Name, className) ||
+                    !readValue(field + offsets->FField.Next, next)) break;
+                properties.push_back({field, structure.address, fieldClass, next, fieldName, className,
                     structure.identity + "/" + className + ":" + fieldName});
                 field = next;
             }
@@ -788,21 +814,10 @@ andueprober::Status RunAutomaticProfilePhase(int phase, andueprober::Snapshot& s
         for (std::uintptr_t candidate = 8; candidate < 56; candidate += alignof(std::int32_t)) {
             std::vector<std::string> matched;
             for (const auto& property : properties) {
-                std::int32_t nameId = -1, number = 0;
-                if (!readValue(property.address + candidate, nameId) ||
-                    !readValue(property.address + candidate + sizeof(nameId), number) || nameId < 0 || number < 0 ||
-                    (static_cast<std::uint32_t>(nameId) >> offsets->FNamePool.BlocksBit) >= 8192) {
+                std::string observed;
+                if (!readNameAt(*offsets, property.address + candidate, observed) || observed != property.name) {
                     matched.clear(); break;
                 }
-                std::uintptr_t block = 0;
-                const auto blockIndex = static_cast<std::uint32_t>(nameId) >> offsets->FNamePool.BlocksBit;
-                if (!readValue(*g_NameDiscovery.address + offsets->FNamePool.BlocksOff + blockIndex * sizeof(void*), block) ||
-                    !block || !UEMemory::IsPtrReadable(block)) {
-                    matched.clear(); break;
-                }
-                auto observed = g_SelectedProfile->ResolveName(nameId);
-                if (number > 0) observed += '_' + std::to_string(number - 1);
-                if (observed != property.name) { matched.clear(); break; }
                 matched.push_back(property.identity);
                 if (matched.size() == 8) break;
             }
