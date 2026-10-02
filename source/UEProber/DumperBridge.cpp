@@ -281,8 +281,9 @@ andueprober::Status findIntrinsicClasses(const UE_Offsets& offsets, std::span<co
 
 // The emitter answers UObject::IsA from FStructBaseChain when the profile claims
 // that layout, and reflection cannot confirm it. Every class that the object table
-// registers must therefore carry an array that is exactly its SuperStruct ancestry,
-// root first, each element addressing that ancestor's own base-chain subobject.
+// registers must therefore carry the array FStructBaseChain::ReinitializeBaseChainArray
+// builds from its SuperStruct ancestry: root first, each element addressing that
+// ancestor's own base-chain subobject.
 // That equality makes the indexed test agree with the walk for every pair of
 // classes. A null array is admitted because the emitted IsA walks for it. A class
 // pointer that is not itself a registered object belongs to a slot whose object is
@@ -328,19 +329,18 @@ andueprober::Status corroborateStructBaseChain(const UE_Offsets& offsets) {
         BaseChain chain{};
         if (auto status = readValue(objectClass + chainOffset, chain); !status) return status;
         if (!chain.array) continue;
-        if (chain.depthMinusOne != static_cast<std::int32_t>(ancestry.size()) - 1)
+        const auto expected = andueprober::structBaseChainArray(ancestry, chainOffset);
+        if (chain.depthMinusOne != static_cast<std::int32_t>(expected.size()) - 1)
             return {Error::InvalidEvidence, "The struct base chain depth disagrees with the SuperStruct walk at class " +
                 std::to_string(objectClass) + ";depth:" + std::to_string(chain.depthMinusOne) +
-                ";walk:" + std::to_string(ancestry.size() - 1)};
-        std::vector<std::uintptr_t> elements(ancestry.size());
+                ";walk:" + std::to_string(expected.size() - 1)};
+        std::vector<std::uintptr_t> elements(expected.size());
         if (auto status = andueprober::readExact(*g_Reader, chain.array,
             std::as_writable_bytes(std::span(elements)), g_ReadBudget); !status) return status;
-        for (std::size_t depth = 0; depth < elements.size(); ++depth) {
-            const auto expected = ancestry[ancestry.size() - 1 - depth] + chainOffset;
-            if (elements[depth] != expected)
+        for (std::size_t depth = 0; depth < elements.size(); ++depth)
+            if (elements[depth] != expected[depth])
                 return {Error::InvalidEvidence, "The struct base chain disagrees with the SuperStruct walk at class " +
                     std::to_string(objectClass) + ";depth:" + std::to_string(depth)};
-        }
         ++populated;
     }
     if (!populated) return {Error::InvalidEvidence, "No class in the object table carries a struct base chain"};
