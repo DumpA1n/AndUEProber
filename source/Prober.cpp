@@ -518,7 +518,12 @@ namespace
                 size_t most = 0;
                 for (uintptr_t off = from; off < from + 0x20; off += 8)
                 {
-                    const size_t count = std::count_if(samples.begin(), samples.end(), [&](uintptr_t p) { return is(ReadPtr(p + off)); });
+                    const size_t count = std::count_if(samples.begin(), samples.end(), [&](uintptr_t p)
+                    {
+                        const uintptr_t fieldClass = ReadPtr(p + o.FField.ClassPrivate);
+                        const uint32_t allocationSize = UE_FFieldClass(reinterpret_cast<uint8_t *>(fieldClass)).GetInstanceSize();
+                        return (!allocationSize || off + sizeof(uintptr_t) <= allocationSize) && is(ReadPtr(p + off));
+                    });
                     if (count > most)
                     {
                         most = count;

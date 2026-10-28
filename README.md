@@ -23,7 +23,11 @@ This produces `libAndUEProber.so` and the `andueprober` executable for arm64-v8a
 
 ## Usage
 
-Injected: load `libAndUEProber.so` with [AndKittyInjector](https://github.com/MJx0/AndKittyInjector), which passes `1337` to `JNI_OnLoad`. The dump starts after 8 seconds, logs under the logcat tag `UEDump3r`, and is written to `/sdcard/Android/data/<package>/files/UEDump3r/<package>`.
+Injected: load `libAndUEProber.so` with [AndKittyInjector](https://github.com/MJx0/AndKittyInjector) or a compatible ZygoteInjector/DaShou injector. The library accepts the same `JNI_OnLoad` reserved arguments as AndUEProber: `1337` for AndKittyInjector and `2006124` for ZygoteInjector/DaShou. The dump starts after 8 seconds, logs under the logcat tag `UEDump3r`, and is written to `/sdcard/Android/data/<package>/files/UEDump3r/<package>`.
+
+```sh
+./AndKittyInjector --package <package> --libs libAndUEProber.so --memfd --hide --watch
+```
 
 External, as root, reading `/proc/<pid>/mem`:
 
@@ -50,6 +54,6 @@ adb shell /data/local/tmp/andueprober -p <package> -o /data/local/tmp/dump
 
 The AndUEDumper profiles are used as they are. `source/GameProfiles` adds Arena Breakout, Delta Force, NiZhan, PUBG, PUBG Mobile HD, Roco Kingdom and Valorant, which share the AArch64 helpers in `IGameProfileAndroid.hpp`. GUObjectArray comes from the reference in `UGameEngine::FinishDestroy` or from byte patterns, whichever first reads as an object array.
 
-Delta Force decodes its encrypted name entries from memory, so it works injected and externally. The other added profiles resolve names by calling the engine's `FName::ToString`, so they work only injected.
+Delta Force decodes its encrypted name entries from memory, so it works injected and externally. Arena Breakout calls the engine's ANSI name decoder; the other added profiles call `FName::ToString`. These profiles work only injected.
 
-Only Delta Force (`com.tencent.tmgp.dfm`) has been verified on a device with this version.
+Delta Force (`com.tencent.tmgp.dfm`) and Arena Breakout (`com.tencent.mf.uam`) have been tested on a device with this version.

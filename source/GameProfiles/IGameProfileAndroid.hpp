@@ -218,16 +218,7 @@ public:
 
         // ToString indexes the name pool unchecked, and the prober passes ids read
         // from candidate offsets, so a fault inside it answers "not a name".
-        static std::atomic<bool> installed{false};
-        if (!installed.exchange(true))
-        {
-            struct sigaction sa{};
-            sa.sa_sigaction = OnFault;
-            sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
-            sigemptyset(&sa.sa_mask);
-            sigaction(SIGSEGV, &sa, &PreviousHandler(SIGSEGV));
-            sigaction(SIGBUS, &sa, &PreviousHandler(SIGBUS));
-        }
+        InstallFaultHandler();
         if (sigsetjmp(FaultJump(), 1) != 0) return "";
         InCall() = true;
         if (IsFNamePassedByValue())
@@ -243,7 +234,32 @@ public:
         return std::string(buf, len);
     }
 
+    std::string GetNameByID_ViaPlainAnsi(int32_t id, uintptr_t function) const
+    {
+        if (id < 0 || !function || kMgr.processID() != getpid()) return {};
+        char buf[1024]{};
+        InstallFaultHandler();
+        if (sigsetjmp(FaultJump(), 1) != 0) return {};
+        InCall() = true;
+        reinterpret_cast<void (*)(const int32_t *, char *)>(function)(&id, buf);
+        InCall() = false;
+        return std::string(buf, strnlen(buf, sizeof(buf)));
+    }
+
 private:
+    static void InstallFaultHandler()
+    {
+        static std::atomic<bool> installed{false};
+        if (!installed.exchange(true))
+        {
+            struct sigaction sa{};
+            sa.sa_sigaction = OnFault;
+            sa.sa_flags = SA_SIGINFO | SA_ONSTACK;
+            sigemptyset(&sa.sa_mask);
+            sigaction(SIGSEGV, &sa, &PreviousHandler(SIGSEGV));
+            sigaction(SIGBUS, &sa, &PreviousHandler(SIGBUS));
+        }
+    }
     static sigjmp_buf &FaultJump() { static thread_local sigjmp_buf jump; return jump; }
     static bool &InCall() { static thread_local bool inCall = false; return inCall; }
     static struct sigaction &PreviousHandler(int sig)

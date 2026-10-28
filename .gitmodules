@@ -1,4 +1,4 @@
 [submodule "external/AndUEDumper"]
 	path = external/AndUEDumper
-	url = https://github.com/DumpA1n/AndUEDumper.git
-	branch = andueprober-clean
+	url = https://github.com/ChunJiangQy/AndUEDumper.git
+	branch = fix/arena-sdk-generation
