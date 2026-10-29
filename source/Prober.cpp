@@ -160,7 +160,7 @@ namespace
 
         uintptr_t package = 0, objectClass = 0, classClass = 0, packageClass = 0;
         uintptr_t structClass = 0, scriptStructClass = 0, functionClass = 0, enumClass = 0;
-        uintptr_t kismet = 0, actor = 0, vector = 0, defaultObject = 0;
+        uintptr_t kismet = 0, actor = 0, vector = 0, defaultObject = 0, guid = 0, transform = 0;
         uintptr_t ubergraph = 0, isValid = 0, printString = 0, beginPlay = 0, tick = 0, getLocation = 0;
         bool usesUProperty = false;
 
@@ -278,9 +278,11 @@ namespace
             packageClass = ClassOf(package);
             const auto found = FindObjects({{"Class", "Struct"}, {"Class", "ScriptStruct"}, {"Class", "Function"},
                                             {"Class", "Enum"}, {"Class", "KismetSystemLibrary"}, {"Class", "Actor"},
-                                            {"ScriptStruct", "Vector"}, {"Object", "Default__Object"}});
+                                            {"ScriptStruct", "Vector"}, {"Object", "Default__Object"},
+                                            {"ScriptStruct", "Guid"}, {"ScriptStruct", "Transform"}});
             structClass = found[0], scriptStructClass = found[1], functionClass = found[2], enumClass = found[3];
             kismet = found[4], actor = found[5], vector = found[6], defaultObject = found[7];
+            guid = found[8], transform = found[9];
             if (!structClass || !functionClass || !kismet || !actor)
             {
                 LOGE("Probe: Struct, Function, KismetSystemLibrary or Actor not found; later offsets stay as profiled");
@@ -331,6 +333,14 @@ namespace
             Set("UStruct::Children", o.UStruct.Children, Scan(objectSize, structSize, 8, [&](uintptr_t off)
             {
                 return ClassOf(ReadPtr(kismet + off)) == functionClass && ClassOf(ReadPtr(objectClass + off)) == functionClass;
+            }));
+            // FGuid is four int32 and FTransform is 16-aligned in every version; the Object
+            // class is aligned as UObject. Functions are not used: a build may leave their
+            // MinAlignment at 1 whatever their parameters.
+            Set("UStruct::MinAlignment", o.UStruct.MinAlignment, Scan(objectSize, structSize, 4, [&](uintptr_t off)
+            {
+                return guid && transform && off != o.UStruct.PropertiesSize && Read<int32_t>(objectClass + off) == 8 &&
+                       Read<int32_t>(guid + off) == 4 && Read<int32_t>(transform + off) == 16;
             }));
 
             // Before UE 4.25 properties are UObjects linked through Children, so

@@ -112,6 +112,7 @@ public:
             offsets.UObject.InternalIndex = offsets.UObject.NamePrivate + offsets.FName.Size;
             offsets.UStruct.PropertiesSize = offsets.UField.Next + (sizeof(void *) * 2) + sizeof(int32_t);
             offsets.UStruct.SuperStruct = offsets.UStruct.PropertiesSize + sizeof(int32_t);
+            offsets.UStruct.MinAlignment = offsets.UStruct.SuperStruct + sizeof(void *);
             offsets.UStruct.Children = offsets.UStruct.SuperStruct + (sizeof(void *) * 2);
             offsets.UStruct.ChildProperties = offsets.UStruct.Children + (sizeof(void *) * 3);
             // The engine's own IsA indexes the struct base chain at SuperStruct - 0x10.
